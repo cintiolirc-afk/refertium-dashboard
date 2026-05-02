@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refertium Portal - Login e licenze</title>
+<style>
+  :root {
+    --bg: #050505;
+    --panel: #0d0d0d;
+    --panel-2: #151515;
+    --line: rgba(235,226,204,.12);
+    --line-strong: rgba(235,226,204,.22);
+    --text: #ebe2cc;
+    --muted: #8f8b80;
+    --soft: #5f5e5a;
+    --accent: #5dcaa5;
+    --accent-soft: rgba(93,202,165,.14);
+    --danger: #bd3f3f;
+    --warn: #d19a45;
+    --ok: #5dcaa5;
+    --cream: #e8dcc4;
+    --radius: 8px;
+    --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+  body { font-size: 14px; line-height: 1.5; }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  .hidden { display: none !important; }
+  .shell { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+  .topbar {
+    min-height: 64px; padding: 12px 24px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 16px; background: rgba(5,5,5,.9);
+    position: sticky; top: 0; z-index: 20; backdrop-filter: blur(18px);
+  }
+  .brand { font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
+  .brand span { color: var(--accent); }
+  .top-spacer { flex: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 28px; padding: 4px 10px;
+    border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--panel);
+    font-size: 12px; white-space: nowrap;
+  }
+  .pill.ok { color: var(--ok); border-color: rgba(93,202,165,.35); background: var(--accent-soft); }
+  .pill.warn { color: var(--warn); border-color: rgba(209,154,69,.35); background: rgba(209,154,69,.1); }
+  .pill.danger { color: #f0a0a0; border-color: rgba(189,63,63,.38); background: rgba(189,63,63,.12); }
+  .btn {
+    min-height: 38px; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 8px 13px;
+    color: var(--text); background: var(--panel-2); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:hover { border-color: rgba(93,202,165,.42); }
+  .btn.primary { background: var(--cream); border-color: var(--cream); color: #171717; font-weight: 700; }
+  .btn.danger { border-color: rgba(189,63,63,.45); color: #ffc4c4; background: rgba(189,63,63,.12); }
+  .icon { width: 16px; height: 16px; display: inline-block; }
+  .login-wrap {
+    min-height: calc(100vh - 64px); display: grid; grid-template-columns: minmax(0, .9fr) minmax(360px, 520px);
+  }
+  .login-copy {
+    padding: clamp(40px, 7vw, 96px); display: flex; flex-direction: column; justify-content: center;
+    border-right: 1px solid var(--line); background: radial-gradient(circle at 20% 20%, rgba(93,202,165,.08), transparent 36%);
+  }
+  .login-copy h1 { margin: 18px 0 18px; max-width: 780px; font-size: clamp(44px, 7vw, 88px); line-height: 1; letter-spacing: -.055em; }
+  .login-copy p { max-width: 560px; color: var(--muted); font-size: 17px; margin: 0; }
+  .login-card { display: flex; align-items: center; justify-content: center; padding: 28px; }
+  .card { width: 100%; border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius); padding: 24px; }
+  .card h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.02em; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .field { display: grid; gap: 7px; margin: 14px 0; }
+  label { color: var(--muted); font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
+  input, select, textarea {
+    width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: #090909; color: var(--text); padding: 9px 11px; outline: none;
+  }
+  textarea { min-height: 96px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { border-color: rgba(93,202,165,.55); box-shadow: 0 0 0 3px rgba(93,202,165,.12); }
+  .hint { color: var(--soft); font-size: 12px; }
+  .error { color: #ffb3b3; min-height: 20px; font-size: 13px; }
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .demo-box { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; color: var(--muted); font-size: 12px; background: #080808; }
+  .demo-box strong { color: var(--text); display: block; margin-bottom: 4px; }
+  .app-layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 64px); }
+  .side { border-right: 1px solid var(--line); padding: 18px; background: #080808; overflow: auto; }
+  .main { min-width: 0; overflow: auto; }
+  .section-title { margin: 18px 0 10px; color: var(--muted); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; background: var(--panel); }
+  .stat b { display: block; font-size: 24px; letter-spacing: -.03em; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  .progress { height: 7px; overflow: hidden; border-radius: 999px; background: #252525; margin-top: 10px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .user-list { display: grid; gap: 8px; }
+  .user-row {
+    width: 100%; border: 1px solid var(--line); border-radius: var(--radius); padding: 11px;
+    background: var(--panel); color: var(--text); text-align: left; display: grid; gap: 4px;
+  }
+  .user-row.active { border-color: rgba(93,202,165,.45); background: rgba(93,202,165,.08); }
+  .user-row small { color: var(--muted); }
+  .panel { padding: 22px; max-width: 1180px; margin: 0 auto; }
+  .grid-2 { display: grid; grid-template-columns: minmax(340px, 420px) minmax(0,1fr); gap: 18px; align-items: start; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+  .table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .table th, .table td { border-bottom: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }
+  .table th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; background: #090909; }
+  .table tr:last-child td { border-bottom: 0; }
+  .viewer { height: calc(100vh - 64px); display: grid; grid-template-rows: auto 1fr; }
+  .viewer-head { border-bottom: 1px solid var(--line); padding: 10px 14px; display: flex; align-items: center; gap: 10px; background: #080808; }
+  .viewer-frame { width: 100%; height: 100%; border: 0; background: white; }
+  .empty { border: 1px dashed var(--line-strong); border-radius: var(--radius); padding: 28px; color: var(--muted); background: #080808; }
+  @media (max-width: 900px) {
+    .login-wrap, .app-layout, .grid-2 { grid-template-columns: 1fr; }
+    .login-copy { border-right: 0; border-bottom: 1px solid var(--line); }
+    .side { border-right: 0; border-bottom: 1px solid var(--line); }
+    .viewer { height: 78vh; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">Refer<span>tium</span></div>
+    <span class="pill" id="sessionPill">Portale accessi</span>
+    <div class="top-spacer"></div>
+    <button class="btn hidden" id="backBtn" type="button">Dashboard</button>
+    <button class="btn hidden" id="logoutBtn" type="button">Esci</button>
+  </header>
+
+  <main id="loginView" class="login-wrap">
+    <section class="login-copy">
+      <span class="pill ok">Login, licenze e token tracking</span>
+      <h1>Un portale per ogni medico.</h1>
+      <p>Ogni utente accede alla propria versione HTML di Refertium. L'admin demo carica l'app personalizzata, imposta la licenza e monitora i token consumati.</p>
+    </section>
+    <section class="login-card">
+      <form class="card" id="loginForm">
+        <h2>Accesso</h2>
+        <p class="sub">Credenziali demo incluse per testare subito il flusso.</p>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="username" value="admin@refertium.local">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" value="refertium-admin">
+        </div>
+        <button class="btn primary" type="submit" style="width:100%">Entra</button>
+        <div class="error" id="loginError"></div>
+        <div class="demo-grid">
+          <div class="demo-box"><strong>Admin demo</strong>admin@refertium.local<br>refertium-admin</div>
+          <div class="demo-box"><strong>Utente demo</strong>demo@refertium.local<br>demo123</div>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <main id="adminView" class="app-layout hidden">
+    <aside class="side">
+      <span class="pill ok">Admin demo</span>
+      <div class="section-title">Utenti</div>
+      <div id="userList" class="user-list"></div>
+      <div class="toolbar">
+        <button class="btn primary" id="newUserBtn" type="button">Nuovo utente</button>
+      </div>
+      <div class="section-title">Totali</div>
+      <div class="stats">
+        <div class="stat"><b id="totalTokens">0</b><span>token mese</span></div>
+        <div class="stat"><b id="totalUsers">0</b><span>utenti</span></div>
+      </div>
+    </aside>
+    <section class="main">
+      <div class="panel">
+        <div class="grid-2">
+          <form class="card" id="userForm">
+            <h2 id="formTitle">Utente</h2>
+            <p class="sub">Carica un HTML Refertium diverso per ogni medico e governa l'accesso.</p>
+            <input id="editingId" type="hidden">
+            <div class="field"><label for="userName">Nome medico</label><input id="userName" required></div>
+            <div class="field"><label for="userEmail">Email login</label><input id="userEmail" type="email" required></div>
+            <div class="field"><label for="userPassword">Password</label><input id="userPassword" required></div>
+            <div class="field">
+              <label for="licenseStatus">Licenza</label>
+              <select id="licenseStatus">
+                <option value="active">Attiva</option>
+                <option value="limited">Limitata</option>
+                <option value="blocked">Bloccata</option>
+              </select>
+            </div>
+            <div class="field"><label for="tokenLimit">Limite token mensile</label><input id="tokenLimit" type="number" min="0" step="1000"></div>
+            <div class="field">
+              <label for="htmlUpload">HTML personalizzato</label>
+              <input id="htmlUpload" type="file" accept=".html,text/html">
+              <div class="hint" id="htmlState">Nessun file caricato.</div>
+            </div>
+            <div class="toolbar">
+              <button class="btn primary" type="submit">Salva utente</button>
+              <button class="btn" id="resetTokensBtn" type="button">Azzera token</button>
+              <button class="btn danger" id="deleteUserBtn" type="button">Elimina</button>
+            </div>
+          </form>
+
+          <div class="card">
+            <h2>Consumi e sessioni</h2>
+            <p class="sub">Il tracking intercetta le chiamate OpenAI dell'HTML caricato quando viene aperto dal portale.</p>
+            <div class="stats">
+              <div class="stat"><b id="userTokens">0</b><span>token consumati</span><div class="progress"><i id="tokenBar"></i></div></div>
+              <div class="stat"><b id="userLimit">0</b><span>limite mensile</span></div>
+            </div>
+            <div class="toolbar">
+              <button class="btn primary" id="launchAsUserBtn" type="button">Apri app utente</button>
+              <button class="btn" id="exportBtn" type="button">Esporta JSON</button>
+            </div>
+            <div class="section-title">Log token</div>
+            <table class="table">
+              <thead><tr><th>Data</th><th>Operazione</th><th>Token</th><th>Origine</th></tr></thead>
+              <tbody id="usageTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <main id="userView" class="main hidden">
+    <div class="panel">
+      <div class="card">
+        <h2 id="welcomeUser">Refertium</h2>
+        <p class="sub" id="licenseText">Licenza pronta.</p>
+        <div class="stats">
+          <div class="stat"><b id="selfTokens">0</b><span>token mese</span><div class="progress"><i id="selfTokenBar"></i></div></div>
+          <div class="stat"><b id="selfLimit">0</b><span>limite</span></div>
+        </div>
+        <div class="toolbar">
+          <button class="btn primary" id="openOwnAppBtn" type="button">Apri Refertium</button>
+        </div>
+        <div id="userBlockedBox" class="empty hidden" style="margin-top:18px"></div>
+      </div>
+    </div>
+  </main>
+
+  <main id="viewerView" class="viewer hidden">
+    <div class="viewer-head">
+      <span class="pill" id="viewerUser">Utente</span>
+      <span class="pill" id="viewerLicense">Licenza</span>
+      <span class="pill ok" id="viewerTokens">0 token</span>
+      <div class="top-spacer"></div>
+      <button class="btn" id="closeViewerBtn" type="button">Chiudi app</button>
+    </div>
+    <iframe id="appFrame" class="viewer-frame" title="Refertium app utente"></iframe>
+  </main>
+</div>
+
+<script>
+(function () {
+  const STORE_KEY = 'refertium_portal_v1';
+  const monthKey = new Date().toISOString().slice(0, 7);
+  let store = loadStore();
+  let session = null;
+  let selectedUserId = store.users.find(u => u.role === 'user')?.id || '';
+  let pendingHtml = null;
+  let lastView = 'login';
+
+  const $ = id => document.getElementById(id);
+
+  function uid() {
+    return 'u_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  }
+
+  function loadStore() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) return normalizeStore(JSON.parse(raw));
+    } catch (e) {}
+    return normalizeStore({
+      users: [
+        { id: 'admin-demo', role: 'admin', name: 'Admin Refertium', email: 'admin@refertium.local', password: 'refertium-admin', license: 'active', tokenLimit: 0, htmlName: '', html: '', usage: {} },
+        { id: 'demo-user', role: 'user', name: 'Dr. Demo', email: 'demo@refertium.local', password: 'demo123', license: 'active', tokenLimit: 600000, htmlName: '', html: '', usage: {} }
+      ]
+    });
+  }
+
+  function normalizeStore(data) {
+    data = data && typeof data === 'object' ? data : {};
+    data.users = Array.isArray(data.users) ? data.users : [];
+    data.users.forEach(u => {
+      u.id = u.id || uid();
+      u.role = u.role || 'user';
+      u.name = u.name || 'Utente';
+      u.email = u.email || '';
+      u.password = u.password || '';
+      u.license = u.license || 'active';
+      u.tokenLimit = Number(u.tokenLimit || 0);
+      u.htmlName = u.htmlName || '';
+      u.html = u.html || '';
+      u.usage = u.usage || {};
+      u.usage[monthKey] = u.usage[monthKey] || { total: 0, events: [] };
+    });
+    return data;
+  }
+
+  function saveStore() {
+    localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  }
+
+  function usageOf(user) {
+    user.usage = user.usage || {};
+    user.usage[monthKey] = user.usage[monthKey] || { total: 0, events: [] };
+    return user.usage[monthKey];
+  }
+
+  function fmt(n) {
+    return Number(n || 0).toLocaleString('it-IT');
+  }
+
+  function licenseLabel(user) {
+    if (!user) return 'Sconosciuta';
+    if (user.license === 'blocked') return 'Bloccata';
+    if (user.license === 'limited') return 'Limitata';
+    return 'Attiva';
+  }
+
+  function licenseClass(user) {
+    if (!user) return '';
+    if (user.license === 'blocked') return 'danger';
+    if (user.license === 'limited') return 'warn';
+    return 'ok';
+  }
+
+  function currentUser() {
+    return session ? store.users.find(u => u.id === session.userId) : null;
+  }
+
+  function selectedUser() {
+    return store.users.find(u => u.id === selectedUserId) || store.users.find(u => u.role === 'user');
+  }
+
+  function show(view) {
+    ['loginView', 'adminView', 'userView', 'viewerView'].forEach(id => $(id).classList.add('hidden'));
+    $(view + 'View').classList.remove('hidden');
+    $('logoutBtn').classList.toggle('hidden', view === 'login');
+    $('backBtn').classList.toggle('hidden', !session || view !== 'viewer');
+    lastView = view === 'viewer' ? lastView : view;
+  }
+
+  function renderTop() {
+    const u = currentUser();
+    if (!u) {
+      $('sessionPill').textContent = 'Portale accessi';
+      $('sessionPill').className = 'pill';
+      return;
+    }
+    $('sessionPill').textContent = u.role === 'admin' ? 'Admin demo' : u.name;
+    $('sessionPill').className = 'pill ' + (u.role === 'admin' ? 'ok' : licenseClass(u));
+  }
+
+  function renderAdmin() {
+    const users = store.users.filter(u => u.role === 'user');
+    if (!selectedUserId && users.length) selectedUserId = users[0].id;
+    const list = $('userList');
+    list.innerHTML = '';
+    users.forEach(u => {
+      const usage = usageOf(u);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'user-row' + (u.id === selectedUserId ? ' active' : '');
+      btn.innerHTML = '<strong>' + escapeHtml(u.name) + '</strong><small>' + escapeHtml(u.email) + ' · ' + licenseLabel(u) + ' · ' + fmt(usage.total) + ' token</small>';
+      btn.addEventListener('click', () => { selectedUserId = u.id; pendingHtml = null; renderAdmin(); });
+      list.appendChild(btn);
+    });
+    $('totalUsers').textContent = fmt(users.length);
+    $('totalTokens').textContent = fmt(users.reduce((sum, u) => sum + usageOf(u).total, 0));
+
+    const u = selectedUser();
+    if (!u) {
+      $('userForm').reset();
+      $('usageTable').innerHTML = '<tr><td colspan="4">Nessun utente.</td></tr>';
+      return;
+    }
+    $('editingId').value = u.id;
+    $('formTitle').textContent = u.name;
+    $('userName').value = u.name;
+    $('userEmail').value = u.email;
+    $('userPassword').value = u.password;
+    $('licenseStatus').value = u.license;
+    $('tokenLimit').value = u.tokenLimit || '';
+    $('htmlState').textContent = u.html ? ('Caricato: ' + (u.htmlName || 'app.html') + ' · ' + fmt(u.html.length) + ' caratteri') : 'Nessun file caricato.';
+    renderUsage(u, 'user');
+  }
+
+  function renderUsage(u, prefix) {
+    const usage = usageOf(u);
+    $(prefix + 'Tokens').textContent = fmt(usage.total);
+    $(prefix + 'Limit').textContent = u.tokenLimit ? fmt(u.tokenLimit) : 'Illimitato';
+    const pct = u.tokenLimit ? Math.min(100, Math.round((usage.total / u.tokenLimit) * 100)) : 0;
+    const bar = prefix === 'user' ? $('tokenBar') : $('selfTokenBar');
+    if (bar) {
+      bar.style.width = pct + '%';
+      bar.style.background = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warn)' : 'var(--accent)';
+    }
+    if (prefix === 'user') {
+      const rows = usage.events.slice().reverse().map(ev => (
+        '<tr><td>' + new Date(ev.at).toLocaleString('it-IT') + '</td><td>' + escapeHtml(ev.operation || 'AI') + '</td><td>' + fmt(ev.tokens) + '</td><td>' + escapeHtml(ev.source || 'usage') + '</td></tr>'
+      ));
+      $('usageTable').innerHTML = rows.join('') || '<tr><td colspan="4">Nessun consumo registrato questo mese.</td></tr>';
+    }
+  }
+
+  function renderUserHome() {
+    const u = currentUser();
+    if (!u) return;
+    $('welcomeUser').textContent = 'Ciao, ' + u.name;
+    $('licenseText').textContent = 'Licenza ' + licenseLabel(u).toLowerCase() + ' · ' + (u.html ? 'app personalizzata disponibile' : 'app non ancora caricata');
+    renderUsage(u, 'self');
+    const blocked = u.license === 'blocked' || !u.html || isOverLimit(u);
+    $('openOwnAppBtn').disabled = blocked;
+    $('userBlockedBox').classList.toggle('hidden', !blocked);
+    if (u.license === 'blocked') $('userBlockedBox').textContent = 'Licenza bloccata. Contatta il supporto Refertium.';
+    else if (!u.html) $('userBlockedBox').textContent = 'Nessun HTML personalizzato assegnato a questo utente.';
+    else if (isOverLimit(u)) $('userBlockedBox').textContent = 'Limite mensile token raggiunto. Le chiamate AI sono sospese.';
+  }
+
+  function isOverLimit(user) {
+    const lim = Number(user.tokenLimit || 0);
+    return lim > 0 && usageOf(user).total >= lim;
+  }
+
+  function login(email, password) {
+    const u = store.users.find(x => x.email.toLowerCase() === String(email).toLowerCase() && x.password === password);
+    if (!u) return false;
+    session = { userId: u.id };
+    renderTop();
+    if (u.role === 'admin') { selectedUserId = selectedUserId || store.users.find(x => x.role === 'user')?.id; renderAdmin(); show('admin'); }
+    else { renderUserHome(); show('user'); }
+    return true;
+  }
+
+  function openViewer(user) {
+    if (!user) return;
+    if (user.license === 'blocked') { alert('Licenza bloccata.'); return; }
+    if (isOverLimit(user)) { alert('Limite token raggiunto.'); return; }
+    if (!user.html) { alert('Carica prima un HTML personalizzato per questo utente.'); return; }
+    $('viewerUser').textContent = user.name;
+    $('viewerLicense').textContent = 'Licenza ' + licenseLabel(user).toLowerCase();
+    $('viewerLicense').className = 'pill ' + licenseClass(user);
+    $('viewerTokens').textContent = fmt(usageOf(user).total) + ' token';
+    lastView = currentUser()?.role === 'admin' ? 'admin' : 'user';
+    show('viewer');
+    $('appFrame').srcdoc = injectTracker(user.html, user);
+  }
+
+  function injectTracker(html, user) {
+    const config = {
+      userId: user.id,
+      name: user.name,
+      license: user.license,
+      tokenLimit: Number(user.tokenLimit || 0),
+      used: usageOf(user).total
+    };
+    const script = '<script>window.__REFERTIUM_PORTAL__=' + JSON.stringify(config).replace(/</g, '\\u003c') + ';(' + portalClient.toString() + ')();<\/script>';
+    if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, m => m + script);
+    return script + html;
+  }
+
+  function portalClient() {
+    const cfg = window.__REFERTIUM_PORTAL__ || {};
+    let used = Number(cfg.used || 0);
+    const limit = Number(cfg.tokenLimit || 0);
+    const originalFetch = window.fetch ? window.fetch.bind(window) : null;
+    function isAiUrl(input) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      return /\/v1\/(chat\/completions|responses|audio\/transcriptions|deepgram\/token)/.test(url);
+    }
+    function readBody(init) {
+      try {
+        if (!init || !init.body || typeof init.body !== 'string') return {};
+        return JSON.parse(init.body);
+      } catch (e) { return {}; }
+    }
+    function estimateFromBody(body, input) {
+      const text = JSON.stringify(body || {});
+      const prompt = Math.ceil(text.length / 4);
+      const maxOut = Number(body.max_tokens || body.max_output_tokens || 0);
+      if (/audio\/transcriptions/.test(String(input && (input.url || input)))) return 800;
+      return Math.max(250, prompt + Math.ceil(maxOut * .45));
+    }
+    function operationFromUrl(input) {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (/audio\/transcriptions/.test(url)) return 'Trascrizione';
+      if (/responses/.test(url)) return 'Chat ricerca';
+      if (/chat\/completions/.test(url)) return 'Generazione';
+      return 'AI';
+    }
+    function post(payload) {
+      try { window.parent.postMessage(Object.assign({ type: 'refertium-token-usage', userId: cfg.userId }, payload), '*'); } catch (e) {}
+    }
+    if (originalFetch) {
+      window.fetch = async function(input, init) {
+        if (cfg.license === 'blocked') throw new Error('Licenza Refertium bloccata.');
+        const ai = isAiUrl(input);
+        const body = readBody(init);
+        const estimate = ai ? estimateFromBody(body, input) : 0;
+        if (ai && limit > 0 && used + estimate > limit) {
+          post({ blocked: true, reason: 'limit', operation: operationFromUrl(input), tokens: 0 });
+          throw new Error('Limite token Refertium raggiunto.');
+        }
+        const response = await originalFetch(input, init);
+        if (ai) {
+          let tokens = 0;
+          let source = 'stima';
+          try {
+            const clone = response.clone();
+            const data = await clone.json();
+            const usage = data && (data.usage || data.response?.usage);
+            tokens = Number(usage && (usage.total_tokens || usage.total_tokens_details?.total_tokens || usage.input_tokens + usage.output_tokens));
+            if (tokens > 0) source = 'OpenAI usage';
+          } catch (e) {}
+          if (!tokens) tokens = estimate;
+          used += tokens;
+          post({ operation: operationFromUrl(input), tokens, source, used });
+        }
+        return response;
+      };
+    }
+  }
+
+  function recordUsage(userId, payload) {
+    const u = store.users.find(x => x.id === userId);
+    if (!u || payload.blocked) return;
+    const usage = usageOf(u);
+    const tokens = Math.max(0, Math.round(Number(payload.tokens || 0)));
+    if (!tokens) return;
+    usage.total += tokens;
+    usage.events.push({
+      at: new Date().toISOString(),
+      operation: payload.operation || 'AI',
+      tokens,
+      source: payload.source || 'stima'
+    });
+    usage.events = usage.events.slice(-500);
+    saveStore();
+    $('viewerTokens').textContent = fmt(usage.total) + ' token';
+    if (session && currentUser()?.role === 'admin') renderAdmin();
+    if (session && currentUser()?.role === 'user') renderUserHome();
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  $('loginForm').addEventListener('submit', ev => {
+    ev.preventDefault();
+    $('loginError').textContent = '';
+    if (!login($('email').value.trim(), $('password').value)) $('loginError').textContent = 'Credenziali non valide.';
+  });
+
+  $('logoutBtn').addEventListener('click', () => {
+    session = null;
+    $('appFrame').srcdoc = '';
+    renderTop();
+    show('login');
+  });
+
+  $('backBtn').addEventListener('click', () => {
+    $('appFrame').srcdoc = '';
+    if (lastView === 'admin') { renderAdmin(); show('admin'); }
+    else { renderUserHome(); show('user'); }
+  });
+
+  $('closeViewerBtn').addEventListener('click', () => $('backBtn').click());
+
+  $('newUserBtn').addEventListener('click', () => {
+    const u = { id: uid(), role: 'user', name: 'Nuovo medico', email: 'nuovo@refertium.local', password: 'demo123', license: 'active', tokenLimit: 600000, htmlName: '', html: '', usage: {} };
+    store.users.push(u);
+    selectedUserId = u.id;
+    saveStore();
+    renderAdmin();
+  });
+
+  $('htmlUpload').addEventListener('change', async ev => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    pendingHtml = { name: file.name, text: await file.text() };
+    $('htmlState').textContent = 'Pronto da salvare: ' + file.name + ' · ' + fmt(pendingHtml.text.length) + ' caratteri';
+  });
+
+  $('userForm').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const u = store.users.find(x => x.id === $('editingId').value);
+    if (!u) return;
+    u.name = $('userName').value.trim();
+    u.email = $('userEmail').value.trim();
+    u.password = $('userPassword').value;
+    u.license = $('licenseStatus').value;
+    u.tokenLimit = Number($('tokenLimit').value || 0);
+    if (pendingHtml) {
+      u.htmlName = pendingHtml.name;
+      u.html = pendingHtml.text;
+      pendingHtml = null;
+      $('htmlUpload').value = '';
+    }
+    saveStore();
+    renderAdmin();
+  });
+
+  $('resetTokensBtn').addEventListener('click', () => {
+    const u = selectedUser();
+    if (!u) return;
+    u.usage[monthKey] = { total: 0, events: [] };
+    saveStore();
+    renderAdmin();
+  });
+
+  $('deleteUserBtn').addEventListener('click', () => {
+    const u = selectedUser();
+    if (!u) return;
+    if (!confirm('Eliminare ' + u.name + '?')) return;
+    store.users = store.users.filter(x => x.id !== u.id);
+    selectedUserId = store.users.find(x => x.role === 'user')?.id || '';
+    saveStore();
+    renderAdmin();
+  });
+
+  $('launchAsUserBtn').addEventListener('click', () => openViewer(selectedUser()));
+  $('openOwnAppBtn').addEventListener('click', () => openViewer(currentUser()));
+
+  $('exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'refertium-portal-export-' + monthKey + '.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  });
+
+  window.addEventListener('message', ev => {
+    const msg = ev.data || {};
+    if (msg.type === 'refertium-token-usage') recordUsage(msg.userId, msg);
+  });
+
+  saveStore();
+  renderTop();
+})();
+</script>
+</body>
+</html>

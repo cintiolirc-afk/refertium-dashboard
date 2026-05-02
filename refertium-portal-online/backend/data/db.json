@@ -1,0 +1,46 @@
+{
+  "users": [
+    {
+      "id": "admin-demo",
+      "role": "admin",
+      "name": "Admin Refertium",
+      "email": "admin@refertium.local",
+      "passwordHash": "a5dd2c884aec19e28f1f8f71d5f26b47:6040ad95eb9f8f5f8f5630a3f4fa8b065c72e984ed942a681f007ca34daa6ffb25783a81cad263674eab444ede999f8bd3ecc6af012ca82a5ef9a3ffa59c4ac9",
+      "license": "active",
+      "tokenLimit": 0,
+      "htmlFile": "",
+      "htmlName": "",
+      "usage": {},
+      "createdAt": "2026-05-02T16:27:53.734Z",
+      "updatedAt": "2026-05-02T16:27:53.734Z"
+    },
+    {
+      "id": "user_11f4e65b7b770a5e9e80",
+      "role": "user",
+      "name": "Nuovo medico",
+      "email": "prova@refertium.local",
+      "passwordHash": "19649a3d54fffd2fb10a436f471032c1:ab486a7055edd5e33ff0412c5918155a2b9189894ecb10333512662e2f58a3f48acabe514f2ce102a42a0fa8c4efc20a78bee8a4ab638107a771384cbb87f54d",
+      "license": "active",
+      "tokenLimit": 600000,
+      "htmlFile": "user_11f4e65b7b770a5e9e80-1777739493741.html",
+      "htmlName": "REFERTIUM_v52-7.html",
+      "usage": {},
+      "createdAt": "2026-05-02T16:31:00.883Z",
+      "updatedAt": "2026-05-02T16:31:43.227Z"
+    },
+    {
+      "id": "user_e02998e40985981bae8c",
+      "role": "user",
+      "name": "Nuovo medico",
+      "email": "nuovo-1777739471879@refertium.local",
+      "passwordHash": "1b9871f8813e8ea4f7f7b1619ec2629b:118aa813f2ad4650d93aae710f360d7fb9a5bf8773d91f48050af5511724ff750ba4ccd9c91f9bae4f87dea6a74e96aa89fd0b2d1e5d53cb7e79be7d09819c0a",
+      "license": "active",
+      "tokenLimit": 600000,
+      "htmlFile": "",
+      "htmlName": "",
+      "usage": {},
+      "createdAt": "2026-05-02T16:31:11.883Z",
+      "updatedAt": "2026-05-02T16:31:11.883Z"
+    }
+  ]
+}
