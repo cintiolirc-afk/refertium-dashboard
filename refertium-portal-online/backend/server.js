@@ -10,6 +10,7 @@ const REFERTIUM_PROXY_MODE = process.env.REFERTIUM_PROXY_MODE || 'cloudflare';
 const CLOUDFLARE_PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || 'https://refertium-api.cintioli-rc.workers.dev';
 const CLOUDFLARE_PROXY_AUTH = process.env.CLOUDFLARE_PROXY_AUTH || 'refertium-sec-2026';
 const WORKER_SHARED_SECRET = process.env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev';
+const ADMIN_BOOTSTRAP_PASSWORD = process.env.REFERTIUM_ADMIN_PASSWORD || 'refertium-admin';
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
@@ -67,7 +68,7 @@ async function loadDb() {
           name: 'Admin Refertium',
           username: 'admin',
           email: 'admin@refertium.local',
-          passwordHash: hashPassword('refertium-admin'),
+          passwordHash: hashPassword(ADMIN_BOOTSTRAP_PASSWORD),
           license: 'active',
           tokenLimit: 0,
           htmlFile: '',
@@ -116,6 +117,11 @@ function normalizeDb(db) {
     }
     if (!user.usage) {
       user.usage = {};
+      changed = true;
+    }
+    if (user.role === 'admin' && process.env.REFERTIUM_ADMIN_PASSWORD && !verifyPassword(ADMIN_BOOTSTRAP_PASSWORD, user.passwordHash)) {
+      user.passwordHash = hashPassword(ADMIN_BOOTSTRAP_PASSWORD);
+      user.updatedAt = new Date().toISOString();
       changed = true;
     }
     if (user.role === 'user' && user.planName == null) {
