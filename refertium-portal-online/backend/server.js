@@ -139,7 +139,8 @@ async function saveDb(db) {
   await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-function publicUser(user) {
+function publicUser(user, options = {}) {
+  const includeUsage = options.includeUsage !== false;
   const session = sessionInfo(user.id);
   return {
     id: user.id,
@@ -148,14 +149,14 @@ function publicUser(user) {
     username: user.username || '',
     email: user.email,
     license: user.license,
-    tokenLimit: Number(user.tokenLimit || 0),
+    tokenLimit: includeUsage ? Number(user.tokenLimit || 0) : 0,
     planName: user.planName || '',
     planPrice: Number(user.planPrice || 0),
     isDemo: Boolean(user.isDemo),
     proxyToken: user.proxyToken || '',
     htmlName: user.htmlName || '',
     hasHtml: Boolean(user.htmlFile),
-    usage: user.usage || {},
+    usage: includeUsage ? (user.usage || {}) : {},
     online: session.online,
     lastSeenAt: session.lastSeenAt,
     createdAt: user.createdAt,
@@ -360,7 +361,7 @@ async function handleApi(req, res, db, user, pathname) {
     if (!found || !verifyPassword(body.password || '', found.passwordHash)) return send(res, 401, { error: 'Credenziali non valide' });
     const sid = id('sid');
     sessions.set(sid, { userId: found.id, createdAt: Date.now() });
-    return send(res, 200, { user: publicUser(found) }, { 'set-cookie': `${COOKIE}=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000` });
+    return send(res, 200, { user: publicUser(found, { includeUsage: found.role === 'admin' }) }, { 'set-cookie': `${COOKIE}=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000` });
   }
   if (pathname === '/api/logout' && req.method === 'POST') {
     const sid = parseCookies(req)[COOKIE];
@@ -369,7 +370,7 @@ async function handleApi(req, res, db, user, pathname) {
   }
   if (pathname === '/api/me' && req.method === 'GET') {
     requireAuth(user);
-    return send(res, 200, { user: publicUser(user) });
+    return send(res, 200, { user: publicUser(user, { includeUsage: user.role === 'admin' }) });
   }
   if (pathname === '/api/license-status' && req.method === 'GET') {
     requireAuth(user);
@@ -385,14 +386,14 @@ async function handleApi(req, res, db, user, pathname) {
     return send(res, 200, {
       allowed: !blocked && !overLimit,
       license: target.license,
-      used: getMonthlyUsage(target).total,
-      tokenLimit: Number(target.tokenLimit || 0),
+      used: user.role === 'admin' ? getMonthlyUsage(target).total : undefined,
+      tokenLimit: user.role === 'admin' ? Number(target.tokenLimit || 0) : undefined,
       message: blocked ? 'La licenza e stata bloccata dall amministratore.' : overLimit ? 'Il limite mensile e stato raggiunto.' : 'Licenza attiva.'
     });
   }
   if (pathname === '/api/users' && req.method === 'GET') {
     requireAdmin(user);
-    return send(res, 200, { users: db.users.filter(u => u.role === 'user').map(publicUser) });
+    return send(res, 200, { users: db.users.filter(u => u.role === 'user').map(u => publicUser(u, { includeUsage: true })) });
   }
   if (pathname === '/api/users' && req.method === 'POST') {
     requireAdmin(user);
