@@ -85,6 +85,9 @@ async function loadDb() {
           passwordHash: hashPassword('demo123'),
           license: 'active',
           tokenLimit: 600000,
+          planName: 'Demo',
+          planPrice: 0,
+          isDemo: true,
           proxyToken: proxyToken(),
           htmlFile: '',
           htmlName: '',
@@ -115,6 +118,18 @@ function normalizeDb(db) {
       user.usage = {};
       changed = true;
     }
+    if (user.role === 'user' && user.planName == null) {
+      user.planName = user.isDemo === false ? 'Standard' : 'Demo';
+      changed = true;
+    }
+    if (user.role === 'user' && user.planPrice == null) {
+      user.planPrice = 0;
+      changed = true;
+    }
+    if (user.role === 'user' && user.isDemo == null) {
+      user.isDemo = Number(user.planPrice || 0) <= 0;
+      changed = true;
+    }
   }
   return changed;
 }
@@ -134,6 +149,9 @@ function publicUser(user) {
     email: user.email,
     license: user.license,
     tokenLimit: Number(user.tokenLimit || 0),
+    planName: user.planName || '',
+    planPrice: Number(user.planPrice || 0),
+    isDemo: Boolean(user.isDemo),
     proxyToken: user.proxyToken || '',
     htmlName: user.htmlName || '',
     hasHtml: Boolean(user.htmlFile),
@@ -393,6 +411,9 @@ async function handleApi(req, res, db, user, pathname) {
       passwordHash: hashPassword(body.password || 'demo123'),
       license: body.license || 'active',
       tokenLimit: Number(body.tokenLimit || 600000),
+      planName: String(body.planName || 'Demo').trim(),
+      planPrice: Number(body.planPrice || 0),
+      isDemo: body.isDemo == null ? true : Boolean(body.isDemo),
       proxyToken: proxyToken(),
       htmlFile: '',
       htmlName: '',
@@ -418,6 +439,9 @@ async function handleApi(req, res, db, user, pathname) {
     if (body.password) target.passwordHash = hashPassword(body.password);
     if (body.license != null) target.license = String(body.license);
     if (body.tokenLimit != null) target.tokenLimit = Number(body.tokenLimit || 0);
+    if (body.planName != null) target.planName = String(body.planName || '').trim();
+    if (body.planPrice != null) target.planPrice = Number(body.planPrice || 0);
+    if (body.isDemo != null) target.isDemo = Boolean(body.isDemo);
     if (body.rotateProxyToken) target.proxyToken = proxyToken();
     target.updatedAt = new Date().toISOString();
     await saveDb(db);
