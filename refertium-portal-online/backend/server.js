@@ -125,6 +125,7 @@ async function saveDb(db) {
 }
 
 function publicUser(user) {
+  const session = sessionInfo(user.id);
   return {
     id: user.id,
     role: user.role,
@@ -137,8 +138,22 @@ function publicUser(user) {
     htmlName: user.htmlName || '',
     hasHtml: Boolean(user.htmlFile),
     usage: user.usage || {},
+    online: session.online,
+    lastSeenAt: session.lastSeenAt,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
+  };
+}
+
+function sessionInfo(userId) {
+  const now = Date.now();
+  let lastSeen = 0;
+  for (const session of sessions.values()) {
+    if (session.userId === userId) lastSeen = Math.max(lastSeen, session.lastSeen || session.createdAt || 0);
+  }
+  return {
+    online: Boolean(lastSeen && now - lastSeen < 5 * 60 * 1000),
+    lastSeenAt: lastSeen ? new Date(lastSeen).toISOString() : ''
   };
 }
 
@@ -182,6 +197,7 @@ async function currentUser(req, db) {
   const sid = parseCookies(req)[COOKIE];
   const session = sid && sessions.get(sid);
   if (!session) return null;
+  session.lastSeen = Date.now();
   return db.users.find(u => u.id === session.userId) || null;
 }
 
