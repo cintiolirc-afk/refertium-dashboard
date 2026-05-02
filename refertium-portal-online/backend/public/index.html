@@ -54,8 +54,8 @@
   }
 
   .mark {
-    width: 36px;
-    height: 36px;
+    width: 42px;
+    height: 42px;
     display: grid;
     place-items: center;
     border: 1px solid rgba(18, 220, 232, .22);
@@ -65,7 +65,7 @@
     flex: 0 0 auto;
   }
 
-  .mark svg { width: 26px; height: 26px; overflow: visible; }
+  .mark svg { width: 31px; height: 31px; overflow: visible; }
   .brand-name { font-size: 19px; font-weight: 780; letter-spacing: -.03em; }
   .brand-name span { color: var(--accent); }
   .spacer { flex: 1; }
@@ -126,10 +126,10 @@
     place-items: center;
     padding: 34px 18px;
     background:
-      linear-gradient(90deg, rgba(144,204,255,.038) 1px, transparent 1px),
-      linear-gradient(180deg, rgba(144,204,255,.038) 1px, transparent 1px),
-      radial-gradient(circle at 50% 46%, rgba(14,141,255,.16), transparent 34%),
-      radial-gradient(circle at 28% 24%, rgba(18,220,232,.10), transparent 26%),
+      linear-gradient(90deg, rgba(144,204,255,.026) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(144,204,255,.026) 1px, transparent 1px),
+      radial-gradient(circle at 50% 46%, rgba(14,141,255,.07), transparent 36%),
+      radial-gradient(circle at 28% 24%, rgba(18,220,232,.055), transparent 28%),
       var(--bg);
     background-size: 44px 44px, 44px 44px, auto, auto, auto;
   }
@@ -141,8 +141,8 @@
     border: 1px solid var(--line-strong);
     border-radius: 14px;
     overflow: hidden;
-    background: linear-gradient(135deg, rgba(9, 24, 45, .9), rgba(4, 12, 26, .92));
-    box-shadow: 0 34px 110px rgba(0, 0, 0, .46);
+    background: linear-gradient(135deg, rgba(4, 12, 26, .96), rgba(2, 8, 18, .98));
+    box-shadow: 0 34px 110px rgba(0, 0, 0, .58);
   }
 
   .login-identity {
@@ -152,8 +152,9 @@
     justify-content: center;
     padding: clamp(28px, 5vw, 56px);
     background:
-      radial-gradient(circle at 43% 48%, rgba(14,141,255,.18), transparent 42%),
-      linear-gradient(135deg, rgba(255,255,255,.035), rgba(255,255,255,.008));
+      radial-gradient(circle at 43% 48%, rgba(14,141,255,.075), transparent 44%),
+      linear-gradient(135deg, rgba(255,255,255,.018), rgba(255,255,255,.004)),
+      #030b18;
   }
 
   .hero-logo {
@@ -163,16 +164,16 @@
   }
 
   .hero-logo .mark {
-    width: 96px;
-    height: 96px;
+    width: 132px;
+    height: 132px;
     border: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
   }
 
-  .hero-logo .mark svg { width: 96px; height: 96px; }
-  .wordmark { font-size: clamp(44px, 6vw, 78px); font-weight: 380; letter-spacing: -.045em; line-height: 1; }
+  .hero-logo .mark svg { width: 132px; height: 132px; }
+  .wordmark { font-size: clamp(58px, 8vw, 104px); font-weight: 380; letter-spacing: -.05em; line-height: 1; }
   .wordmark span { color: inherit; }
 
   .login-identity h1 {
@@ -363,6 +364,7 @@
 
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .toolbar input { max-width: 320px; }
 
@@ -416,7 +418,10 @@
     .login-panel, .app { grid-template-columns: 1fr; }
     .login-identity { min-height: auto; }
     .login-card { border-left: 0; border-top: 1px solid var(--line); }
-    .login-metrics, .cards, .doctor-grid, .two { grid-template-columns: 1fr; }
+    .hero-logo { gap: 16px; }
+    .hero-logo .mark { width: 86px; height: 86px; }
+    .hero-logo .mark svg { width: 86px; height: 86px; }
+    .login-metrics, .cards, .doctor-grid, .two, .three { grid-template-columns: 1fr; }
     .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
     .content { padding: 18px; }
     .page-head { display: grid; }
@@ -515,16 +520,16 @@
       <div class="cards">
         <div class="metric-card"><span>Utenti totali</span><b id="totUsers">0</b><small id="totUsersSub">medici registrati</small></div>
         <div class="metric-card"><span>Online ora</span><b id="onlineUsers">0</b><small>sessioni attive recenti</small></div>
-        <div class="metric-card"><span>Licenze attive</span><b id="activeUsers">0</b><small id="blockedUsers">0 bloccate</small></div>
-        <div class="metric-card"><span>Token mese</span><b id="totTokens">0</b><small>somma utenti</small></div>
+        <div class="metric-card"><span>RRM mensile</span><b id="monthlyRevenue">€0</b><small id="monthlyRevenueSub">ricavi ricorrenti</small></div>
+        <div class="metric-card"><span>Clienti attivi</span><b id="activeUsers">0</b><small id="demoUsers">0 in demo</small></div>
       </div>
       <div class="panel-grid">
         <div class="card">
-          <h3>Utenti collegati alla dashboard</h3>
+          <h3>Utenti e piani</h3>
           <div class="doctor-grid" id="doctorCards"></div>
         </div>
         <div class="card">
-          <h3>Licenze e limiti</h3>
+          <h3>Ricavi e licenze</h3>
           <div id="licenseSummary"></div>
         </div>
       </div>
@@ -567,6 +572,11 @@
             <div class="field"><label>Email opzionale</label><input id="userEmail" type="email"></div>
           </div>
           <div class="field"><label>Password nuova</label><input id="userPass" placeholder="Vuoto = non cambia"></div>
+          <div class="three">
+            <div class="field"><label>Piano</label><input id="planName" placeholder="Demo, Basic, Pro..."></div>
+            <div class="field"><label>Prezzo mensile €</label><input id="planPrice" type="number" min="0" step="1"></div>
+            <div class="field"><label>Tipo account</label><select id="isDemo"><option value="true">Demo</option><option value="false">Pagante</option></select></div>
+          </div>
           <div class="two">
             <div class="field"><label>Licenza</label><select id="license"><option value="active">Attiva</option><option value="limited">Limitata</option><option value="blocked">Bloccata</option></select></div>
             <div class="field"><label>Limite token mensile</label><input id="limit" type="number" min="0" step="1000"></div>
@@ -602,10 +612,9 @@
     <h1 class="page-title" id="hello" style="margin-top:18px">Refertium</h1>
     <p class="sub" id="userStatus"></p>
     <div class="cards" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-      <div class="metric-card"><span>Token mese</span><b id="selfUsed">0</b><small>utilizzati</small></div>
-      <div class="metric-card"><span>Limite</span><b id="selfLimit">0</b><small>mensile</small></div>
+      <div class="metric-card"><span>Piano</span><b id="selfPlan">-</b><small id="selfPlanSub">account</small></div>
+      <div class="metric-card"><span>Applicazione</span><b id="selfAppStatus">-</b><small>Refertium</small></div>
     </div>
-    <div class="bar"><i id="selfBar"></i></div>
     <div class="row" style="margin-top:18px"><button class="primary" id="openSelf" type="button">Apri Refertium</button></div>
     <div class="empty hidden" id="blocked" style="margin-top:16px"></div>
   </section>
@@ -690,8 +699,10 @@ async function api(url, opt = {}) {
 }
 
 function fmt(n) { return Number(n || 0).toLocaleString("it-IT"); }
+function money(n) { return "€" + Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 0 }); }
 function usage(u) { return (u.usage && u.usage[month]) || { total: 0, events: [] }; }
 function limitOf(u) { return Number(u && u.tokenLimit || 0); }
+function planPrice(u) { return Number(u && u.planPrice || 0); }
 function pct(u) { const limit = limitOf(u); return limit ? Math.min(100, Math.round(usage(u).total / limit * 100)) : 0; }
 function esc(s) { return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c])); }
 function licenseLabel(u) { return u.license === "blocked" ? "Bloccata" : u.license === "limited" ? "Limitata" : "Attiva"; }
@@ -721,6 +732,9 @@ function setPage(next) {
 
 function summary() {
   const totalTokens = users.reduce((sum, u) => sum + usage(u).total, 0);
+  const paidUsers = users.filter(u => !u.isDemo && u.license !== "blocked");
+  const demoUsers = users.filter(u => u.isDemo);
+  const monthlyRevenue = paidUsers.reduce((sum, u) => sum + planPrice(u), 0);
   return {
     total: users.length,
     online: users.filter(u => u.online).length,
@@ -729,6 +743,9 @@ function summary() {
     limited: users.filter(u => u.license === "limited").length,
     withHtml: users.filter(u => u.hasHtml).length,
     overLimit: users.filter(overLimit).length,
+    paid: paidUsers.length,
+    demo: demoUsers.length,
+    monthlyRevenue,
     totalTokens
   };
 }
@@ -778,8 +795,9 @@ function renderDashboard() {
   $("totUsers").textContent = fmt(s.total);
   $("onlineUsers").textContent = fmt(s.online);
   $("activeUsers").textContent = fmt(s.active);
-  $("blockedUsers").textContent = `${fmt(s.blocked)} bloccate · ${fmt(s.limited)} limitate`;
-  $("totTokens").textContent = fmt(s.totalTokens);
+  $("demoUsers").textContent = `${fmt(s.demo)} in demo · ${fmt(s.paid)} paganti`;
+  $("monthlyRevenue").textContent = money(s.monthlyRevenue);
+  $("monthlyRevenueSub").textContent = `${fmt(s.paid)} clienti paganti`;
   $("totUsersSub").textContent = `${fmt(s.withHtml)} con HTML caricato`;
 
   const cards = users
@@ -790,10 +808,12 @@ function renderDashboard() {
   $("doctorCards").innerHTML = cards || `<div class="empty">Crea il primo medico per iniziare.</div>`;
 
   $("licenseSummary").innerHTML = `
+    ${summaryRow("Clienti paganti", s.paid, s.total)}
+    ${summaryRow("Utenti in demo", s.demo, s.total)}
     ${summaryRow("Licenze attive", s.active, s.total)}
     ${summaryRow("HTML caricati", s.withHtml, s.total)}
-    ${summaryRow("Limiti raggiunti", s.overLimit, s.total)}
     ${summaryRow("Utenti online", s.online, s.total)}
+    <div class="empty" style="margin-top:14px">RRM attuale: <strong>${money(s.monthlyRevenue)}</strong> al mese</div>
   `;
 }
 
@@ -812,10 +832,10 @@ function doctorCard(u) {
     <div class="meta">
       <span class="pill"><span class="dot ${u.online ? "ok" : ""}"></span>${u.online ? "Online" : "Offline"}</span>
       <span class="pill"><span class="dot ${licenseDot(u)}"></span>${licenseLabel(u)}</span>
-      <span class="pill">${u.hasHtml ? "HTML caricato" : "HTML mancante"}</span>
+      <span class="pill">${u.isDemo ? "Demo" : "Pagante"}</span>
     </div>
     <div class="usage-line"><div class="bar"><i style="width:${percentage}%"></i></div></div>
-    <div class="note" style="margin-top:7px">${fmt(usage(u).total)} token ${limitOf(u) ? "su " + fmt(limitOf(u)) : "· illimitato"}</div>
+    <div class="note" style="margin-top:7px">${esc(u.planName || "Senza piano")} · ${u.isDemo ? "demo" : money(planPrice(u)) + "/mese"}</div>
   </button>`;
 }
 
@@ -830,13 +850,13 @@ function renderUsersTable() {
     return;
   }
   $("usersTable").innerHTML = `<table>
-    <thead><tr><th>Medico</th><th>Stato</th><th>App</th><th>Token</th><th></th></tr></thead>
+    <thead><tr><th>Medico</th><th>Stato</th><th>Piano</th><th>Ricavo</th><th></th></tr></thead>
     <tbody>
       ${rows.map(u => `<tr>
         <td><strong>${esc(u.name)}</strong><br><span class="note">${esc(u.username || u.email)}</span></td>
         <td><span class="pill"><span class="dot ${u.online ? "ok" : licenseDot(u)}"></span>${u.online ? "Online" : licenseLabel(u)}</span></td>
-        <td>${u.hasHtml ? esc(u.htmlName || "app.html") : "<span class='note'>Non caricata</span>"}</td>
-        <td>${fmt(usage(u).total)}${limitOf(u) ? " / " + fmt(limitOf(u)) : ""}</td>
+        <td>${esc(u.planName || "Senza piano")}<br><span class="note">${u.isDemo ? "Demo" : "Pagante"} · ${u.hasHtml ? "HTML caricato" : "HTML mancante"}</span></td>
+        <td>${u.isDemo ? "€0" : money(planPrice(u)) + "/mese"}</td>
         <td><button class="ghost" type="button" data-user="${esc(u.id)}">Apri</button></td>
       </tr>`).join("")}
     </tbody>
@@ -855,6 +875,9 @@ function renderDetail() {
   $("doctorUsername").value = u.username || "";
   $("userEmail").value = u.email || "";
   $("userPass").value = "";
+  $("planName").value = u.planName || "";
+  $("planPrice").value = u.planPrice || 0;
+  $("isDemo").value = u.isDemo ? "true" : "false";
   $("license").value = u.license || "active";
   $("limit").value = u.tokenLimit || "";
   $("htmlInfo").textContent = u.hasHtml ? `Caricato: ${u.htmlName || "app.html"}` : "Nessun file caricato.";
@@ -885,9 +908,9 @@ function renderUser() {
   $("hello").textContent = `Ciao, ${me.name}`;
   $("userLicensePill").innerHTML = `<span class="dot ${licenseDot(me)}"></span>Licenza ${licenseLabel(me).toLowerCase()}`;
   $("userStatus").textContent = me.hasHtml ? "La tua applicazione Refertium e pronta." : "La tua applicazione non e ancora stata caricata.";
-  $("selfUsed").textContent = fmt(usage(me).total);
-  $("selfLimit").textContent = limitOf(me) ? fmt(limitOf(me)) : "Illimitato";
-  $("selfBar").style.width = pct(me) + "%";
+  $("selfPlan").textContent = me.planName || "Refertium";
+  $("selfPlanSub").textContent = me.isDemo ? "demo" : "attivo";
+  $("selfAppStatus").textContent = me.hasHtml ? "Pronta" : "In attesa";
   const blocked = me.license === "blocked" || !me.hasHtml || overLimit(me);
   $("openSelf").disabled = blocked;
   $("blocked").classList.toggle("hidden", !blocked);
@@ -925,7 +948,7 @@ async function createUser() {
   const stamp = Date.now();
   const data = await api("/api/users", {
     method: "POST",
-    body: JSON.stringify({ name: "Nuovo medico", username: "medico" + stamp, email: "", password: "demo123", license: "active", tokenLimit: 600000 })
+    body: JSON.stringify({ name: "Nuovo medico", username: "medico" + stamp, email: "", password: "demo123", license: "active", tokenLimit: 600000, planName: "Demo", planPrice: 0, isDemo: true })
   });
   selected = data.user.id;
   await loadAdmin();
@@ -953,6 +976,9 @@ $("userForm").onsubmit = async e => {
       username: $("doctorUsername").value,
       email: $("userEmail").value,
       password: $("userPass").value || undefined,
+      planName: $("planName").value,
+      planPrice: Number($("planPrice").value || 0),
+      isDemo: $("isDemo").value === "true",
       license: $("license").value,
       tokenLimit: Number($("limit").value || 0)
     })
