@@ -94,6 +94,7 @@ async function loadDb() {
           passwordHash: hashPassword('demo123'),
           license: 'active',
           tokenLimit: 600000,
+          dictationHourLimit: 10,
           planName: 'Demo',
           planPrice: 0,
           isDemo: true,
@@ -134,6 +135,10 @@ function normalizeDb(db) {
     }
     if (user.role === 'user' && user.planName == null) {
       user.planName = user.isDemo === false ? 'Standard' : 'Demo';
+      changed = true;
+    }
+    if (user.role === 'user' && user.dictationHourLimit == null) {
+      user.dictationHourLimit = 10;
       changed = true;
     }
     if (user.role === 'user' && user.planPrice == null) {
@@ -197,6 +202,7 @@ function publicUser(user, options = {}) {
     email: user.email,
     license: user.license,
     tokenLimit: includeUsage ? Number(user.tokenLimit || 0) : 0,
+    dictationHourLimit: includeUsage ? Number(user.dictationHourLimit || 0) : 0,
     planName: user.planName || '',
     planPrice: Number(user.planPrice || 0),
     isDemo: Boolean(user.isDemo),
@@ -299,6 +305,11 @@ function isOverLimit(user) {
   return limit > 0 && getMonthlyUsage(user).total >= limit;
 }
 
+function isOverDictationLimit(user) {
+  const limitHours = Number(user.dictationHourLimit || 0);
+  return limitHours > 0 && Number(getMonthlyUsage(user).dictationSeconds || 0) >= limitHours * 3600;
+}
+
 async function serveStatic(req, res, pathname) {
   const file = pathname === '/' ? path.join(PUBLIC_DIR, 'index.html') : path.join(PUBLIC_DIR, pathname);
   const resolved = path.resolve(file);
@@ -320,6 +331,7 @@ async function serveUserApp(req, res, db, user, targetUserId) {
   if (!target || target.role !== 'user') return send(res, 404, { error: 'Utente non trovato' });
   if (target.license === 'blocked') return send(res, 403, pageMessage('Licenza bloccata', 'Accesso sospeso. Contatta il supporto Refertium.'), { 'content-type': 'text/html; charset=utf-8' });
   if (isOverLimit(target)) return send(res, 402, pageMessage('Limite token raggiunto', 'Il limite mensile e stato raggiunto.'), { 'content-type': 'text/html; charset=utf-8' });
+  if (isOverDictationLimit(target)) return send(res, 402, pageMessage('Limite ore raggiunto', 'Il limite mensile di ore dettate e stato raggiunto.'), { 'content-type': 'text/html; charset=utf-8' });
   if (!target.htmlFile) return send(res, 404, pageMessage('App non caricata', 'L admin deve caricare l HTML personalizzato per questo utente.'), { 'content-type': 'text/html; charset=utf-8' });
   const htmlPath = path.join(UPLOAD_DIR, target.htmlFile);
   const html = injectLicenseGuard(await fs.readFile(htmlPath, 'utf8'), target);
@@ -405,10 +417,49 @@ function injectLicenseGuard(html, user) {
     var url=typeof input==='string'?input:(input&&input.url)||'';
     return /\\/v1\\/(chat\\/completions|responses|audio\\/transcriptions)/.test(url);
   }
+  function aiOperation(input){
+    var url=typeof input==='string'?input:(input&&input.url)||'';
+    if(url.indexOf('/audio/transcriptions')!==-1) return 'Trascrizione';
+    if(url.indexOf('/responses')!==-1) return 'Responses';
+    return 'Chat completions';
+  }
+  function aiIsExternal(input){
+    try{
+      var raw=typeof input==='string'?input:(input&&input.url)||'';
+      return new URL(raw, window.location.href).origin!==window.location.origin;
+    }catch(e){ return true; }
+  }
+  function totalTokensFrom(data){
+    var usage=data&&data.usage;
+    if(!usage) return 0;
+    return Number(usage.total_tokens||usage.totalTokens||((usage.prompt_tokens||usage.input_tokens||0)+(usage.completion_tokens||usage.output_tokens||0)))||0;
+  }
+  function reportAiUsage(payload){
+    var body=JSON.stringify(payload);
+    if(navigator.sendBeacon){
+      try{
+        var blob=new Blob([body],{type:'application/json'});
+        if(navigator.sendBeacon('/api/client-ai-usage',blob)) return;
+      }catch(e){}
+    }
+    fetch('/api/client-ai-usage',{method:'POST',headers:{'content-type':'application/json'},body:body,credentials:'same-origin',keepalive:true}).catch(function(){});
+  }
   if(window.fetch){
     var originalFetch=window.fetch.bind(window);
-    window.fetch=function(input,init){
-      return originalFetch(input,init);
+    window.fetch=async function(input,init){
+      var isAi=aiUrl(input);
+      var resp=await originalFetch(input,init);
+      if(isAi && aiIsExternal(input)){
+        try{
+          var cloned=resp.clone();
+          var data=await cloned.json();
+          var tokens=totalTokensFrom(data);
+          if(tokens){
+            reportAiUsage({userId:USER_ID,operation:aiOperation(input),tokens:tokens,status:resp.status,source:'browser'});
+          }
+        }catch(e){}
+      }
+      return resp;
     };
   }
 })();
@@ -502,13 +553,28 @@ function buildDoctorBadgeHTML(user) {
   const lastName = user.lastName || String(user.name || '').split(/\s+/).slice(-1)[0] || '';
   const specs = safeSpecialties(user.specialties).map(key => SPECIALTIES.find(s => s.key === key)).filter(Boolean);
   const iconHtml = specs.length === 1
-    ? `    <span class="doctor-badge-specialty" title="${escapeHtml(specs[0].label)}" aria-label="${escapeHtml(specs[0].label)}">${escapeHtml(specs[0].initials)}</span>\n`
+    ? `    <span class="doctor-badge-specialty" title="${escapeHtml(specs[0].label)}" aria-label="${escapeHtml(specs[0].label)}">${specialtyIconSvg(specs[0].key)}</span>\n`
     : `    <span class="doctor-badge-specialties" title="${escapeHtml(specs.map(s => s.label).join(' + '))}" aria-label="${escapeHtml(specs.map(s => s.label).join(' + '))}">\n` +
-      specs.map(s => `      <span class="doctor-badge-specialty">${escapeHtml(s.initials)}</span>\n`).join('') +
+      specs.map(s => `      <span class="doctor-badge-specialty" title="${escapeHtml(s.label)}">${specialtyIconSvg(s.key)}</span>\n`).join('') +
       '    </span>\n';
   return iconHtml +
     '    <span class="doctor-badge-divider" aria-hidden="true"></span>\n' +
     `    <span class="doctor-badge-name">${escapeHtml(lastName)}, ${escapeHtml(firstName)} <span class="doctor-badge-md">MD</span></span>\n`;
+}
+
+function specialtyIconSvg(key) {
+  const common = 'viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"';
+  const stroke = 'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"';
+  const icons = {
+    neuro: `<svg ${common}><path ${stroke} d="M15 6c-4.5 0-8 3.5-8 8.3 0 3.1 1.5 5.4 3.8 7"/><path ${stroke} d="M17 6c4.5 0 8 3.5 8 8.3 0 3.1-1.5 5.4-3.8 7"/><path ${stroke} d="M11 21.3V25h10v-3.7"/><path ${stroke} d="M11 12.5c2.2-.2 3.7.7 4.4 2.5M21 12.5c-2.2-.2-3.7.7-4.4 2.5M13 18h6"/></svg>`,
+    body: `<svg ${common}><path ${stroke} d="M16 6c3.3 0 6 2.7 6 6v9c0 2.8-2.2 5-5 5h-2c-2.8 0-5-2.2-5-5v-9c0-3.3 2.7-6 6-6Z"/><path ${stroke} d="M10 15h12M13 6v20M19 6v20"/></svg>`,
+    msk: `<svg ${common}><path ${stroke} d="M11 7c2 3 2 5.5 0 8.5s-2 5.5 0 8.5"/><path ${stroke} d="M21 7c-2 3-2 5.5 0 8.5s2 5.5 0 8.5"/><path ${stroke} d="M10 10h12M10 16h12M10 22h12"/></svg>`,
+    senologia: `<svg ${common}><path ${stroke} d="M16 7c-5 4.2-8 7.6-8 12a8 8 0 0 0 16 0c0-4.4-3-7.8-8-12Z"/><path ${stroke} d="M13 18c1.2-1.2 4.8-1.2 6 0"/></svg>`,
+    toracica: `<svg ${common}><path ${stroke} d="M15 8c-4 2-7 5.8-7 11.5V25c3.8-.4 6.8-3.8 7-8V8Z"/><path ${stroke} d="M17 8c4 2 7 5.8 7 11.5V25c-3.8-.4-6.8-3.8-7-8V8Z"/><path ${stroke} d="M16 7v19"/></svg>`,
+    eco: `<svg ${common}><path ${stroke} d="M10 7h12l-2 11a4 4 0 0 1-8 0L10 7Z"/><path ${stroke} d="M13 25h6M16 21v4M12 11h8"/></svg>`,
+    urgenza: `<svg ${common}><path ${stroke} d="M16 5v22M5 16h22"/><path ${stroke} d="M9 9l14 14M23 9 9 23"/></svg>`
+  };
+  return icons[key] || icons.urgenza;
 }
 
 function extractWhisperKeywords(text) {
@@ -588,7 +654,7 @@ async function handleApi(req, res, db, user, pathname) {
     if (!found || !verifyPassword(body.password || '', found.passwordHash)) return send(res, 401, { error: 'Credenziali non valide' });
     const sid = id('sid');
     sessions.set(sid, { userId: found.id, createdAt: Date.now() });
-    return send(res, 200, { user: publicUser(found, { includeUsage: found.role === 'admin' }) }, { 'set-cookie': `${COOKIE}=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000` });
+    return send(res, 200, { user: publicUser(found, { includeUsage: true }) }, { 'set-cookie': `${COOKIE}=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000` });
   }
   if (pathname === '/api/logout' && req.method === 'POST') {
     const sid = parseCookies(req)[COOKIE];
@@ -597,7 +663,7 @@ async function handleApi(req, res, db, user, pathname) {
   }
   if (pathname === '/api/me' && req.method === 'GET') {
     requireAuth(user);
-    return send(res, 200, { user: publicUser(user, { includeUsage: user.role === 'admin' }) });
+    return send(res, 200, { user: publicUser(user, { includeUsage: true }) });
   }
   if (pathname === '/api/license-status' && req.method === 'GET') {
     requireAuth(user);
@@ -610,12 +676,16 @@ async function handleApi(req, res, db, user, pathname) {
     if (!target || target.role !== 'user') return send(res, 404, { allowed: false, message: 'Utente non trovato.' });
     const blocked = target.license === 'blocked';
     const overLimit = isOverLimit(target);
+    const overDictationLimit = isOverDictationLimit(target);
+    const usage = getMonthlyUsage(target);
     return send(res, 200, {
-      allowed: !blocked && !overLimit,
+      allowed: !blocked && !overLimit && !overDictationLimit,
       license: target.license,
-      used: user.role === 'admin' ? getMonthlyUsage(target).total : undefined,
+      used: user.role === 'admin' ? usage.total : undefined,
       tokenLimit: user.role === 'admin' ? Number(target.tokenLimit || 0) : undefined,
-      message: blocked ? 'La licenza e stata bloccata dall amministratore.' : overLimit ? 'Il limite mensile e stato raggiunto.' : 'Licenza attiva.'
+      dictationSeconds: user.role === 'admin' ? Number(usage.dictationSeconds || 0) : undefined,
+      dictationHourLimit: user.role === 'admin' ? Number(target.dictationHourLimit || 0) : undefined,
+      message: blocked ? 'La licenza e stata bloccata dall amministratore.' : overLimit ? 'Il limite mensile token e stato raggiunto.' : overDictationLimit ? 'Il limite mensile di ore dettate e stato raggiunto.' : 'Licenza attiva.'
     });
   }
   if (pathname === '/api/dictation-usage' && req.method === 'POST') {
@@ -635,6 +705,25 @@ async function handleApi(req, res, db, user, pathname) {
       dictationSeconds: seconds,
       source: body.source || 'app',
       status: 200
+    });
+    return send(res, 200, { ok: true, usage: getMonthlyUsage(target) });
+  }
+  if (pathname === '/api/client-ai-usage' && req.method === 'POST') {
+    requireAuth(user);
+    const body = await readJson(req);
+    let target = user.role === 'user' ? user : null;
+    if (user.role === 'admin') {
+      const appUserId = parseCookies(req)[APP_USER_COOKIE];
+      const requestedId = String(body.userId || appUserId || '');
+      target = db.users.find(u => u.id === requestedId && u.role === 'user') || null;
+    }
+    if (!target || target.role !== 'user') return send(res, 404, { ok: false, error: 'Utente non trovato' });
+    await recordTokens(db, target, {
+      operation: body.operation || 'AI',
+      tokens: Number(body.tokens || 0),
+      dictationSeconds: Number(body.dictationSeconds || 0),
+      source: body.source || 'browser',
+      status: Number(body.status || 200)
     });
     return send(res, 200, { ok: true, usage: getMonthlyUsage(target) });
   }
@@ -684,6 +773,7 @@ async function handleApi(req, res, db, user, pathname) {
       passwordHash: hashPassword(body.password || 'demo123'),
       license: body.license || 'active',
       tokenLimit: Number(body.tokenLimit || 600000),
+      dictationHourLimit: Number(body.dictationHourLimit || 10),
       planName: String(body.planName || 'Demo').trim(),
       planPrice: Number(body.planPrice || 0),
       isDemo: body.isDemo == null ? true : Boolean(body.isDemo),
@@ -718,6 +808,7 @@ async function handleApi(req, res, db, user, pathname) {
     if (body.password) target.passwordHash = hashPassword(body.password);
     if (body.license != null) target.license = String(body.license);
     if (body.tokenLimit != null) target.tokenLimit = Number(body.tokenLimit || 0);
+    if (body.dictationHourLimit != null) target.dictationHourLimit = Number(body.dictationHourLimit || 0);
     if (body.planName != null) target.planName = String(body.planName || '').trim();
     if (body.planPrice != null) target.planPrice = Number(body.planPrice || 0);
     if (body.isDemo != null) target.isDemo = Boolean(body.isDemo);
@@ -798,16 +889,20 @@ async function handleApi(req, res, db, user, pathname) {
     const target = db.users.find(u => u.role === 'user' && u.proxyToken === body.proxyToken);
     if (!target) return send(res, 401, { allowed: false, error: 'Token proxy non valido' });
     const usage = getMonthlyUsage(target);
-    const allowed = target.license !== 'blocked' && !isOverLimit(target);
+    const overDictationLimit = isOverDictationLimit(target);
+    const allowed = target.license !== 'blocked' && !isOverLimit(target) && !overDictationLimit;
     return send(res, 200, {
       allowed,
       userId: target.id,
       name: target.name,
       license: target.license,
       tokenLimit: Number(target.tokenLimit || 0),
+      dictationHourLimit: Number(target.dictationHourLimit || 0),
       used: usage.total,
+      dictationSeconds: Number(usage.dictationSeconds || 0),
       remaining: Number(target.tokenLimit || 0) ? Math.max(0, Number(target.tokenLimit || 0) - usage.total) : null,
-      reason: allowed ? null : target.license === 'blocked' ? 'license_blocked' : 'token_limit_reached'
+      dictationRemainingSeconds: Number(target.dictationHourLimit || 0) ? Math.max(0, Number(target.dictationHourLimit || 0) * 3600 - Number(usage.dictationSeconds || 0)) : null,
+      reason: allowed ? null : target.license === 'blocked' ? 'license_blocked' : isOverLimit(target) ? 'token_limit_reached' : 'dictation_limit_reached'
     });
   }
   if (pathname === '/api/proxy/usage' && req.method === 'POST') {
