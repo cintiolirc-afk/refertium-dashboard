@@ -2330,12 +2330,12 @@
   /* ── DICTATION STATES ── */
   .report.dict-recording {
     border-color: var(--rec-color) !important;
-    box-shadow: 0 0 0 2px rgba(220,38,38,0.12) !important;
-    animation: dict-border-pulse 1.4s ease-in-out infinite;
+    box-shadow: none !important;
+    animation: none !important;
   }
   .report.dict-recording:focus,
   .report.dict-recording:focus-within {
-    box-shadow: 0 0 0 2px rgba(220,38,38,0.12) !important;
+    box-shadow: none !important;
   }
   @keyframes dict-border-pulse {
     0%,100% { box-shadow: 0 0 0 2px rgba(220,38,38,0.12); }
@@ -2354,16 +2354,30 @@
   @keyframes dict-rec-blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
   .report .dict-interim {
-    color: var(--muted); font-style: italic; opacity: 0.7;
-    background: var(--accent-soft); padding: 0 2px; border-radius: 3px;
+    display: inline !important;
+    color: var(--paper-muted);
+    font-style: normal;
+    opacity: 1;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
   }
   .report .dict-interim::after {
     content: '▍'; margin-left: 1px;
     animation: dict-caret-blink 900ms steps(2) infinite;
-    color: var(--text);
+    color: var(--rec-color);
   }
   @keyframes dict-caret-blink { 0%,50%{opacity:1} 51%,100%{opacity:0} }
-  .report .dict-pending { color: var(--text-dim); background: var(--accent-soft); padding: 0 2px; border-radius: 3px; }
+  .report .dict-session,
+  .report .dict-pending {
+    display: inline !important;
+    color: inherit;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
 
   /* Flash giallo-blu sullo span quando la slow pipeline sostituisce il testo Deepgram
      con la versione gpt-4o-transcribe + cleanup. Comunica visivamente "AI ha migliorato qui"
@@ -4967,6 +4981,33 @@
     color: var(--paper-text) !important;
     border-color: rgba(112,247,255,.28) !important;
   }
+  .report.dict-recording {
+    border-color: var(--rec-color) !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+  .report.dict-recording:focus,
+  .report.dict-recording:focus-within {
+    box-shadow: none !important;
+  }
+  .report .dict-session,
+  .report .dict-pending,
+  .report .dict-interim {
+    display: inline !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+  .report .dict-pending {
+    color: inherit !important;
+  }
+  .report .dict-interim {
+    color: var(--paper-muted) !important;
+    font-style: normal !important;
+  }
+  .report .dict-interim::after {
+    color: var(--rec-color) !important;
+  }
   .report-container {
     background:
       radial-gradient(circle at 50% 0%, rgba(0,230,240,.08), transparent 34rem),
@@ -5347,6 +5388,86 @@
   body[data-theme="dark"] .inline-section-text,
   body[data-theme="dark"] .report textarea {
     caret-color: #dffbff !important;
+  }
+
+  /* Final dictation override: during REC the report must show one aligned frame only. */
+  body .report.dict-recording,
+  body[data-theme="dark"] .report.dict-recording,
+  body[data-theme="light"] .report.dict-recording,
+  body .report.dict-recording[contenteditable="true"]:focus,
+  body .report.dict-recording:focus,
+  body .report.dict-recording:focus-within {
+    border-color: transparent !important;
+    box-shadow: 0 0 0 2px var(--rec-color) !important;
+    outline: none !important;
+    animation: none !important;
+  }
+  body .report.dict-recording::before,
+  body[data-theme="dark"] .report.dict-recording::before,
+  body[data-theme="light"] .report.dict-recording::before {
+    content: '● REC' !important;
+    position: absolute !important;
+    inset: auto !important;
+    top: 16px !important;
+    left: 18px !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--rec-color) !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+    opacity: 0.88 !important;
+  }
+
+  /* Report font selector: these final rules must win over premium theme overrides. */
+  body .report.report-font-garamond,
+  body .report.report-font-garamond .dict-interim,
+  body .report.report-font-garamond .dict-session,
+  body .report.report-font-garamond .rpt-para,
+  body .report.report-font-garamond .sc-text,
+  body .report.report-font-garamond .sc-impression-text {
+    font-family: 'EB Garamond', Garamond, 'Apple Garamond', Georgia, serif !important;
+  }
+  body .report.report-font-times,
+  body .report.report-font-times .dict-interim,
+  body .report.report-font-times .dict-session,
+  body .report.report-font-times .rpt-para,
+  body .report.report-font-times .sc-text,
+  body .report.report-font-times .sc-impression-text {
+    font-family: 'Times New Roman', Times, serif !important;
+  }
+  body .report.report-font-courier,
+  body .report.report-font-courier .dict-interim,
+  body .report.report-font-courier .dict-session,
+  body .report.report-font-courier .rpt-para,
+  body .report.report-font-courier .sc-text,
+  body .report.report-font-courier .sc-impression-text {
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+  body .report.report-font-roboto,
+  body .report.report-font-roboto .dict-interim,
+  body .report.report-font-roboto .dict-session,
+  body .report.report-font-roboto .rpt-para,
+  body .report.report-font-roboto .sc-text,
+  body .report.report-font-roboto .sc-impression-text {
+    font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif !important;
+  }
+  body .report.report-font-system,
+  body .report.report-font-system .dict-interim,
+  body .report.report-font-system .dict-session,
+  body .report.report-font-system .rpt-para,
+  body .report.report-font-system .sc-text,
+  body .report.report-font-system .sc-impression-text {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important;
   }
 
   /* Light checklist contrast fix: anatomy names must stay readable. */
@@ -12333,7 +12454,7 @@ async function startLiveDictation(btn, targetEl) {
   /* Interim live-cursor span */
   const interim = document.createElement('span');
   interim.className = 'dict-interim';
-  interim.textContent = 'in ascolto…';
+  interim.textContent = '';
   session.appendChild(interim);
   liveDict.interimEl = interim;
 
@@ -13166,8 +13287,8 @@ async function liveDictStartDeepgram() {
       const isFinal = !!msg.is_final;
 
       if (!transcript) {
-        /* Empty interim — update cursor to show listening */
-        if (liveDict.interimEl) liveDict.interimEl.textContent = ' listening…';
+        /* Empty interim: keep only the blinking caret, no separate label box. */
+        if (liveDict.interimEl) liveDict.interimEl.textContent = '';
         return;
       }
 
@@ -13210,7 +13331,7 @@ async function liveDictStartDeepgram() {
         liveDict.segmentEls.push(seg);
         liveDict.contextBuffer = ((liveDict.contextBuffer || '') + ' ' + transcript).slice(-800);
         /* Reset interim to listening state */
-        if (liveDict.interimEl) liveDict.interimEl.textContent = ' …';
+        if (liveDict.interimEl) liveDict.interimEl.textContent = '';
         try { seg.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch(e) {}
       } else {
         /* Update interim with partial result */
@@ -14153,8 +14274,14 @@ async function generateFinalReport() {
       const findings = gatherStructuredFindings();
       const mainTextFindings = gatherMainTextFindings();
       const globalDict = (document.getElementById('globalDictationInput')?.value || '').trim();
-      userInputForDraft = '[Conclusioni AI da checklist + main text]';
-      userMsg = `INTESTAZIONE STUDIO:\n${header}\n\nDATI CHECKLIST STRUTTURATA (normalità, non valutabilità, reperti semplici):\n${findings || '(nessun elemento selezionato)'}\n\nMAIN TEXT DEL MEDICO (reperti patologici complessi dettati/scritti liberamente):\n${mainTextFindings || '(nessun reperto libero nel main text)'}\n\nDETTATURA GLOBALE / NOTE AGGIUNTIVE:\n${globalDict || '(nessuna)'}\n\n---\nGenera il referto radiologico finale IN ITALIANO, con struttura a sezioni (titoli in MAIUSCOLO) e un paragrafo finale intitolato "${impressionsLabel}".\n\nLOGICA DI INTEGRAZIONE OBBLIGATORIA:\n- La CHECKLIST rappresenta soprattutto le strutture normali o già valutate. Mantieni i normali flaggati come normali nel referto, senza trasformarli in patologia.\n- Il MAIN TEXT è la sede primaria dei reperti patologici complessi dettati o scritti dal medico. Deve essere integrato nel corpo del referto nella sezione anatomica più appropriata, con priorità rispetto ai normali della checklist se riguarda la stessa struttura.\n- Se checklist e main text parlano della stessa struttura, non creare contraddizioni: conserva il reperto patologico del main text e usa la checklist solo per le altre strutture normali.\n- Non lasciare il main text come nota separata se può essere integrato in una sezione clinica corretta.\n- Non inventare misure, sedi, lateralità o patologie non presenti nei dati.\n\nREGOLE TASSATIVE PER LE CONCLUSIONI:\n- Le conclusioni devono riferirsi SOLO all'esame indicato nell'intestazione e ai reperti riportati sopra.\n- Non rimandare a esami diversi, metodiche diverse o distretti non presenti nei dati.\n- Non proporre controlli, follow-up, approfondimenti o confronti con precedenti se non sono stati richiesti esplicitamente nei dati del medico.\n- Se i dati sono normali, scrivi una conclusione breve di normalità e basta.\n- Se i dati sono poveri o ambigui, resta descrittivo e prudente: non riempire il vuoto con ipotesi non supportate.\n\nProduci un referto coerente e pronto da incollare nel PACS, in italiano radiologico professionale.`;
+      const currentReportText = normalizeReportText(rep?.innerText || rep?.textContent || '');
+      userInputForDraft = '[Conclusioni AI sul referto generato da checklist]';
+      if (currentReportText && currentReportText.length > 30) {
+        const ctxStr = (typeof buildExamContextString === 'function') ? buildExamContextString() : '';
+        userMsg = `REFERTO ATTUALE GENERATO DALLA CHECKLIST:\n${currentReportText}\n${ctxStr}\n\nCONTESTO SECONDARIO DELLA CHECKLIST, DA USARE SOLO PER RISOLVERE AMBIGUITÀ:\n${findings || '(nessun elemento checklist disponibile)'}\n\nMAIN TEXT / DETTATURA LIBERA EVENTUALE:\n${mainTextFindings || globalDict || '(nessuna nota libera)'}\n\n---\nLavora SOLO sul REFERTO ATTUALE qui sopra.\n\nCompito:\n- Mantieni il corpo del referto già generato.\n- Se manca la sezione "${impressionsLabel}", aggiungila in coda.\n- Se la sezione "${impressionsLabel}" esiste già, sostituiscila con conclusioni corrette.\n- Le conclusioni devono derivare SOLO dai reperti realmente presenti nel referto attuale.\n\nREGOLE TASSATIVE:\n- Non usare il template o esempi interni per dedurre un altro esame.\n- Non inserire sempre lo stesso esame: riconosci esame, metodica e distretto esclusivamente dal testo del referto attuale.\n- Non citare esami, metodiche, distretti, follow-up, controlli o approfondimenti non presenti nel referto attuale.\n- Non inventare reperti, misure, diagnosi o raccomandazioni.\n- Se il referto è normale, scrivi una conclusione breve di normalità e basta.\n- Restituisci l'intero referto aggiornato in TESTO PIANO, senza markdown.`;
+      } else {
+        userMsg = `INTESTAZIONE STUDIO:\n${header}\n\nDATI CHECKLIST STRUTTURATA (normalità, non valutabilità, reperti semplici):\n${findings || '(nessun elemento selezionato)'}\n\nMAIN TEXT DEL MEDICO (reperti patologici complessi dettati/scritti liberamente):\n${mainTextFindings || '(nessun reperto libero nel main text)'}\n\nDETTATURA GLOBALE / NOTE AGGIUNTIVE:\n${globalDict || '(nessuna)'}\n\n---\nGenera il referto radiologico finale IN ITALIANO, con struttura a sezioni (titoli in MAIUSCOLO) e un paragrafo finale intitolato "${impressionsLabel}".\n\nLOGICA DI INTEGRAZIONE OBBLIGATORIA:\n- La CHECKLIST rappresenta soprattutto le strutture normali o già valutate. Mantieni i normali flaggati come normali nel referto, senza trasformarli in patologia.\n- Il MAIN TEXT è la sede primaria dei reperti patologici complessi dettati o scritti dal medico. Deve essere integrato nel corpo del referto nella sezione anatomica più appropriata, con priorità rispetto ai normali della checklist se riguarda la stessa struttura.\n- Se checklist e main text parlano della stessa struttura, non creare contraddizioni: conserva il reperto patologico del main text e usa la checklist solo per le altre strutture normali.\n- Non lasciare il main text come nota separata se può essere integrato in una sezione clinica corretta.\n- Non inventare misure, sedi, lateralità o patologie non presenti nei dati.\n\nREGOLE TASSATIVE PER LE CONCLUSIONI:\n- Le conclusioni devono riferirsi SOLO all'esame indicato nell'intestazione e ai reperti riportati sopra.\n- Non rimandare a esami diversi, metodiche diverse o distretti non presenti nei dati.\n- Non proporre controlli, follow-up, approfondimenti o confronti con precedenti se non sono stati richiesti esplicitamente nei dati del medico.\n- Se i dati sono normali, scrivi una conclusione breve di normalità e basta.\n- Se i dati sono poveri o ambigui, resta descrittivo e prudente: non riempire il vuoto con ipotesi non supportate.\n\nProduci un referto coerente e pronto da incollare nel PACS, in italiano radiologico professionale.`;
+      }
     }
 
     const result = await callOpenAI([
@@ -16881,14 +17008,26 @@ function init() {
 
   /* Report font FAMILY selector */
   const fontSel = document.getElementById('reportFontSelect');
+  const reportFontFamilies = {
+    garamond: "'EB Garamond', Garamond, 'Apple Garamond', Georgia, serif",
+    times: "'Times New Roman', Times, serif",
+    courier: "'Courier New', Courier, monospace",
+    roboto: "'Roboto', 'Helvetica Neue', Arial, sans-serif",
+    system: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif"
+  };
   function applyReportFontFamily(family) {
     const rep = document.getElementById('report');
     if (!rep) return;
+    family = reportFontFamilies[family] ? family : 'garamond';
     /* Rimuovo tutte le classi report-font-* */
-    rep.classList.forEach(c => {
+    Array.from(rep.classList).forEach(c => {
       if (c.indexOf('report-font-') === 0) rep.classList.remove(c);
     });
     rep.classList.add('report-font-' + family);
+    rep.style.setProperty('font-family', reportFontFamilies[family], 'important');
+    rep.querySelectorAll('.dict-interim, .dict-session, .rpt-para, .sc-text, .sc-impression-text').forEach(el => {
+      el.style.setProperty('font-family', reportFontFamilies[family], 'important');
+    });
   }
   if (fontSel) {
     /* Carico la preferenza salvata (default: Garamond). */
