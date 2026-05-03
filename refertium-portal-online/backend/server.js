@@ -335,7 +335,6 @@ function injectLicenseGuard(html, user) {
   const guard = `<script>
 (function(){
   var USER_ID=${JSON.stringify(user.id)};
-  var PROXY_TOKEN=${JSON.stringify(user.proxyToken || '')};
   var CHECK_MS=30000;
   var overlay;
   function block(message){
@@ -409,14 +408,6 @@ function injectLicenseGuard(html, user) {
   if(window.fetch){
     var originalFetch=window.fetch.bind(window);
     window.fetch=function(input,init){
-      init=init||{};
-      try{
-        if(aiUrl(input)){
-          var headers=new Headers(init.headers||(input&&input.headers)||{});
-          if(PROXY_TOKEN) headers.set('X-Refertium-Proxy-Token',PROXY_TOKEN);
-          init.headers=headers;
-        }
-      }catch(e){}
       return originalFetch(input,init);
     };
   }
