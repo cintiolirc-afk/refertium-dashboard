@@ -46,6 +46,9 @@
     z-index: 10;
   }
 
+  body.is-logged-in .shell-top { display: none; }
+  body.is-logged-in .app, body.is-logged-in .user-home { min-height: 100vh; }
+
   .brand {
     display: inline-flex;
     align-items: center;
@@ -317,7 +320,7 @@
 
   .cards {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 16px;
   }
@@ -506,6 +509,7 @@
     <div class="nav-title">Medici</div>
     <div class="user-list" id="users"></div>
     <button class="primary" id="newUser" type="button" style="width:100%;margin-top:12px">Nuovo utente</button>
+    <button class="ghost" id="logoutInline" type="button" style="width:100%;margin-top:10px">Esci</button>
   </aside>
 
   <section class="content">
@@ -520,6 +524,7 @@
       <div class="cards">
         <div class="metric-card"><span>Utenti totali</span><b id="totUsers">0</b><small id="totUsersSub">medici registrati</small></div>
         <div class="metric-card"><span>Online ora</span><b id="onlineUsers">0</b><small>sessioni attive recenti</small></div>
+        <div class="metric-card"><span>Ore dettate</span><b id="dictationHours">0h</b><small id="dictationHoursSub">questo mese</small></div>
         <div class="metric-card"><span>RRM mensile</span><b id="monthlyRevenue">€0</b><small id="monthlyRevenueSub">ricavi ricorrenti</small></div>
         <div class="metric-card"><span>Clienti attivi</span><b id="activeUsers">0</b><small id="demoUsers">0 in demo</small></div>
       </div>
@@ -590,14 +595,15 @@
         </form>
         <div class="card">
           <h3>Consumi utente</h3>
-          <div class="cards" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:14px">
+          <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px">
             <div class="metric-card"><span>Usati</span><b id="used">0</b><small>token mese</small></div>
             <div class="metric-card"><span>Limite</span><b id="lim">0</b><small id="limitNote">mensile</small></div>
+            <div class="metric-card"><span>Dettatura</span><b id="dictated">0h</b><small id="dictatedNote">questo mese</small></div>
           </div>
           <div class="usage-line"><div class="bar"><i id="bar"></i></div></div>
           <div style="height:16px"></div>
           <table>
-            <thead><tr><th>Data</th><th>Operazione</th><th>Token</th><th>Stato</th></tr></thead>
+            <thead><tr><th>Data</th><th>Operazione</th><th>Token</th><th>Dettatura</th><th>Stato</th></tr></thead>
             <tbody id="usageRows"></tbody>
           </table>
         </div>
@@ -615,7 +621,10 @@
       <div class="metric-card"><span>Piano</span><b id="selfPlan">-</b><small id="selfPlanSub">account</small></div>
       <div class="metric-card"><span>Applicazione</span><b id="selfAppStatus">-</b><small>Refertium</small></div>
     </div>
-    <div class="row" style="margin-top:18px"><button class="primary" id="openSelf" type="button">Apri Refertium</button></div>
+    <div class="row" style="margin-top:18px">
+      <button class="primary" id="openSelf" type="button">Apri Refertium</button>
+      <button class="ghost" id="logoutUser" type="button">Esci</button>
+    </div>
     <div class="empty hidden" id="blocked" style="margin-top:16px"></div>
   </section>
 </main>
@@ -700,10 +709,19 @@ async function api(url, opt = {}) {
 
 function fmt(n) { return Number(n || 0).toLocaleString("it-IT"); }
 function money(n) { return "€" + Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 0 }); }
-function usage(u) { return (u.usage && u.usage[month]) || { total: 0, events: [] }; }
+function usage(u) { return (u.usage && u.usage[month]) || { total: 0, dictationSeconds: 0, events: [] }; }
 function limitOf(u) { return Number(u && u.tokenLimit || 0); }
 function planPrice(u) { return Number(u && u.planPrice || 0); }
 function pct(u) { const limit = limitOf(u); return limit ? Math.min(100, Math.round(usage(u).total / limit * 100)) : 0; }
+function dictationSeconds(u) { return Number(usage(u).dictationSeconds || 0); }
+function hours(seconds) {
+  const value = Number(seconds || 0) / 3600;
+  return value >= 10 ? `${Math.round(value)}h` : `${value.toLocaleString("it-IT", { maximumFractionDigits: 1 })}h`;
+}
+function minutes(seconds) {
+  const value = Math.round(Number(seconds || 0) / 60);
+  return value ? `${fmt(value)} min` : "-";
+}
 function esc(s) { return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c])); }
 function licenseLabel(u) { return u.license === "blocked" ? "Bloccata" : u.license === "limited" ? "Limitata" : "Attiva"; }
 function licenseDot(u) { return u.license === "blocked" ? "bad" : u.license === "limited" ? "warn" : "ok"; }
@@ -713,6 +731,7 @@ function selectedUser() { return users.find(u => u.id === selected) || users[0];
 function show(id) {
   ["loginView", "adminView", "userView"].forEach(view => $(view).classList.add("hidden"));
   $(id).classList.remove("hidden");
+  document.body.classList.toggle("is-logged-in", id !== "loginView");
   $("logout").classList.toggle("hidden", id === "loginView");
 }
 
@@ -732,6 +751,7 @@ function setPage(next) {
 
 function summary() {
   const totalTokens = users.reduce((sum, u) => sum + usage(u).total, 0);
+  const totalDictationSeconds = users.reduce((sum, u) => sum + dictationSeconds(u), 0);
   const paidUsers = users.filter(u => !u.isDemo && u.license !== "blocked");
   const demoUsers = users.filter(u => u.isDemo);
   const monthlyRevenue = paidUsers.reduce((sum, u) => sum + planPrice(u), 0);
@@ -746,7 +766,8 @@ function summary() {
     paid: paidUsers.length,
     demo: demoUsers.length,
     monthlyRevenue,
-    totalTokens
+    totalTokens,
+    totalDictationSeconds
   };
 }
 
@@ -796,13 +817,15 @@ function renderDashboard() {
   $("onlineUsers").textContent = fmt(s.online);
   $("activeUsers").textContent = fmt(s.active);
   $("demoUsers").textContent = `${fmt(s.demo)} in demo · ${fmt(s.paid)} paganti`;
+  $("dictationHours").textContent = hours(s.totalDictationSeconds);
+  $("dictationHoursSub").textContent = `${fmt(Math.round(s.totalDictationSeconds / 60))} minuti`;
   $("monthlyRevenue").textContent = money(s.monthlyRevenue);
   $("monthlyRevenueSub").textContent = `${fmt(s.paid)} clienti paganti`;
   $("totUsersSub").textContent = `${fmt(s.withHtml)} con HTML caricato`;
 
   const cards = users
     .slice()
-    .sort((a, b) => Number(b.online) - Number(a.online) || usage(b).total - usage(a).total)
+    .sort((a, b) => Number(b.online) - Number(a.online) || dictationSeconds(b) - dictationSeconds(a) || usage(b).total - usage(a).total)
     .map(u => doctorCard(u))
     .join("");
   $("doctorCards").innerHTML = cards || `<div class="empty">Crea il primo medico per iniziare.</div>`;
@@ -813,6 +836,7 @@ function renderDashboard() {
     ${summaryRow("Licenze attive", s.active, s.total)}
     ${summaryRow("HTML caricati", s.withHtml, s.total)}
     ${summaryRow("Utenti online", s.online, s.total)}
+    <div class="empty" style="margin-top:14px">Ore dettate questo mese: <strong>${hours(s.totalDictationSeconds)}</strong></div>
     <div class="empty" style="margin-top:14px">RRM attuale: <strong>${money(s.monthlyRevenue)}</strong> al mese</div>
   `;
 }
@@ -835,7 +859,7 @@ function doctorCard(u) {
       <span class="pill">${u.isDemo ? "Demo" : "Pagante"}</span>
     </div>
     <div class="usage-line"><div class="bar"><i style="width:${percentage}%"></i></div></div>
-    <div class="note" style="margin-top:7px">${esc(u.planName || "Senza piano")} · ${u.isDemo ? "demo" : money(planPrice(u)) + "/mese"}</div>
+    <div class="note" style="margin-top:7px">${esc(u.planName || "Senza piano")} · ${u.isDemo ? "demo" : money(planPrice(u)) + "/mese"} · ${hours(dictationSeconds(u))}</div>
   </button>`;
 }
 
@@ -890,6 +914,8 @@ function renderUsage(u) {
   const percentage = pct(u);
   $("used").textContent = fmt(us.total);
   $("lim").textContent = limit ? fmt(limit) : "Illimitato";
+  $("dictated").textContent = hours(us.dictationSeconds || 0);
+  $("dictatedNote").textContent = `${fmt(Math.round(Number(us.dictationSeconds || 0) / 60))} minuti`;
   $("limitNote").textContent = overLimit(u) ? "limite raggiunto" : "mensile";
   $("bar").style.width = percentage + "%";
   $("usageRows").innerHTML = us.events.slice().reverse().map(e => `
@@ -897,9 +923,10 @@ function renderUsage(u) {
       <td>${new Date(e.at).toLocaleString("it-IT")}</td>
       <td>${esc(e.operation)}</td>
       <td>${fmt(e.tokens)}</td>
+      <td>${minutes(e.dictationSeconds)}</td>
       <td>${esc(e.status || "")}</td>
     </tr>
-  `).join("") || `<tr><td colspan="4"><span class="note">Nessun consumo registrato.</span></td></tr>`;
+  `).join("") || `<tr><td colspan="5"><span class="note">Nessun consumo registrato.</span></td></tr>`;
 }
 
 function renderUser() {
@@ -931,12 +958,16 @@ $("loginForm").onsubmit = async e => {
   }
 };
 
-$("logout").onclick = async () => {
+async function logout() {
   await api("/api/logout", { method: "POST" });
   me = null;
   setWho(null);
   show("loginView");
-};
+}
+
+$("logout").onclick = logout;
+$("logoutInline").onclick = logout;
+$("logoutUser").onclick = logout;
 
 $("langToggle").onclick = () => {
   lang = lang === "it" ? "en" : "it";
