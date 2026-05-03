@@ -612,6 +612,14 @@
           <h3>Ricavi e licenze</h3>
           <div id="licenseSummary"></div>
         </div>
+        <div class="card">
+          <h3>Template madre</h3>
+          <p class="note" id="templateInfo">Controllo template...</p>
+          <div class="field"><input id="templateFile" type="file" accept=".html,text/html"></div>
+          <div class="row">
+            <button class="ghost" id="uploadTemplate" type="button">Aggiorna template premium</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -928,6 +936,7 @@ async function loadAdmin() {
   if (!selected && users[0]) selected = users[0].id;
   if (selected && !users.some(u => u.id === selected)) selected = users[0] ? users[0].id : "";
   renderAdmin();
+  refreshTemplateStatus();
   show("adminView");
 }
 
@@ -987,6 +996,17 @@ function summaryRow(label, value, total) {
     <div class="row" style="justify-content:space-between"><strong>${esc(label)}</strong><span class="note">${fmt(value)} / ${fmt(total)}</span></div>
     <div class="bar" style="margin-top:8px"><i style="width:${percentage}%"></i></div>
   </div>`;
+}
+
+async function refreshTemplateStatus() {
+  try {
+    const data = await api("/api/template-status");
+    $("templateInfo").textContent = data.templateReady
+      ? `Attivo: ${data.file} · ${fmt(data.size)} byte`
+      : "Template premium non ancora caricato.";
+  } catch {
+    $("templateInfo").textContent = "Non riesco a leggere lo stato del template.";
+  }
 }
 
 function doctorCard(u) {
@@ -1155,6 +1175,37 @@ $("lastName").oninput = () => { $("name").value = displayNameFromFields(); };
 $("softwareLanguage").onchange = () => {
   if ($("softwareLanguage").value === "en" && !$("distillate").value.trim()) {
     $("distillate").placeholder = "English standard: nome e cognome bastano. Lascia vuoto se non vuoi uno stile personalizzato.";
+  }
+};
+
+$("uploadTemplate").onclick = async () => {
+  const file = $("templateFile").files[0];
+  if (!file) {
+    alert("Seleziona prima il file HTML premium.");
+    return;
+  }
+  $("uploadTemplate").disabled = true;
+  $("uploadTemplate").textContent = "Carico...";
+  try {
+    const r = await fetch("/api/templates/premium", {
+      method: "POST",
+      headers: { "content-type": "text/html; charset=utf-8" },
+      credentials: "same-origin",
+      body: await file.text()
+    });
+    if (!r.ok) {
+      let err = { error: r.statusText };
+      try { err = await r.json(); } catch {}
+      throw new Error(err.error || "Errore caricamento template");
+    }
+    $("templateFile").value = "";
+    await refreshTemplateStatus();
+    alert("Template premium aggiornato. Ora rigenera le app dei medici.");
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    $("uploadTemplate").disabled = false;
+    $("uploadTemplate").textContent = "Aggiorna template premium";
   }
 };
 
