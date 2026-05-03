@@ -1114,7 +1114,7 @@ async function refreshTemplateStatus() {
   try {
     const data = await api("/api/template-status");
     $("templateInfo").textContent = data.templateReady
-      ? `Attivo: ${data.file} · ${fmt(data.size)} byte`
+      ? `Attivi: IT ${data.file} · ${fmt(data.size)} byte${data.englishTemplateReady ? ` | EN ${data.englishFile} · ${fmt(data.englishSize)} byte` : " | EN non disponibile"}`
       : "Template premium non ancora caricato.";
   } catch {
     $("templateInfo").textContent = "Non riesco a leggere lo stato del template.";
