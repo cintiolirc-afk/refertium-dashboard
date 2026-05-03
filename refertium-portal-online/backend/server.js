@@ -1,4 +1,3 @@
-
 const http = require('http');
 const fs = require('fs/promises');
 const fss = require('fs');
@@ -688,7 +687,7 @@ async function generateRefertiumHtmlForUser(user) {
 async function readTemplateHtml(language = 'it') {
   const isEnglish = language === 'en';
   const candidates = isEnglish
-    ? [BUNDLED_EN_TEMPLATE_FILE, PERSISTENT_EN_TEMPLATE_FILE, BUNDLED_TEMPLATE_FILE, PERSISTENT_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE]
+    ? [BUNDLED_EN_TEMPLATE_FILE, PERSISTENT_EN_TEMPLATE_FILE]
     : [BUNDLED_TEMPLATE_FILE, PERSISTENT_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
   for (const file of candidates) {
     try {
@@ -956,9 +955,9 @@ async function handleApi(req, res, db, user, pathname) {
     if (!target) return send(res, 404, { error: 'Utente non trovato' });
     if (!target.firstName || !target.lastName) return send(res, 400, { error: 'Inserisci nome e cognome del medico prima di generare il software' });
     try {
-      await readTemplateHtml();
+      await readTemplateHtml(target.softwareLanguage === 'en' ? 'en' : 'it');
     } catch {
-      return send(res, 400, { error: 'Template madre mancante: carica il template premium dalla dashboard admin' });
+      return send(res, 400, { error: target.softwareLanguage === 'en' ? 'Template madre inglese mancante: aggiungi backend/templates/refertium-premium-en.html' : 'Template madre mancante: carica il template premium dalla dashboard admin' });
     }
     const html = await generateRefertiumHtmlForUser(target);
     const safeName = `${target.lastName || target.name || 'medico'}`.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '') || 'medico';
@@ -1140,4 +1139,3 @@ http.createServer(handler).listen(PORT, () => {
   console.log(`Refertium backend attivo: http://localhost:${PORT}`);
   console.log(OPENAI_API_KEY ? 'OPENAI_API_KEY configurata.' : 'OPENAI_API_KEY mancante: il proxy AI rispondera con errore finche non la imposti.');
 });
-
