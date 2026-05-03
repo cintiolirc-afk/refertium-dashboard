@@ -438,11 +438,29 @@
   .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .toolbar input { max-width: 320px; }
 
-  .detail-layout {
+  .detail-stack {
     display: grid;
-    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .usage-card .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 14px;
+  }
+
+  .usage-table-wrap {
+    overflow-x: auto;
+  }
+
+  .detail-form {
+    display: grid;
+    grid-template-columns: minmax(320px, .8fr) minmax(420px, 1.2fr);
     gap: 14px;
     align-items: start;
+  }
+
+  .detail-form .card {
+    height: 100%;
   }
 
   .bar {
@@ -479,7 +497,8 @@
 
   @media (max-width: 1080px) {
     .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .panel-grid, .detail-layout { grid-template-columns: 1fr; }
+    .panel-grid, .detail-form { grid-template-columns: 1fr; }
+    .usage-card .cards { grid-template-columns: 1fr; }
   }
 
   @media (max-width: 760px) {
@@ -646,79 +665,94 @@
           <button class="ghost" id="refreshDetail" type="button">Aggiorna</button>
         </div>
       </div>
-      <div class="detail-layout">
-        <form class="card" id="userForm">
-          <h3>Dati utente</h3>
-          <div class="two">
-            <div class="field"><label>Nome</label><input id="firstName" placeholder="Mario"></div>
-            <div class="field"><label>Cognome</label><input id="lastName" placeholder="Rossi"></div>
-          </div>
-          <div class="field"><label>Nome visualizzato</label><input id="name"></div>
-          <div class="two">
-            <div class="field"><label>Username</label><input id="doctorUsername"></div>
-            <div class="field"><label>Email opzionale</label><input id="userEmail" type="email"></div>
-          </div>
-          <div class="field"><label>Password nuova</label><input id="userPass" placeholder="Vuoto = non cambia"></div>
-          <div class="three">
-            <div class="field"><label>Piano</label><input id="planName" placeholder="Demo, Basic, Pro..."></div>
-            <div class="field"><label>Prezzo mensile €</label><input id="planPrice" type="number" min="0" step="1"></div>
-            <div class="field"><label>Tipo account</label><select id="isDemo"><option value="true">Demo</option><option value="false">Pagante</option></select></div>
-          </div>
-          <div class="two">
-            <div class="field"><label>Licenza</label><select id="license"><option value="active">Attiva</option><option value="limited">Limitata</option><option value="blocked">Bloccata</option></select></div>
-            <div class="field"><label>Limite token mensile</label><input id="limit" type="number" min="0" step="1000"></div>
-          </div>
-          <div class="field">
-            <label>Limite ore dettate mensili</label>
-            <select id="dictationHourLimit">
-              <option value="10">10 ore</option>
-              <option value="15">15 ore</option>
-              <option value="25">25 ore</option>
-              <option value="45">45 ore</option>
-              <option value="70">70 ore</option>
-              <option value="0">Illimitato</option>
-            </select>
-          </div>
-          <h3 style="margin-top:22px">Generatore Refertium</h3>
-          <div class="two">
-            <div class="field"><label>Lingua software</label><select id="softwareLanguage"><option value="it">Italiano personalizzato</option><option value="en">English standard</option></select></div>
-            <div class="field"><label>Edizione</label><select id="edition"><option value="pro">Pro con dettatura</option><option value="text">Text senza dettatura</option></select></div>
-          </div>
-          <div class="field">
-            <label>Badge specialità</label>
-            <div class="check-grid" id="specialtyGrid">
-              <label class="check-pill"><input type="checkbox" value="urgenza">Urgenza</label>
-              <label class="check-pill"><input type="checkbox" value="neuro">Neuro</label>
-              <label class="check-pill"><input type="checkbox" value="body">Body</label>
-              <label class="check-pill"><input type="checkbox" value="msk">MSK</label>
-              <label class="check-pill"><input type="checkbox" value="toracica">Toracica</label>
-              <label class="check-pill"><input type="checkbox" value="senologia">Senologia</label>
-              <label class="check-pill"><input type="checkbox" value="eco">Eco</label>
-            </div>
-          </div>
-          <div class="field"><label>Distillati / frasi tipiche</label><textarea id="distillate" placeholder="Incolla qui stile, formule e frasi tipiche del medico. Per English standard puoi lasciarlo vuoto."></textarea></div>
-          <div class="field"><label>HTML personalizzato manuale</label><input id="htmlFile" type="file" accept=".html,text/html"><div class="note" id="htmlInfo">Nessun file caricato.</div></div>
-          <div class="row">
-            <button class="primary">Salva</button>
-            <button class="ghost" type="button" id="generateApp">Genera app</button>
-            <button class="ghost" type="button" id="resetUsage">Azzera token</button>
-            <button class="danger" type="button" id="deleteUser">Elimina</button>
-          </div>
-        </form>
-        <div class="card">
+      <div class="detail-stack">
+        <div class="card usage-card">
           <h3>Consumi utente</h3>
-          <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px">
+          <div class="cards">
             <div class="metric-card"><span>Usati</span><b id="used">0</b><small>token mese</small></div>
             <div class="metric-card"><span>Limite</span><b id="lim">0</b><small id="limitNote">mensile</small></div>
             <div class="metric-card"><span>Dettatura</span><b id="dictated">0h</b><small id="dictatedNote">questo mese</small></div>
           </div>
           <div class="usage-line"><div class="bar"><i id="bar"></i></div></div>
           <div style="height:16px"></div>
-          <table>
-            <thead><tr><th>Data</th><th>Operazione</th><th>Token</th><th>Dettatura</th><th>Stato</th></tr></thead>
-            <tbody id="usageRows"></tbody>
-          </table>
+          <div class="usage-table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Operazione</th><th>Token</th><th>Dettatura</th><th>Stato</th></tr></thead>
+              <tbody id="usageRows"></tbody>
+            </table>
+          </div>
         </div>
+        <form class="detail-form" id="userForm">
+          <section class="card">
+            <h3>Dati utente</h3>
+            <div class="two">
+              <div class="field"><label>Nome</label><input id="firstName" placeholder="Mario"></div>
+              <div class="field"><label>Cognome</label><input id="lastName" placeholder="Rossi"></div>
+            </div>
+            <div class="field"><label>Nome visualizzato</label><input id="name"></div>
+            <div class="two">
+              <div class="field"><label>Username</label><input id="doctorUsername"></div>
+              <div class="field"><label>Email opzionale</label><input id="userEmail" type="email"></div>
+            </div>
+            <div class="field"><label>Password nuova</label><input id="userPass" placeholder="Vuoto = non cambia"></div>
+          </section>
+
+          <section class="card">
+            <h3>Piano e limiti</h3>
+            <div class="three">
+              <div class="field"><label>Piano</label><input id="planName" placeholder="Demo, Basic, Pro..."></div>
+              <div class="field"><label>Prezzo mensile €</label><input id="planPrice" type="number" min="0" step="1"></div>
+              <div class="field"><label>Tipo account</label><select id="isDemo"><option value="true">Demo</option><option value="false">Pagante</option></select></div>
+            </div>
+            <div class="two">
+              <div class="field"><label>Licenza</label><select id="license"><option value="active">Attiva</option><option value="limited">Limitata</option><option value="blocked">Bloccata</option></select></div>
+              <div class="field"><label>Limite token mensile</label><input id="limit" type="number" min="0" step="1000"></div>
+            </div>
+            <div class="field">
+              <label>Limite ore dettate mensili</label>
+              <select id="dictationHourLimit">
+                <option value="10">10 ore</option>
+                <option value="15">15 ore</option>
+                <option value="25">25 ore</option>
+                <option value="45">45 ore</option>
+                <option value="70">70 ore</option>
+                <option value="0">Illimitato</option>
+              </select>
+            </div>
+          </section>
+
+          <section class="card">
+            <h3>Generatore Refertium</h3>
+            <div class="two">
+              <div class="field"><label>Lingua software</label><select id="softwareLanguage"><option value="it">Italiano personalizzato</option><option value="en">English standard</option></select></div>
+              <div class="field"><label>Edizione</label><select id="edition"><option value="pro">Pro con dettatura</option><option value="text">Text senza dettatura</option></select></div>
+            </div>
+            <div class="field">
+              <label>Badge specialità</label>
+              <div class="check-grid" id="specialtyGrid">
+                <label class="check-pill"><input type="checkbox" value="urgenza">Urgenza</label>
+                <label class="check-pill"><input type="checkbox" value="neuro">Neuro</label>
+                <label class="check-pill"><input type="checkbox" value="body">Body</label>
+                <label class="check-pill"><input type="checkbox" value="msk">MSK</label>
+                <label class="check-pill"><input type="checkbox" value="toracica">Toracica</label>
+                <label class="check-pill"><input type="checkbox" value="senologia">Senologia</label>
+                <label class="check-pill"><input type="checkbox" value="eco">Eco</label>
+              </div>
+            </div>
+            <div class="field"><label>Distillati / frasi tipiche</label><textarea id="distillate" placeholder="Incolla qui stile, formule e frasi tipiche del medico. Per English standard puoi lasciarlo vuoto."></textarea></div>
+          </section>
+
+          <section class="card">
+            <h3>App e azioni</h3>
+            <div class="field"><label>HTML personalizzato manuale</label><input id="htmlFile" type="file" accept=".html,text/html"><div class="note" id="htmlInfo">Nessun file caricato.</div></div>
+            <div class="row">
+              <button class="primary">Salva</button>
+              <button class="ghost" type="button" id="generateApp">Genera app</button>
+              <button class="ghost" type="button" id="resetUsage">Azzera token</button>
+              <button class="danger" type="button" id="deleteUser">Elimina</button>
+            </div>
+          </section>
+        </form>
       </div>
     </section>
   </section>
