@@ -5,7 +5,7 @@ function corsHeaders(request) {
   return {
     'Access-Control-Allow-Origin': request.headers.get('Origin') || '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Token, X-Refertium-Proxy-Token',
     'Access-Control-Max-Age': '86400',
   };
 }
@@ -53,6 +53,7 @@ async function proxyOpenAI(request, env, pathname) {
   headers.set('Authorization', `Bearer ${env.OPENAI_API_KEY}`);
   headers.delete('Host');
   headers.delete('X-Auth-Token');
+  headers.delete('X-Refertium-Proxy-Token');
 
   const upstream = await fetch(OPENAI_BASE + pathname, {
     method: request.method,
@@ -60,10 +61,51 @@ async function proxyOpenAI(request, env, pathname) {
     body: request.method === 'GET' || request.method === 'HEAD' ? undefined : request.body,
   });
 
-  return new Response(upstream.body, {
+  const responseBody = await upstream.arrayBuffer();
+  reportDashboardUsage(request, env, pathname, upstream.status, responseBody).catch(error => {
+    console.warn('Refertium dashboard usage report failed:', error && error.message ? error.message : error);
+  });
+
+  return new Response(responseBody, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders(upstream, request),
+  });
+}
+
+function operationFor(pathname) {
+  if (pathname.includes('/audio/transcriptions')) return 'Trascrizione';
+  if (pathname.includes('/responses')) return 'Responses';
+  return 'Chat completions';
+}
+
+function tokensFromResponse(responseBody) {
+  try {
+    const data = JSON.parse(new TextDecoder().decode(responseBody));
+    const usage = data.usage || {};
+    return Number(usage.total_tokens || ((usage.prompt_tokens || usage.input_tokens || 0) + (usage.completion_tokens || usage.output_tokens || 0))) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function reportDashboardUsage(request, env, pathname, status, responseBody) {
+  const dashboardUrl = env.REFERTIUM_DASHBOARD_URL;
+  const proxyToken = request.headers.get('X-Refertium-Proxy-Token');
+  if (!dashboardUrl || !proxyToken) return;
+  await fetch(dashboardUrl.replace(/\/$/, '') + '/api/proxy/usage', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Worker-Secret': env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev',
+    },
+    body: JSON.stringify({
+      proxyToken,
+      operation: operationFor(pathname),
+      tokens: tokensFromResponse(responseBody),
+      source: 'cloudflare',
+      status,
+    }),
   });
 }
 
