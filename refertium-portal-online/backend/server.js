@@ -1,3 +1,4 @@
+
 const http = require('http');
 const fs = require('fs/promises');
 const fss = require('fs');
@@ -15,12 +16,14 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const TEMPLATE_DIR = path.join(ROOT, 'templates');
 const BUNDLED_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-premium.html');
+const BUNDLED_EN_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-premium-en.html');
 const LEGACY_TEMPLATE_FILE = path.join(ROOT, '..', 'refertium-assets', 'REFERTIUM_v52-7.html');
 const PERSISTENT_ROOT = process.env.REFERTIUM_DATA_DIR || (fss.existsSync('/var/data') ? '/var/data/refertium' : ROOT);
 const DATA_DIR = path.join(PERSISTENT_ROOT, 'data');
 const UPLOAD_DIR = path.join(PERSISTENT_ROOT, 'uploads');
 const PERSISTENT_TEMPLATE_DIR = path.join(PERSISTENT_ROOT, 'templates');
 const PERSISTENT_TEMPLATE_FILE = path.join(PERSISTENT_TEMPLATE_DIR, 'refertium-premium.html');
+const PERSISTENT_EN_TEMPLATE_FILE = path.join(PERSISTENT_TEMPLATE_DIR, 'refertium-premium-en.html');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const COOKIE = 'refertium_sid';
 const APP_USER_COOKIE = 'refertium_app_user';
@@ -662,8 +665,8 @@ function extractWhisperKeywords(text) {
 }
 
 async function generateRefertiumHtmlForUser(user) {
-  let html = await readTemplateHtml();
   const language = user.softwareLanguage === 'en' ? 'en' : 'it';
+  let html = await readTemplateHtml(language);
   const edition = user.edition === 'text' ? 'text' : 'pro';
   const specialties = safeSpecialties(user.specialties);
   const distillate = language === 'en' ? '' : String(user.distillate || '').trim().slice(0, 20000);
@@ -682,8 +685,11 @@ async function generateRefertiumHtmlForUser(user) {
   return html;
 }
 
-async function readTemplateHtml() {
-  const candidates = [BUNDLED_TEMPLATE_FILE, PERSISTENT_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
+async function readTemplateHtml(language = 'it') {
+  const isEnglish = language === 'en';
+  const candidates = isEnglish
+    ? [BUNDLED_EN_TEMPLATE_FILE, PERSISTENT_EN_TEMPLATE_FILE, BUNDLED_TEMPLATE_FILE, PERSISTENT_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE]
+    : [BUNDLED_TEMPLATE_FILE, PERSISTENT_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
   for (const file of candidates) {
     try {
       const html = await fs.readFile(file, 'utf8');
@@ -704,19 +710,32 @@ function isValidRefertiumTemplate(html) {
 
 async function templateStatus() {
   const candidates = [
-    { file: BUNDLED_TEMPLATE_FILE, label: 'GitHub: backend/templates/refertium-premium.html' },
-    { file: PERSISTENT_TEMPLATE_FILE, label: 'Render disk: templates/refertium-premium.html' },
+    { file: BUNDLED_TEMPLATE_FILE, label: 'GitHub IT: backend/templates/refertium-premium.html', lang: 'it' },
+    { file: BUNDLED_EN_TEMPLATE_FILE, label: 'GitHub EN: backend/templates/refertium-premium-en.html', lang: 'en' },
+    { file: PERSISTENT_TEMPLATE_FILE, label: 'Render disk IT: templates/refertium-premium.html', lang: 'it' },
+    { file: PERSISTENT_EN_TEMPLATE_FILE, label: 'Render disk EN: templates/refertium-premium-en.html', lang: 'en' },
     { file: LEGACY_TEMPLATE_FILE, label: 'GitHub: refertium-assets/REFERTIUM_v52-7.html' }
   ];
+  const byLanguage = { it: null, en: null };
   for (const item of candidates) {
     try {
       const stat = await fs.stat(item.file);
       if (!stat.isFile()) continue;
       const html = await fs.readFile(item.file, 'utf8');
-      if (isValidRefertiumTemplate(html)) return { templateReady: true, file: item.label, size: stat.size };
+      if (isValidRefertiumTemplate(html)) {
+        if (item.lang && !byLanguage[item.lang]) byLanguage[item.lang] = { file: item.label, size: stat.size };
+        if (!item.lang && !byLanguage.it) byLanguage.it = { file: item.label, size: stat.size };
+      }
     } catch {}
   }
-  return { templateReady: false, file: '', size: 0 };
+  return {
+    templateReady: Boolean(byLanguage.it),
+    englishTemplateReady: Boolean(byLanguage.en),
+    file: byLanguage.it ? byLanguage.it.file : '',
+    englishFile: byLanguage.en ? byLanguage.en.file : '',
+    size: byLanguage.it ? byLanguage.it.size : 0,
+    englishSize: byLanguage.en ? byLanguage.en.size : 0
+  };
 }
 
 function escapeHtml(str) {
@@ -946,7 +965,7 @@ async function handleApi(req, res, db, user, pathname) {
     const filename = `${target.id}-generated-${Date.now()}.html`;
     await fs.writeFile(path.join(UPLOAD_DIR, filename), html);
     target.htmlFile = filename;
-    target.htmlName = `Refertium_${target.edition === 'text' ? 'Text' : 'Pro'}_${safeName}.html`;
+    target.htmlName = `Refertium_${target.softwareLanguage === 'en' ? 'EN_' : ''}${target.edition === 'text' ? 'Text' : 'Pro'}_${safeName}.html`;
     target.generatedAt = new Date().toISOString();
     target.updatedAt = target.generatedAt;
     await saveDb(db);
@@ -1121,3 +1140,4 @@ http.createServer(handler).listen(PORT, () => {
   console.log(`Refertium backend attivo: http://localhost:${PORT}`);
   console.log(OPENAI_API_KEY ? 'OPENAI_API_KEY configurata.' : 'OPENAI_API_KEY mancante: il proxy AI rispondera con errore finche non la imposti.');
 });
+
