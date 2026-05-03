@@ -14,11 +14,13 @@ const ADMIN_BOOTSTRAP_PASSWORD = process.env.REFERTIUM_ADMIN_PASSWORD || 'refert
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const TEMPLATE_DIR = path.join(ROOT, 'templates');
-const DEFAULT_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-premium.html');
+const BUNDLED_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-premium.html');
 const LEGACY_TEMPLATE_FILE = path.join(ROOT, '..', 'refertium-assets', 'REFERTIUM_v52-7.html');
 const PERSISTENT_ROOT = process.env.REFERTIUM_DATA_DIR || (fss.existsSync('/var/data') ? '/var/data/refertium' : ROOT);
 const DATA_DIR = path.join(PERSISTENT_ROOT, 'data');
 const UPLOAD_DIR = path.join(PERSISTENT_ROOT, 'uploads');
+const PERSISTENT_TEMPLATE_DIR = path.join(PERSISTENT_ROOT, 'templates');
+const PERSISTENT_TEMPLATE_FILE = path.join(PERSISTENT_TEMPLATE_DIR, 'refertium-premium.html');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const COOKIE = 'refertium_sid';
 const APP_USER_COOKIE = 'refertium_app_user';
@@ -54,6 +56,7 @@ async function ensureDirs() {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
   await fs.mkdir(TEMPLATE_DIR, { recursive: true });
+  await fs.mkdir(PERSISTENT_TEMPLATE_DIR, { recursive: true });
 }
 
 async function loadDb() {
@@ -257,6 +260,11 @@ async function readJson(req) {
   const buf = await readBody(req);
   if (!buf.length) return {};
   return JSON.parse(buf.toString('utf8'));
+}
+
+async function readText(req) {
+  const buf = await readBody(req, 6 * 1024 * 1024);
+  return buf.toString('utf8');
 }
 
 async function currentUser(req, db) {
@@ -529,12 +537,7 @@ function extractWhisperKeywords(text) {
 }
 
 async function generateRefertiumHtmlForUser(user) {
-  let html = '';
-  try {
-    html = await fs.readFile(DEFAULT_TEMPLATE_FILE, 'utf8');
-  } catch {
-    html = await fs.readFile(LEGACY_TEMPLATE_FILE, 'utf8');
-  }
+  let html = await readTemplateHtml();
   const language = user.softwareLanguage === 'en' ? 'en' : 'it';
   const edition = user.edition === 'text' ? 'text' : 'pro';
   const specialties = safeSpecialties(user.specialties);
@@ -552,6 +555,31 @@ async function generateRefertiumHtmlForUser(user) {
   html = replaceBetweenMarkers(html, 'IS_VERGINE', 'var IS_VERGINE = false;\n');
   html = replaceBetweenMarkers(html, 'EDITION', `var EDITION = '${edition}';\nvar INCLUDE_DICTATION = (EDITION !== 'text');\n`);
   return html;
+}
+
+async function readTemplateHtml() {
+  const candidates = [PERSISTENT_TEMPLATE_FILE, BUNDLED_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
+  for (const file of candidates) {
+    try {
+      return await fs.readFile(file, 'utf8');
+    } catch {}
+  }
+  throw Object.assign(new Error('Template madre mancante'), { status: 500 });
+}
+
+async function templateStatus() {
+  const candidates = [
+    { file: PERSISTENT_TEMPLATE_FILE, label: 'Render disk: templates/refertium-premium.html' },
+    { file: BUNDLED_TEMPLATE_FILE, label: 'GitHub: backend/templates/refertium-premium.html' },
+    { file: LEGACY_TEMPLATE_FILE, label: 'GitHub: refertium-assets/REFERTIUM_v52-7.html' }
+  ];
+  for (const item of candidates) {
+    try {
+      const stat = await fs.stat(item.file);
+      if (stat.isFile()) return { templateReady: true, file: item.label, size: stat.size };
+    } catch {}
+  }
+  return { templateReady: false, file: '', size: 0 };
 }
 
 function escapeHtml(str) {
@@ -625,18 +653,20 @@ async function handleApi(req, res, db, user, pathname) {
   }
   if (pathname === '/api/template-status' && req.method === 'GET') {
     requireAdmin(user);
-    let templateReady = false;
-    let size = 0;
-    try {
-      const stat = await fs.stat(DEFAULT_TEMPLATE_FILE);
-      templateReady = stat.isFile();
-      size = stat.size;
-    } catch {}
-    return send(res, 200, {
-      templateReady,
-      file: 'backend/templates/refertium-premium.html',
-      size
-    });
+    return send(res, 200, await templateStatus());
+  }
+  if (pathname === '/api/templates/premium' && req.method === 'POST') {
+    requireAdmin(user);
+    const html = await readText(req);
+    if (!html.includes('@@REFERTIUM_INJECTION_POINT@@ DOCTOR_BADGE START') ||
+        !html.includes('@@REFERTIUM_INJECTION_POINT@@ MAGIC_PDF_TEXT START') ||
+        !html.includes('const PROXY_URL')) {
+      return send(res, 400, { error: 'Questo HTML non sembra un template Refertium valido' });
+    }
+    await ensureDirs();
+    await fs.writeFile(PERSISTENT_TEMPLATE_FILE, html, 'utf8');
+    const status = await templateStatus();
+    return send(res, 200, { ok: true, ...status });
   }
   if (pathname === '/api/users' && req.method === 'POST') {
     requireAdmin(user);
@@ -745,13 +775,9 @@ async function handleApi(req, res, db, user, pathname) {
     if (!target) return send(res, 404, { error: 'Utente non trovato' });
     if (!target.firstName || !target.lastName) return send(res, 400, { error: 'Inserisci nome e cognome del medico prima di generare il software' });
     try {
-      await fs.access(DEFAULT_TEMPLATE_FILE);
+      await readTemplateHtml();
     } catch {
-      try {
-        await fs.access(LEGACY_TEMPLATE_FILE);
-      } catch {
-        return send(res, 400, { error: 'Template madre mancante: carica backend/templates/refertium-premium.html oppure refertium-assets/REFERTIUM_v52-7.html su GitHub' });
-      }
+      return send(res, 400, { error: 'Template madre mancante: carica il template premium dalla dashboard admin' });
     }
     const html = await generateRefertiumHtmlForUser(target);
     const safeName = `${target.lastName || target.name || 'medico'}`.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '') || 'medico';
