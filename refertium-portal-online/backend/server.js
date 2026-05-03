@@ -358,12 +358,13 @@ function injectLicenseGuard(html, user) {
   }
   .report.dict-recording:focus,
   .report.dict-recording:focus-within {
-    box-shadow: 0 0 0 2px rgba(220,38,38,0.12) !important;
+    box-shadow: 0 0 0 2px var(--rec-color, #dc2626) !important;
   }
   .report.dict-recording {
-    border-color: var(--rec-color, #dc2626) !important;
-    box-shadow: 0 0 0 2px rgba(220,38,38,0.12) !important;
-    animation: refertium-dict-border-pulse 1.4s ease-in-out infinite !important;
+    border-color: transparent !important;
+    box-shadow: 0 0 0 2px var(--rec-color, #dc2626) !important;
+    outline: none !important;
+    animation: none !important;
   }
   @keyframes refertium-dict-border-pulse {
     0%, 100% { box-shadow: 0 0 0 2px rgba(220,38,38,0.12); }
@@ -682,7 +683,7 @@ async function generateRefertiumHtmlForUser(user) {
 }
 
 async function readTemplateHtml() {
-  const candidates = [PERSISTENT_TEMPLATE_FILE, BUNDLED_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
+  const candidates = [BUNDLED_TEMPLATE_FILE, PERSISTENT_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
   for (const file of candidates) {
     try {
       const html = await fs.readFile(file, 'utf8');
@@ -703,8 +704,8 @@ function isValidRefertiumTemplate(html) {
 
 async function templateStatus() {
   const candidates = [
-    { file: PERSISTENT_TEMPLATE_FILE, label: 'Render disk: templates/refertium-premium.html' },
     { file: BUNDLED_TEMPLATE_FILE, label: 'GitHub: backend/templates/refertium-premium.html' },
+    { file: PERSISTENT_TEMPLATE_FILE, label: 'Render disk: templates/refertium-premium.html' },
     { file: LEGACY_TEMPLATE_FILE, label: 'GitHub: refertium-assets/REFERTIUM_v52-7.html' }
   ];
   for (const item of candidates) {
