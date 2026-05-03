@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -11763,7 +11764,8 @@ function applyReportFontSize() {
    either at the caret position (if the user clicked inside the section text)
    or appended at the end. */
 function startSectionDictation(sec, btn) {
-  if (!state.apiKey) {
+  const usingProxy = (typeof PROXY_URL !== 'undefined' && PROXY_URL);
+  if (!state.apiKey && !usingProxy) {
     toast('Imposta prima la tua chiave API (Impostazioni).', 'err');
     if (typeof openSettings === 'function') openSettings();
     return;
@@ -14284,8 +14286,14 @@ async function generateFinalReport() {
       }
     }
 
+    const finalSystemPrompt = `Sei un radiologo editor. Devi lavorare SOLO sul testo fornito dall'utente nel messaggio successivo.
+Non usare esempi, template interni, memoria del software o casi radiologici non presenti nel testo.
+Non cambiare esame, metodica o distretto. Se il testo parla di ecografia, resta ecografia; se parla di TC, resta TC; se parla di RM, resta RM.
+Le conclusioni devono derivare esclusivamente dai reperti esplicitamente presenti nel referto/checklist forniti.
+Non inventare follow-up, controlli, confronti, sedi, misure, diagnosi o raccomandazioni. Rispondi solo con il referto finale in testo piano.`;
+
     const result = await callOpenAI([
-      { role: 'system', content: systemPromptForReport() },
+      { role: 'system', content: finalSystemPrompt },
       { role: 'user', content: userMsg },
     ], { temperature: 0.3, max_tokens: 2200 });
 
@@ -18810,7 +18818,8 @@ window.REFERTIUM_DEBUG_MAGIC = true;
         micBtn.addEventListener('click', function(ev) {
           ev.preventDefault();
           ev.stopPropagation();
-          if (!state.apiKey) {
+          const usingProxy = (typeof PROXY_URL !== 'undefined' && PROXY_URL);
+          if (!state.apiKey && !usingProxy) {
             toast('Imposta prima la tua chiave API (Impostazioni).', 'err');
             if (typeof openSettings === 'function') openSettings();
             return;
@@ -19049,6 +19058,48 @@ window.REFERTIUM_DEBUG_MAGIC = true;
   } else {
     init();
   }
+})();
+
+/* Safety wiring: il drawer checklist viene rigenerato spesso. Questo handler
+   delegato intercetta sempre il microfono della singola voce, anche dopo
+   rerender del pannello, e usa il proxy quando la app e' online. */
+(function wireChecklistPromptMicDelegation() {
+  document.addEventListener('click', function(ev) {
+    var btn = ev.target && ev.target.closest && ev.target.closest('.checklist-voce-mic');
+    if (!btn) return;
+    ev.preventDefault();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    else ev.stopPropagation();
+
+    var wrap = btn.closest && btn.closest('.checklist-voce-prompt-wrap');
+    var ta = wrap && wrap.querySelector('textarea[data-role="checklist-prompt"]');
+    if (!ta) {
+      if (typeof toast === 'function') toast('Campo checklist non trovato', 'err');
+      return;
+    }
+
+    const usingProxy = (typeof PROXY_URL !== 'undefined' && PROXY_URL);
+    if (!state.apiKey && !usingProxy) {
+      toast('Imposta prima la tua chiave API (Impostazioni).', 'err');
+      if (typeof openSettings === 'function') openSettings();
+      return;
+    }
+
+    try {
+      ta.focus();
+      if (typeof ta.selectionStart === 'number' && typeof ta.selectionEnd === 'number') {
+        btn.dataset.caretStart = String(ta.selectionStart);
+        btn.dataset.caretEnd = String(ta.selectionEnd);
+      }
+    } catch (_) {}
+
+    if (recState.activeBtn && recState.activeBtn !== btn) {
+      stopRecording();
+      setTimeout(function() { toggleMic(btn, ta, 'checklistPrompt', null); }, 350);
+    } else {
+      toggleMic(btn, ta, 'checklistPrompt', null);
+    }
+  }, true);
 })();
 
 /* ================================================================
@@ -19842,3 +19893,4 @@ window.REFERTIUM_DEBUG_MAGIC = true;
 </script>
 </body>
 </html>
+
