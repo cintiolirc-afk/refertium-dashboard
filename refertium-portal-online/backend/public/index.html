@@ -34,7 +34,7 @@
 
   .shell-top {
     height: 64px;
-    display: flex;
+    display: none;
     align-items: center;
     gap: 14px;
     padding: 0 22px;
@@ -46,7 +46,6 @@
     z-index: 10;
   }
 
-  body.is-logged-in .shell-top { display: none; }
   body.is-logged-in .app, body.is-logged-in .user-home { min-height: 100vh; }
 
   .brand {
@@ -124,7 +123,7 @@
   .dot.bad { background: var(--danger); box-shadow: 0 0 0 4px rgba(239, 105, 105, .1); }
 
   .login-screen {
-    min-height: calc(100vh - 64px);
+    min-height: 100vh;
     display: grid;
     place-items: center;
     padding: 34px 18px;
@@ -249,6 +248,45 @@
     padding-top: 14px;
     color: var(--quiet);
     font-size: 12px;
+  }
+
+  .consent-box {
+    display: grid;
+    gap: 10px;
+    margin: 18px 0;
+    padding: 14px;
+    border: 1px solid rgba(179, 218, 255, .14);
+    border-radius: var(--radius);
+    background: rgba(2, 8, 23, .48);
+  }
+
+  .consent-title {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+
+  .consent-row {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.5;
+    text-transform: none;
+  }
+
+  .consent-row input {
+    width: 16px;
+    min-height: 16px;
+    height: 16px;
+    margin: 2px 0 0;
+    accent-color: var(--accent);
   }
 
   .err { min-height: 22px; color: #ffc3c3; margin-top: 10px; }
@@ -491,7 +529,13 @@
         <p class="sub" id="loginSub">Inserisci le credenziali Refertium.</p>
         <div class="field"><label>Username</label><input id="username" autocomplete="username"></div>
         <div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password"></div>
-        <button class="primary" id="loginBtn" style="width:100%">Accedi</button>
+        <div class="consent-box" aria-label="Consensi obbligatori">
+          <div class="consent-title" id="consentTitle">Conferme obbligatorie</div>
+          <label class="consent-row"><input id="consentPrivacy" type="checkbox"><span id="consentPrivacyText">Ho letto l'informativa privacy e accetto il trattamento dei dati necessari all'accesso al servizio.</span></label>
+          <label class="consent-row"><input id="consentData" type="checkbox"><span id="consentDataText">Mi impegno a non inserire dati identificativi dei pazienti, dati personali non necessari o informazioni cliniche riconducibili a una persona specifica.</span></label>
+          <label class="consent-row"><input id="consentDisclaimer" type="checkbox"><span id="consentDisclaimerText">Comprendo che Refertium e uno strumento di supporto alla stesura del testo: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.</span></label>
+        </div>
+        <button class="primary" id="loginBtn" style="width:100%" disabled>Accedi</button>
         <div class="err" id="loginErr"></div>
         <p class="fineprint" id="loginFineprint">Solo utenti autorizzati.</p>
       </form>
@@ -647,6 +691,11 @@ const t = {
     loginSub: "Inserisci le credenziali Refertium.",
     loginBtn: "Accedi",
     fineprint: "Solo utenti autorizzati.",
+    consentTitle: "Conferme obbligatorie",
+    consentPrivacy: "Ho letto l'informativa privacy e accetto il trattamento dei dati necessari all'accesso al servizio.",
+    consentData: "Mi impegno a non inserire dati identificativi dei pazienti, dati personali non necessari o informazioni cliniche riconducibili a una persona specifica.",
+    consentDisclaimer: "Comprendo che Refertium e uno strumento di supporto alla stesura del testo: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.",
+    consentError: "Per accedere devi confermare privacy, gestione dei dati e disclaimer.",
     metricOne: "",
     metricOneSub: "",
     metricTwo: "",
@@ -663,6 +712,11 @@ const t = {
     loginSub: "Enter your Refertium credentials.",
     loginBtn: "Sign in",
     fineprint: "Authorized users only.",
+    consentTitle: "Required confirmations",
+    consentPrivacy: "I have read the privacy notice and accept the processing of data necessary to access the service.",
+    consentData: "I agree not to enter patient-identifying data, unnecessary personal data, or clinical information traceable to a specific person.",
+    consentDisclaimer: "I understand that Refertium supports text drafting only: it does not diagnose, replace the physician, or make clinical decisions.",
+    consentError: "To sign in, you must confirm privacy, data handling, and disclaimer.",
     metricOne: "",
     metricOneSub: "",
     metricTwo: "",
@@ -684,6 +738,10 @@ function applyLang() {
   $("loginSub").textContent = copy.loginSub;
   $("loginBtn").textContent = copy.loginBtn;
   $("loginFineprint").textContent = copy.fineprint;
+  $("consentTitle").textContent = copy.consentTitle;
+  $("consentPrivacyText").textContent = copy.consentPrivacy;
+  $("consentDataText").textContent = copy.consentData;
+  $("consentDisclaimerText").textContent = copy.consentDisclaimer;
   $("loginMetricOne").textContent = copy.metricOne;
   $("loginMetricOneSub").textContent = copy.metricOneSub;
   $("loginMetricTwo").textContent = copy.metricTwo;
@@ -727,6 +785,12 @@ function licenseLabel(u) { return u.license === "blocked" ? "Bloccata" : u.licen
 function licenseDot(u) { return u.license === "blocked" ? "bad" : u.license === "limited" ? "warn" : "ok"; }
 function overLimit(u) { const limit = limitOf(u); return Boolean(limit && usage(u).total >= limit); }
 function selectedUser() { return users.find(u => u.id === selected) || users[0]; }
+function consentAccepted() {
+  return $("consentPrivacy").checked && $("consentData").checked && $("consentDisclaimer").checked;
+}
+function updateConsentState() {
+  $("loginBtn").disabled = !consentAccepted();
+}
 
 function show(id) {
   ["loginView", "adminView", "userView"].forEach(view => $(view).classList.add("hidden"));
@@ -772,6 +836,10 @@ function summary() {
 }
 
 async function boot() {
+  if (!sessionStorage.getItem("refertium_consent_ok")) {
+    show("loginView");
+    return;
+  }
   try {
     const data = await api("/api/me");
     me = data.user;
@@ -947,8 +1015,13 @@ function renderUser() {
 $("loginForm").onsubmit = async e => {
   e.preventDefault();
   $("loginErr").textContent = "";
+  if (!consentAccepted()) {
+    $("loginErr").textContent = t[lang].consentError;
+    return;
+  }
   try {
     const data = await api("/api/login", { method: "POST", body: JSON.stringify({ username: $("username").value, password: $("password").value }) });
+    sessionStorage.setItem("refertium_consent_ok", "1");
     me = data.user;
     setWho(me);
     if (me.role === "admin") await loadAdmin();
@@ -960,6 +1033,7 @@ $("loginForm").onsubmit = async e => {
 
 async function logout() {
   await api("/api/logout", { method: "POST" });
+  sessionStorage.removeItem("refertium_consent_ok");
   me = null;
   setWho(null);
   show("loginView");
@@ -968,6 +1042,7 @@ async function logout() {
 $("logout").onclick = logout;
 $("logoutInline").onclick = logout;
 $("logoutUser").onclick = logout;
+["consentPrivacy", "consentData", "consentDisclaimer"].forEach(id => $(id).onchange = updateConsentState);
 
 $("langToggle").onclick = () => {
   lang = lang === "it" ? "en" : "it";
