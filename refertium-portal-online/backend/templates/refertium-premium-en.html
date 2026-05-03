@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -12363,7 +12364,8 @@ function applyReportFontSize() {
    either at the caret position (if the user clicked inside the section text)
    or appended at the end. */
 function startSectionDictation(sec, btn) {
-  if (!state.apiKey) {
+  const usingProxy = (typeof PROXY_URL !== 'undefined' && PROXY_URL);
+  if (!state.apiKey && !usingProxy) {
     toast('Please set your API key first (Settings).', 'err');
     if (typeof openSettings === 'function') openSettings();
     return;
@@ -12449,7 +12451,8 @@ function startSectionDictation(sec, btn) {
 }
 
 function startImpressionDictation(textEl, btn) {
-  if (!state.apiKey) {
+  const usingProxy = (typeof PROXY_URL !== 'undefined' && PROXY_URL);
+  if (!state.apiKey && !usingProxy) {
     toast('Please set your API key first (Settings).', 'err');
     if (typeof openSettings === 'function') openSettings();
     return;
@@ -14242,14 +14245,29 @@ async function generateFinalReport() {
       }
       userMsg = `CURRENT REPORT (RADIOLOGIST'S FREE TEXT):\n${bodyText}\n\n---\nYou are an experienced radiologist. Your task is twofold.\n\n1) REFORMAT THE BODY OF THE REPORT\nKeep the entire clinical content written by the radiologist intact. You may only: correct typos, harmonize English radiologic terminology, fix punctuation, and make the prose flow more naturally. DO NOT alter meaning, DO NOT add new findings, DO NOT change measurements, sites, laterality, or descriptive entities.\n\n2) ADD THE DIAGNOSTIC IMPRESSIONS\nAt the end of the report, add a paragraph titled "${impressionsLabel}" (title in UPPERCASE, on its own line). The IMPRESSIONS must be the diagnostic reasoning of an experienced radiologist, not a mere summary:\n\n- Integrate the described findings into one or more diagnostic hypotheses, starting from the most likely. When findings are typical of a known condition, name it explicitly. When findings are nonspecific but suggestive, list 2-3 differential diagnoses in order of likelihood using standard English phrasing ("most likely representing...", "compatible with...", "in differential diagnosis with...", "favoring...", "cannot exclude...").\n- Distinguish relevant pathologic findings from chronic sequelae or irrelevant anatomical variants: do not crowd the impressions with negligible details.\n- When findings warrant it, indicate a concrete and appropriate imaging follow-up, calibrated to the clinical picture (modality, timing, contrast if needed). Example phrasing: "Recommend follow-up contrast-enhanced CT in 3 months", "Suggest further evaluation with MRI including perfusion study", "Warrants ultrasound follow-up in 6 months". Follow-up should be proposed ONLY when clinically justified; if the picture is normal or stable, do not propose follow-up.\n- When relevant, suggest clinical, laboratory, or prior imaging correlation (if not available), with standard phrasing ("clinical correlation is recommended", "correlation with laboratory data is suggested", "comparison with priors would be useful").\n- If all findings are normal, conclude with a clear and concise phrase such as "Unremarkable study" or "Within normal limits" without adding superfluous recommendations.\n\nABSOLUTE CONSTRAINTS:\n- Do not invent findings, measurements, sites, or conditions not derivable from the radiologist's text. Diagnostic reasoning must rest exclusively on what is described.\n- Use professional radiologic English, short telegraphic sentences, sober clinical reporting tone.\n- Return the entire updated report in PLAIN TEXT (no markdown, no asterisks, no hashes, no bullet lists).`;
     } else {
-      /* Structured mode: behave as before, using checklist + global dictation. */
       const findings = gatherStructuredFindings();
       const globalDict = (document.getElementById('globalDictationInput')?.value || '').trim();
-      userMsg = `STUDY HEADER:\n${header}\n\nSTRUCTURED CHECKLIST DATA:\n${findings || '(no items selected)'}\n\nRADIOLOGIST DICTATION / FREE NOTES:\n${globalDict || '(none)'}\n\n---\nGenerate the final radiology report IN ENGLISH, with section structure (UPPERCASE titles) and a final paragraph titled "${impressionsLabel}" summarizing the most relevant findings and proposing clinical correlations or follow-up suggestions. Do not invent measurements or pathology not present in the data. Coherently integrate the checklist findings with the dictation.`;
+      const currentReportText = String(rep?.innerText || rep?.textContent || '')
+        .replace(/\b(Normal|Pathological|Not evaluable|Dictation|Common findings|Review|Impressions)\b/g, ' ')
+        .replace(/\u00A0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      if (currentReportText && currentReportText.length > 30) {
+        userMsg = `CURRENT REPORT GENERATED FROM THE CHECKLIST:\n${currentReportText}\n\nSECONDARY CHECKLIST CONTEXT, USE ONLY TO RESOLVE AMBIGUITIES:\n${findings || '(no checklist items available)'}\n\nRADIOLOGIST DICTATION / FREE NOTES:\n${globalDict || '(none)'}\n\n---\nWork ONLY on the CURRENT REPORT above.\n\nTask:\n- Keep the body of the report already generated from the checklist.\n- If the "${impressionsLabel}" section is missing, add it at the end.\n- If the "${impressionsLabel}" section already exists, replace only that section with correct impressions.\n- The impressions must derive ONLY from findings actually present in the current report.\n\nABSOLUTE RULES:\n- Do not use internal templates or examples to infer a different study.\n- Do not switch to another exam: identify study, modality, and anatomic district exclusively from the current report text.\n- Do not mention exams, modalities, anatomic districts, follow-up, comparisons, controls, or recommendations that are not supported by the current report.\n- Do not invent findings, measurements, diagnoses, or recommendations.\n- If the current report is normal, write a short normal impression only.\n- Return the entire updated report in PLAIN TEXT, no markdown.`;
+      } else {
+        userMsg = `STUDY HEADER:\n${header}\n\nSTRUCTURED CHECKLIST DATA:\n${findings || '(no items selected)'}\n\nRADIOLOGIST DICTATION / FREE NOTES:\n${globalDict || '(none)'}\n\n---\nGenerate the final radiology report IN ENGLISH, with section structure (UPPERCASE titles) and a final paragraph titled "${impressionsLabel}".\n\nABSOLUTE RULES:\n- The study is exactly the one indicated in STUDY HEADER. Never switch to another exam, modality, or anatomic district.\n- Coherently integrate only the checklist findings and dictation provided above.\n- Do not invent measurements, pathology, follow-up, comparisons, controls, or recommendations not present in the data.\n- If the data are normal, write a short normal impression only.\n- Return plain text only, no markdown.`;
+      }
     }
 
+    const finalSystemPrompt = `You are a radiology editor. Work ONLY on the text supplied by the user in the next message.
+Do not use internal examples, default templates, app memory, or radiology cases not present in the supplied text.
+Do not change the study, modality, or anatomic district. If the text is about ultrasound, stay with ultrasound; if it is about CT, stay with CT; if it is about MRI, stay with MRI.
+Impressions must derive exclusively from findings explicitly present in the supplied report/checklist.
+Do not invent follow-up, comparisons, sites, measurements, diagnoses, or recommendations. Return only the final report in plain text.`;
+
     const result = await callOpenAI([
-      { role: 'system', content: systemPromptForReport() },
+      { role: 'system', content: finalSystemPrompt },
       { role: 'user', content: userMsg },
     ], { temperature: 0.3, max_tokens: 2200 });
     rep.innerText = stripMarkdown(result);
@@ -16463,3 +16481,4 @@ document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
+
