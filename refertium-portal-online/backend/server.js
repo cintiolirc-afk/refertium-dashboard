@@ -358,15 +358,16 @@ function injectLicenseGuard(html, user) {
   }
   .report.dict-recording:focus,
   .report.dict-recording:focus-within {
-    box-shadow: none !important;
+    box-shadow: 0 0 0 2px rgba(220,38,38,0.12) !important;
   }
   .report.dict-recording {
     border-color: var(--rec-color, #dc2626) !important;
+    box-shadow: 0 0 0 2px rgba(220,38,38,0.12) !important;
     animation: refertium-dict-border-pulse 1.4s ease-in-out infinite !important;
   }
   @keyframes refertium-dict-border-pulse {
-    0%, 100% { box-shadow: 0 0 0 2px rgba(220,38,38,0.12), var(--shadow-paper, 0 8px 24px rgba(0,0,0,0.04)); }
-    50% { box-shadow: 0 0 0 4px rgba(220,38,38,0.22), var(--shadow-paper, 0 8px 24px rgba(0,0,0,0.04)); }
+    0%, 100% { box-shadow: 0 0 0 2px rgba(220,38,38,0.12); }
+    50% { box-shadow: 0 0 0 4px rgba(220,38,38,0.22); }
   }
   </style>`;
   const guard = `<script>
@@ -487,18 +488,49 @@ function injectLicenseGuard(html, user) {
       return resp;
     };
   }
-  try{
-    localStorage.setItem('reportify_report_font','garamond');
-    document.addEventListener('DOMContentLoaded',function(){
-      var sel=document.getElementById('reportFontSelect');
-      if(sel){
-        sel.value='garamond';
-        sel.dispatchEvent(new Event('change',{bubbles:true}));
-      }
-    });
-  }catch(e){}
-})();
-</script>`;
+	  try{
+	    localStorage.setItem('reportify_report_font','garamond');
+	    document.addEventListener('DOMContentLoaded',function(){
+	      var sel=document.getElementById('reportFontSelect');
+	      if(sel){
+	        sel.value='garamond';
+	        sel.dispatchEvent(new Event('change',{bubbles:true}));
+	      }
+	    });
+	  }catch(e){}
+	  function patchRefertiumRuntime(){
+	    try{
+	      if(window.PROXY_URL && window.state && state.sttProvider==='deepgram' && !state.deepgramKey){
+	        state.deepgramKey='__refertium_proxy__';
+	      }
+	    }catch(e){}
+	    try{
+	      if(typeof window.systemPromptForReport==='function' && !window.systemPromptForReport.__refertiumStrict){
+	        var originalSystemPromptForReport=window.systemPromptForReport;
+	        window.systemPromptForReport=function(){
+	          var base=String(originalSystemPromptForReport.apply(this,arguments)||'');
+	          return base+'\\n\\nREGOLE REFERTIUM TASSATIVE PER LE CONCLUSIONI:\\n- Le conclusioni devono riferirsi solo all esame corrente e ai reperti effettivamente presenti nel referto/checklist.\\n- Non citare esami, metodiche, distretti anatomici, follow-up, controlli o approfondimenti non presenti nei dati del medico.\\n- Se il quadro e normale, scrivi solo una conclusione breve di normalita, senza raccomandazioni.\\n- Se i dati sono poveri o ambigui, resta prudente e non inventare ipotesi.';
+	        };
+	        window.systemPromptForReport.__refertiumStrict=true;
+	      }
+	    }catch(e){}
+	    try{
+	      if(typeof window.buildMagicSystemPrompt==='function' && !window.buildMagicSystemPrompt.__refertiumStrict){
+	        var originalBuildMagicSystemPrompt=window.buildMagicSystemPrompt;
+	        window.buildMagicSystemPrompt=function(){
+	          var base=String(originalBuildMagicSystemPrompt.apply(this,arguments)||'');
+	          return base+'\\n\\nREGOLA REFERTIUM EXTRA:\\nQuando parti da checklist, resta aderente alla metodica e al distretto della checklist. Non inserire riferimenti a esami, metodiche o distretti non presenti nell input.';
+	        };
+	        window.buildMagicSystemPrompt.__refertiumStrict=true;
+	      }
+	    }catch(e){}
+	  }
+	  patchRefertiumRuntime();
+	  document.addEventListener('DOMContentLoaded',patchRefertiumRuntime);
+	  setTimeout(patchRefertiumRuntime,500);
+	  setTimeout(patchRefertiumRuntime,1500);
+	})();
+	</script>`;
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, m => m + uiPatch + guard);
   return uiPatch + guard + html;
 }
