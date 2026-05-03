@@ -177,6 +177,14 @@
   .hero-logo .mark svg { width: 132px; height: 132px; }
   .wordmark { font-size: clamp(58px, 8vw, 104px); font-weight: 380; letter-spacing: -.05em; line-height: 1; }
   .wordmark span { color: inherit; }
+  .brand-subtitle {
+    margin: 18px 0 0;
+    color: var(--muted);
+    font-size: clamp(18px, 2.3vw, 25px);
+    font-weight: 400;
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
 
   .login-identity h1 {
     display: none;
@@ -222,6 +230,7 @@
   }
 
   .login-card form { width: 100%; }
+  .login-actions { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   h2 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
   .sub { margin: 8px 0 20px; color: var(--muted); }
   .field { display: grid; gap: 7px; margin: 14px 0; }
@@ -513,6 +522,7 @@
           </div>
           <div class="wordmark">Refer<span>tium</span></div>
         </div>
+        <p class="brand-subtitle" id="brandSubtitle">Benvenuto nel futuro della refertazione</p>
         <h1 id="heroTitle"></h1>
         <p id="heroText"></p>
       </div>
@@ -524,6 +534,7 @@
     </div>
     <div class="login-card">
       <form id="loginForm">
+        <div class="login-actions"><button class="ghost" id="loginLangToggle" type="button">EN</button></div>
         <span class="pill"><span class="dot ok"></span><span id="loginBadge">Area riservata</span></span>
         <h2 id="loginTitle" style="margin-top:18px">Accedi</h2>
         <p class="sub" id="loginSub">Inserisci le credenziali Refertium.</p>
@@ -533,7 +544,7 @@
           <div class="consent-title" id="consentTitle">Conferme obbligatorie</div>
           <label class="consent-row"><input id="consentPrivacy" type="checkbox"><span id="consentPrivacyText">Ho letto l'informativa privacy e accetto il trattamento dei dati necessari all'accesso al servizio.</span></label>
           <label class="consent-row"><input id="consentData" type="checkbox"><span id="consentDataText">Mi impegno a non inserire dati identificativi dei pazienti, dati personali non necessari o informazioni cliniche riconducibili a una persona specifica.</span></label>
-          <label class="consent-row"><input id="consentDisclaimer" type="checkbox"><span id="consentDisclaimerText">Comprendo che Refertium e uno strumento di supporto alla stesura del testo: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.</span></label>
+          <label class="consent-row"><input id="consentDisclaimer" type="checkbox"><span id="consentDisclaimerText">Comprendo che Refertium è uno strumento di supporto alla stesura del testo clinico: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.</span></label>
         </div>
         <button class="primary" id="loginBtn" style="width:100%" disabled>Accedi</button>
         <div class="err" id="loginErr"></div>
@@ -684,6 +695,7 @@ let lang = localStorage.getItem("refertium_lang") || "it";
 
 const t = {
   it: {
+    brandSubtitle: "Benvenuto nel futuro della refertazione",
     heroTitle: "",
     heroText: "",
     loginBadge: "Area riservata",
@@ -694,7 +706,7 @@ const t = {
     consentTitle: "Conferme obbligatorie",
     consentPrivacy: "Ho letto l'informativa privacy e accetto il trattamento dei dati necessari all'accesso al servizio.",
     consentData: "Mi impegno a non inserire dati identificativi dei pazienti, dati personali non necessari o informazioni cliniche riconducibili a una persona specifica.",
-    consentDisclaimer: "Comprendo che Refertium e uno strumento di supporto alla stesura del testo: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.",
+    consentDisclaimer: "Comprendo che Refertium è uno strumento di supporto alla stesura del testo clinico: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.",
     consentError: "Per accedere devi confermare privacy, gestione dei dati e disclaimer.",
     metricOne: "",
     metricOneSub: "",
@@ -705,6 +717,7 @@ const t = {
     logout: "Esci"
   },
   en: {
+    brandSubtitle: "Welcome to the future of reporting",
     heroTitle: "",
     heroText: "",
     loginBadge: "Private area",
@@ -731,6 +744,8 @@ function applyLang() {
   const copy = t[lang];
   document.documentElement.lang = lang;
   $("langToggle").textContent = lang === "it" ? "EN" : "IT";
+  $("loginLangToggle").textContent = lang === "it" ? "EN" : "IT";
+  $("brandSubtitle").textContent = copy.brandSubtitle;
   $("heroTitle").textContent = copy.heroTitle;
   $("heroText").textContent = copy.heroText;
   $("loginBadge").textContent = copy.loginBadge;
@@ -1049,6 +1064,7 @@ $("langToggle").onclick = () => {
   localStorage.setItem("refertium_lang", lang);
   applyLang();
 };
+$("loginLangToggle").onclick = $("langToggle").onclick;
 
 async function createUser() {
   const stamp = Date.now();
