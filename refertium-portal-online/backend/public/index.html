@@ -452,6 +452,54 @@
     overflow-x: auto;
   }
 
+  .usage-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 22px;
+    background: rgba(2, 8, 23, .72);
+    backdrop-filter: blur(18px);
+  }
+
+  .modal-backdrop.hidden { display: none; }
+
+  .modal-panel {
+    width: min(1080px, 100%);
+    max-height: min(760px, calc(100vh - 44px));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #07111f;
+    box-shadow: 0 28px 90px rgba(0,0,0,.46);
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .modal-head h3 { margin: 0; }
+
+  .modal-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 18px 20px 20px;
+  }
+
   .detail-form {
     display: grid;
     grid-template-columns: minmax(320px, .8fr) minmax(420px, 1.2fr);
@@ -674,12 +722,8 @@
             <div class="metric-card"><span>Dettatura</span><b id="dictated">0h</b><small id="dictatedNote">questo mese</small></div>
           </div>
           <div class="usage-line"><div class="bar"><i id="bar"></i></div></div>
-          <div style="height:16px"></div>
-          <div class="usage-table-wrap">
-            <table>
-              <thead><tr><th>Data</th><th>Operazione</th><th>Token</th><th>Dettatura</th><th>Stato</th></tr></thead>
-              <tbody id="usageRows"></tbody>
-            </table>
+          <div class="usage-actions">
+            <button class="ghost" id="openUsageLog" type="button">Apri registro consumi</button>
           </div>
         </div>
         <form class="detail-form" id="userForm">
@@ -781,6 +825,26 @@
     <div class="empty hidden" id="blocked" style="margin-top:16px"></div>
   </section>
 </main>
+
+<div class="modal-backdrop hidden" id="usageModal" role="dialog" aria-modal="true" aria-labelledby="usageModalTitle">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow" style="margin:0 0 4px">Registro</p>
+        <h3 id="usageModalTitle">Accessi token e dettatura</h3>
+      </div>
+      <button class="ghost" id="closeUsageLog" type="button">Chiudi</button>
+    </div>
+    <div class="modal-body">
+      <div class="usage-table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Operazione</th><th>Token</th><th>Dettatura</th><th>Stato</th></tr></thead>
+          <tbody id="usageRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -1149,6 +1213,19 @@ function renderUsage(u) {
   `).join("") || `<tr><td colspan="5"><span class="note">Nessun consumo registrato.</span></td></tr>`;
 }
 
+function openUsageModal() {
+  const modal = $("usageModal");
+  const u = selectedUser();
+  if (!modal || !u) return;
+  $("usageModalTitle").textContent = "Accessi token e dettatura - " + (u.name || u.username || "utente");
+  modal.classList.remove("hidden");
+}
+
+function closeUsageModal() {
+  const modal = $("usageModal");
+  if (modal) modal.classList.add("hidden");
+}
+
 function renderUser() {
   show("userView");
   setWho(me);
@@ -1346,6 +1423,15 @@ $("resetUsage").onclick = async () => {
   await api("/api/users/" + u.id + "/usage-reset", { method: "POST" });
   await loadAdmin();
 };
+
+$("openUsageLog").onclick = openUsageModal;
+$("closeUsageLog").onclick = closeUsageModal;
+$("usageModal").addEventListener("click", e => {
+  if (e.target === $("usageModal")) closeUsageModal();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeUsageModal();
+});
 
 $("deleteUser").onclick = async () => {
   const u = selectedUser();
