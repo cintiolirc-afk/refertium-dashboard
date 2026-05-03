@@ -344,6 +344,31 @@ async function serveUserApp(req, res, db, user, targetUserId) {
 }
 
 function injectLicenseGuard(html, user) {
+  const uiPatch = `<style id="refertium-runtime-ui-patch">
+  :root { --font-serif: 'EB Garamond', Garamond, 'Apple Garamond', Georgia, serif; }
+  .report,
+  .report.report-font-system,
+  .report.report-font-roboto,
+  .report.report-font-times,
+  .report.report-font-garamond,
+  .report.report-font-courier,
+  .report .dict-interim,
+  .report .dict-session {
+    font-family: var(--font-serif) !important;
+  }
+  .report.dict-recording:focus,
+  .report.dict-recording:focus-within {
+    box-shadow: none !important;
+  }
+  .report.dict-recording {
+    border-color: var(--rec-color, #dc2626) !important;
+    animation: refertium-dict-border-pulse 1.4s ease-in-out infinite !important;
+  }
+  @keyframes refertium-dict-border-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(220,38,38,0.12), var(--shadow-paper, 0 8px 24px rgba(0,0,0,0.04)); }
+    50% { box-shadow: 0 0 0 4px rgba(220,38,38,0.22), var(--shadow-paper, 0 8px 24px rgba(0,0,0,0.04)); }
+  }
+  </style>`;
   const guard = `<script>
 (function(){
   var USER_ID=${JSON.stringify(user.id)};
@@ -462,10 +487,20 @@ function injectLicenseGuard(html, user) {
       return resp;
     };
   }
+  try{
+    localStorage.setItem('reportify_report_font','garamond');
+    document.addEventListener('DOMContentLoaded',function(){
+      var sel=document.getElementById('reportFontSelect');
+      if(sel){
+        sel.value='garamond';
+        sel.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+    });
+  }catch(e){}
 })();
 </script>`;
-  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, m => m + guard);
-  return guard + html;
+  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, m => m + uiPatch + guard);
+  return uiPatch + guard + html;
 }
 
 function pageMessage(title, text) {
