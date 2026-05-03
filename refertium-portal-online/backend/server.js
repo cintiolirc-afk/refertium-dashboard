@@ -13,6 +13,9 @@ const WORKER_SHARED_SECRET = process.env.WORKER_SHARED_SECRET || 'refertium-work
 const ADMIN_BOOTSTRAP_PASSWORD = process.env.REFERTIUM_ADMIN_PASSWORD || 'refertium-admin';
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
+const TEMPLATE_DIR = path.join(ROOT, 'templates');
+const DEFAULT_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-premium.html');
+const LEGACY_TEMPLATE_FILE = path.join(ROOT, '..', 'refertium-assets', 'REFERTIUM_v52-7.html');
 const PERSISTENT_ROOT = process.env.REFERTIUM_DATA_DIR || (fss.existsSync('/var/data') ? '/var/data/refertium' : ROOT);
 const DATA_DIR = path.join(PERSISTENT_ROOT, 'data');
 const UPLOAD_DIR = path.join(PERSISTENT_ROOT, 'uploads');
@@ -50,6 +53,7 @@ function verifyPassword(password, stored) {
 async function ensureDirs() {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  await fs.mkdir(TEMPLATE_DIR, { recursive: true });
 }
 
 async function loadDb() {
@@ -137,6 +141,33 @@ function normalizeDb(db) {
       user.isDemo = Number(user.planPrice || 0) <= 0;
       changed = true;
     }
+    if (user.role === 'user') {
+      const parts = String(user.name || '').trim().split(/\s+/).filter(Boolean);
+      if (user.firstName == null) {
+        user.firstName = parts.length > 1 ? parts.slice(0, -1).join(' ') : (parts[0] || '');
+        changed = true;
+      }
+      if (user.lastName == null) {
+        user.lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+        changed = true;
+      }
+      if (!Array.isArray(user.specialties)) {
+        user.specialties = ['urgenza'];
+        changed = true;
+      }
+      if (user.distillate == null) {
+        user.distillate = '';
+        changed = true;
+      }
+      if (user.softwareLanguage == null) {
+        user.softwareLanguage = 'it';
+        changed = true;
+      }
+      if (user.edition == null) {
+        user.edition = 'pro';
+        changed = true;
+      }
+    }
   }
   return changed;
 }
@@ -148,11 +179,17 @@ async function saveDb(db) {
 
 function publicUser(user, options = {}) {
   const includeUsage = options.includeUsage !== false;
+  const includeSensitive = options.includeSensitive === true;
   const session = sessionInfo(user.id);
-  return {
+  const out = {
     id: user.id,
     role: user.role,
     name: user.name,
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    specialties: Array.isArray(user.specialties) ? user.specialties : [],
+    softwareLanguage: user.softwareLanguage || 'it',
+    edition: user.edition || 'pro',
     username: user.username || '',
     email: user.email,
     license: user.license,
@@ -166,9 +203,12 @@ function publicUser(user, options = {}) {
     usage: includeUsage ? (user.usage || {}) : {},
     online: session.online,
     lastSeenAt: session.lastSeenAt,
+    generatedAt: user.generatedAt || '',
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
+  if (includeSensitive) out.distillate = user.distillate || '';
+  return out;
 }
 
 function sessionInfo(userId) {
@@ -417,6 +457,103 @@ window.__REFERTIUM_USER__=${JSON.stringify({ id: user.id, name: user.name, licen
   return guard + html;
 }
 
+const SPECIALTIES = [
+  { key: 'neuro', label: 'Neuro', initials: 'NE' },
+  { key: 'body', label: 'Body', initials: 'BO' },
+  { key: 'msk', label: 'MSK', initials: 'MS' },
+  { key: 'senologia', label: 'Senologia', initials: 'SE' },
+  { key: 'toracica', label: 'Toracica', initials: 'TO' },
+  { key: 'eco', label: 'Eco', initials: 'EC' },
+  { key: 'urgenza', label: 'Urgenza', initials: 'UR' }
+];
+
+const SPECIALTY_DISTRICTS = {
+  neuro: ['encefalo','sella','angio_intracranica','orbite','rocche_petrose','massiccio_facciale','seni_paranasali','collo','tsa','rachide_cervicale','rachide_dorsale','rachide_lombare','rachide_sacrale','rachide_intero','altro'],
+  body: ['collo','tiroide','paratiroidi','ghiandole_salivari','torace','cuore','aorta_toracica','embolia_polmonare','addome_completo','addome_superiore','fegato','vie_biliari','pancreas','milza','reni_surreni','uro','aorta_addominale','pelvi','prostata','vescica','utero_annessi','retto','arti_inf_arteriosi','arti_sup_arteriosi','arti_inf_venosi','whole_body','tc_total_body','altro'],
+  msk: ['rachide_cervicale','rachide_dorsale','rachide_lombare','rachide_sacrale','rachide_intero','spalla','gomito','polso','mano','bacino_anche','ginocchio','gamba','caviglia','piede','altro'],
+  senologia: ['mammella','pelvi','utero_annessi','altro'],
+  toracica: ['torace','polmoni_hrct','cuore','aorta_toracica','embolia_polmonare','altro'],
+  eco: ['collo','tiroide','paratiroidi','ghiandole_salivari','tsa','addome_completo','addome_superiore','fegato','pancreas','milza','reni_surreni','aorta_addominale','pelvi','prostata','vescica','utero_annessi','mammella','spalla','gomito','polso','ginocchio','caviglia','arti_inf_arteriosi','arti_sup_arteriosi','arti_inf_venosi','altro'],
+  urgenza: ['encefalo','massiccio_facciale','collo','rachide_cervicale','torace','cuore','aorta_toracica','embolia_polmonare','addome_completo','aorta_addominale','pelvi','rachide_dorsale','rachide_lombare','spalla','gomito','polso','mano','bacino_anche','ginocchio','caviglia','piede','whole_body','tc_total_body','altro']
+};
+
+function replaceBetweenMarkers(source, name, replacement) {
+  const startTag = '@@REFERTIUM_INJECTION_POINT@@ ' + name + ' START';
+  const endTag = '@@REFERTIUM_INJECTION_POINT@@ ' + name + ' END';
+  const startIdx = source.indexOf(startTag);
+  const endIdx = source.indexOf(endTag);
+  if (startIdx === -1 || endIdx === -1) return source;
+  const injectFrom = source.indexOf('\n', startIdx) + 1;
+  const back = source.substring(Math.max(0, endIdx - 200), endIdx);
+  const relStart = Math.max(back.lastIndexOf('/*'), back.lastIndexOf('<!--'));
+  if (injectFrom <= 0 || relStart === -1) return source;
+  const injectTo = Math.max(0, endIdx - 200) + relStart;
+  return source.substring(0, injectFrom) + replacement + source.substring(injectTo);
+}
+
+function safeSpecialties(value) {
+  const known = new Set(SPECIALTIES.map(s => s.key));
+  const selected = Array.isArray(value) ? value : String(value || '').split(',');
+  const out = selected.map(v => String(v).trim()).filter(v => known.has(v));
+  return out.length ? Array.from(new Set(out)) : ['urgenza'];
+}
+
+function buildDoctorBadgeHTML(user) {
+  const firstName = user.firstName || String(user.name || '').split(/\s+/).slice(0, -1).join(' ') || user.name || '';
+  const lastName = user.lastName || String(user.name || '').split(/\s+/).slice(-1)[0] || '';
+  const specs = safeSpecialties(user.specialties).map(key => SPECIALTIES.find(s => s.key === key)).filter(Boolean);
+  const iconHtml = specs.length === 1
+    ? `    <span class="doctor-badge-specialty" title="${escapeHtml(specs[0].label)}" aria-label="${escapeHtml(specs[0].label)}">${escapeHtml(specs[0].initials)}</span>\n`
+    : `    <span class="doctor-badge-specialties" title="${escapeHtml(specs.map(s => s.label).join(' + '))}" aria-label="${escapeHtml(specs.map(s => s.label).join(' + '))}">\n` +
+      specs.map(s => `      <span class="doctor-badge-specialty">${escapeHtml(s.initials)}</span>\n`).join('') +
+      '    </span>\n';
+  return iconHtml +
+    '    <span class="doctor-badge-divider" aria-hidden="true"></span>\n' +
+    `    <span class="doctor-badge-name">${escapeHtml(lastName)}, ${escapeHtml(firstName)} <span class="doctor-badge-md">MD</span></span>\n`;
+}
+
+function extractWhisperKeywords(text) {
+  const words = String(text || '').toLowerCase().replace(/[^a-zàèéìíòóùúüöä\s-]/gi, ' ').split(/\s+/).filter(w => w.length >= 5 && w.length <= 22);
+  const stop = new Set(['della','dello','degli','delle','nella','nello','negli','nelle','dalla','dallo','dagli','dalle','sulla','sullo','sugli','sulle','questo','questa','questi','queste','esame','esami','referto','referti','paziente','pazienti','presenza','assenza','aspetto','quadro','rilievo','reperto']);
+  const freq = new Map();
+  for (const word of words) {
+    if (stop.has(word)) continue;
+    freq.set(word, (freq.get(word) || 0) + 1);
+  }
+  return Array.from(freq.entries())
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 80)
+    .map(([word]) => word)
+    .join(', ');
+}
+
+async function generateRefertiumHtmlForUser(user) {
+  let html = '';
+  try {
+    html = await fs.readFile(DEFAULT_TEMPLATE_FILE, 'utf8');
+  } catch {
+    html = await fs.readFile(LEGACY_TEMPLATE_FILE, 'utf8');
+  }
+  const language = user.softwareLanguage === 'en' ? 'en' : 'it';
+  const edition = user.edition === 'text' ? 'text' : 'pro';
+  const specialties = safeSpecialties(user.specialties);
+  const distillate = language === 'en' ? '' : String(user.distillate || '').trim().slice(0, 20000);
+  const enabledDistricts = Array.from(new Set(specialties.flatMap(key => SPECIALTY_DISTRICTS[key] || [])));
+
+  html = html.replace(/<html\s+lang="[^"]*"/i, `<html lang="${language}"`);
+  html = html.replace(/lang:\s*'it'\s*,/, `lang: '${language}',`);
+  html = html.replace(/language:\s*'it'/g, `language: '${language}'`);
+  html = replaceBetweenMarkers(html, 'DOCTOR_BADGE', buildDoctorBadgeHTML({ ...user, specialties }));
+  html = replaceBetweenMarkers(html, 'MAGIC_PDF_TEXT', `var MAGIC_PDF_TEXT = ${JSON.stringify(distillate)};\n`);
+  html = replaceBetweenMarkers(html, 'WHISPER_PROMPT', `var WHISPER_PROMPT = ${JSON.stringify(edition === 'pro' && distillate ? extractWhisperKeywords(distillate) : '')};\n`);
+  html = replaceBetweenMarkers(html, 'DOCTOR_SPECIALTY', `var DOCTOR_SPECIALTY = ${JSON.stringify(specialties)};\n`);
+  html = replaceBetweenMarkers(html, 'ENABLED_DISTRICTS', enabledDistricts.length ? `var ENABLED_DISTRICTS = ${JSON.stringify(enabledDistricts)};\n` : 'var ENABLED_DISTRICTS = null;\n');
+  html = replaceBetweenMarkers(html, 'IS_VERGINE', 'var IS_VERGINE = false;\n');
+  html = replaceBetweenMarkers(html, 'EDITION', `var EDITION = '${edition}';\nvar INCLUDE_DICTATION = (EDITION !== 'text');\n`);
+  return html;
+}
+
 function escapeHtml(str) {
   return String(str || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
@@ -484,7 +621,22 @@ async function handleApi(req, res, db, user, pathname) {
   }
   if (pathname === '/api/users' && req.method === 'GET') {
     requireAdmin(user);
-    return send(res, 200, { users: db.users.filter(u => u.role === 'user').map(u => publicUser(u, { includeUsage: true })) });
+    return send(res, 200, { users: db.users.filter(u => u.role === 'user').map(u => publicUser(u, { includeUsage: true, includeSensitive: true })) });
+  }
+  if (pathname === '/api/template-status' && req.method === 'GET') {
+    requireAdmin(user);
+    let templateReady = false;
+    let size = 0;
+    try {
+      const stat = await fs.stat(DEFAULT_TEMPLATE_FILE);
+      templateReady = stat.isFile();
+      size = stat.size;
+    } catch {}
+    return send(res, 200, {
+      templateReady,
+      file: 'backend/templates/refertium-premium.html',
+      size
+    });
   }
   if (pathname === '/api/users' && req.method === 'POST') {
     requireAdmin(user);
@@ -494,10 +646,18 @@ async function handleApi(req, res, db, user, pathname) {
     if (!username) return send(res, 400, { error: 'Username obbligatorio' });
     if (db.users.some(u => String(u.username || '').toLowerCase() === username.toLowerCase())) return send(res, 409, { error: 'Username gia presente' });
     if (body.email && db.users.some(u => String(u.email || '').toLowerCase() === String(body.email || '').toLowerCase())) return send(res, 409, { error: 'Email gia presente' });
+    const fullName = String(body.name || 'Nuovo medico').trim();
+    const fullNameParts = fullName.split(/\s+/).filter(Boolean);
     const created = {
       id: id('user'),
       role: 'user',
-      name: String(body.name || 'Nuovo medico').trim(),
+      name: fullName,
+      firstName: String(body.firstName || (fullNameParts.length > 1 ? fullNameParts.slice(0, -1).join(' ') : fullNameParts[0] || '')).trim(),
+      lastName: String(body.lastName || (fullNameParts.length > 1 ? fullNameParts[fullNameParts.length - 1] : '')).trim(),
+      specialties: safeSpecialties(body.specialties || ['urgenza']),
+      distillate: String(body.distillate || ''),
+      softwareLanguage: body.softwareLanguage === 'en' ? 'en' : 'it',
+      edition: body.edition === 'text' ? 'text' : 'pro',
       username,
       email: String(body.email || '').trim(),
       passwordHash: hashPassword(body.password || 'demo123'),
@@ -526,6 +686,12 @@ async function handleApi(req, res, db, user, pathname) {
     if (body.username && db.users.some(u => u.id !== target.id && String(u.username || '').toLowerCase() === String(body.username).toLowerCase())) return send(res, 409, { error: 'Username gia presente' });
     if (body.email && db.users.some(u => u.id !== target.id && String(u.email || '').toLowerCase() === String(body.email).toLowerCase())) return send(res, 409, { error: 'Email gia presente' });
     if (body.name != null) target.name = String(body.name).trim();
+    if (body.firstName != null) target.firstName = String(body.firstName || '').trim();
+    if (body.lastName != null) target.lastName = String(body.lastName || '').trim();
+    if (body.specialties != null) target.specialties = safeSpecialties(body.specialties);
+    if (body.distillate != null) target.distillate = String(body.distillate || '');
+    if (body.softwareLanguage != null) target.softwareLanguage = body.softwareLanguage === 'en' ? 'en' : 'it';
+    if (body.edition != null) target.edition = body.edition === 'text' ? 'text' : 'pro';
     if (body.username != null) target.username = String(body.username).trim();
     if (body.email != null) target.email = String(body.email).trim();
     if (body.password) target.passwordHash = hashPassword(body.password);
@@ -537,7 +703,7 @@ async function handleApi(req, res, db, user, pathname) {
     if (body.rotateProxyToken) target.proxyToken = proxyToken();
     target.updatedAt = new Date().toISOString();
     await saveDb(db);
-    return send(res, 200, { user: publicUser(target) });
+    return send(res, 200, { user: publicUser(target, { includeUsage: true, includeSensitive: true }) });
   }
   if (userMatch && req.method === 'DELETE') {
     requireAdmin(user);
@@ -571,6 +737,32 @@ async function handleApi(req, res, db, user, pathname) {
     target.updatedAt = new Date().toISOString();
     await saveDb(db);
     return send(res, 200, { user: publicUser(target) });
+  }
+  const generateMatch = pathname.match(/^\/api\/users\/([^/]+)\/generate-html$/);
+  if (generateMatch && req.method === 'POST') {
+    requireAdmin(user);
+    const target = db.users.find(u => u.id === generateMatch[1] && u.role === 'user');
+    if (!target) return send(res, 404, { error: 'Utente non trovato' });
+    if (!target.firstName || !target.lastName) return send(res, 400, { error: 'Inserisci nome e cognome del medico prima di generare il software' });
+    try {
+      await fs.access(DEFAULT_TEMPLATE_FILE);
+    } catch {
+      try {
+        await fs.access(LEGACY_TEMPLATE_FILE);
+      } catch {
+        return send(res, 400, { error: 'Template madre mancante: carica backend/templates/refertium-premium.html oppure refertium-assets/REFERTIUM_v52-7.html su GitHub' });
+      }
+    }
+    const html = await generateRefertiumHtmlForUser(target);
+    const safeName = `${target.lastName || target.name || 'medico'}`.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '') || 'medico';
+    const filename = `${target.id}-generated-${Date.now()}.html`;
+    await fs.writeFile(path.join(UPLOAD_DIR, filename), html);
+    target.htmlFile = filename;
+    target.htmlName = `Refertium_${target.edition === 'text' ? 'Text' : 'Pro'}_${safeName}.html`;
+    target.generatedAt = new Date().toISOString();
+    target.updatedAt = target.generatedAt;
+    await saveDb(db);
+    return send(res, 200, { user: publicUser(target, { includeUsage: true, includeSensitive: true }), htmlName: target.htmlName });
   }
   const resetMatch = pathname.match(/^\/api\/users\/([^/]+)\/usage-reset$/);
   if (resetMatch && req.method === 'POST') {
