@@ -370,7 +370,7 @@
 
   .cards {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 16px;
   }
@@ -560,13 +560,7 @@
         <p class="sub" id="loginSub">Inserisci le credenziali Refertium.</p>
         <div class="field"><label>Username</label><input id="username" autocomplete="username"></div>
         <div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password"></div>
-        <div class="consent-box" aria-label="Consensi obbligatori">
-          <div class="consent-title" id="consentTitle">Conferme obbligatorie</div>
-          <label class="consent-row"><input id="consentPrivacy" type="checkbox"><span id="consentPrivacyText">Ho letto l'informativa privacy e accetto il trattamento dei dati necessari all'accesso al servizio.</span></label>
-          <label class="consent-row"><input id="consentData" type="checkbox"><span id="consentDataText">Mi impegno a non inserire dati identificativi dei pazienti, dati personali non necessari o informazioni cliniche riconducibili a una persona specifica.</span></label>
-          <label class="consent-row"><input id="consentDisclaimer" type="checkbox"><span id="consentDisclaimerText">Comprendo che Refertium è uno strumento di supporto alla stesura del testo clinico: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.</span></label>
-        </div>
-        <button class="primary" id="loginBtn" style="width:100%" disabled>Accedi</button>
+        <button class="primary" id="loginBtn" style="width:100%">Accedi</button>
         <div class="err" id="loginErr"></div>
         <p class="fineprint" id="loginFineprint">Solo utenti autorizzati.</p>
       </form>
@@ -599,6 +593,7 @@
       <div class="cards">
         <div class="metric-card"><span>Utenti totali</span><b id="totUsers">0</b><small id="totUsersSub">medici registrati</small></div>
         <div class="metric-card"><span>Online ora</span><b id="onlineUsers">0</b><small>sessioni attive recenti</small></div>
+        <div class="metric-card"><span>Token AI</span><b id="totalTokens">0</b><small>questo mese</small></div>
         <div class="metric-card"><span>Ore dettate</span><b id="dictationHours">0h</b><small id="dictationHoursSub">questo mese</small></div>
         <div class="metric-card"><span>RRM mensile</span><b id="monthlyRevenue">€0</b><small id="monthlyRevenueSub">ricavi ricorrenti</small></div>
         <div class="metric-card"><span>Clienti attivi</span><b id="activeUsers">0</b><small id="demoUsers">0 in demo</small></div>
@@ -673,6 +668,17 @@
             <div class="field"><label>Licenza</label><select id="license"><option value="active">Attiva</option><option value="limited">Limitata</option><option value="blocked">Bloccata</option></select></div>
             <div class="field"><label>Limite token mensile</label><input id="limit" type="number" min="0" step="1000"></div>
           </div>
+          <div class="field">
+            <label>Limite ore dettate mensili</label>
+            <select id="dictationHourLimit">
+              <option value="10">10 ore</option>
+              <option value="15">15 ore</option>
+              <option value="25">25 ore</option>
+              <option value="45">45 ore</option>
+              <option value="70">70 ore</option>
+              <option value="0">Illimitato</option>
+            </select>
+          </div>
           <h3 style="margin-top:22px">Generatore Refertium</h3>
           <div class="two">
             <div class="field"><label>Lingua software</label><select id="softwareLanguage"><option value="it">Italiano personalizzato</option><option value="en">English standard</option></select></div>
@@ -723,9 +729,16 @@
     <span class="pill" id="userLicensePill"><span class="dot ok"></span>Licenza</span>
     <h1 class="page-title" id="hello" style="margin-top:18px">Refertium</h1>
     <p class="sub" id="userStatus"></p>
-    <div class="cards" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="cards" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div class="metric-card"><span>Piano</span><b id="selfPlan">-</b><small id="selfPlanSub">account</small></div>
       <div class="metric-card"><span>Applicazione</span><b id="selfAppStatus">-</b><small>Refertium</small></div>
+      <div class="metric-card"><span>Dettatura</span><b id="selfDictation">0h</b><small id="selfDictationSub">questo mese</small></div>
+    </div>
+    <div class="consent-box" aria-label="Consensi obbligatori" style="margin-top:18px">
+      <div class="consent-title" id="consentTitle">Conferme obbligatorie</div>
+      <label class="consent-row"><input id="consentPrivacy" type="checkbox"><span id="consentPrivacyText">Ho letto l'informativa privacy e accetto il trattamento dei dati necessari all'accesso al servizio.</span></label>
+      <label class="consent-row"><input id="consentData" type="checkbox"><span id="consentDataText">Mi impegno a non inserire dati identificativi dei pazienti, dati personali non necessari o informazioni cliniche riconducibili a una persona specifica.</span></label>
+      <label class="consent-row"><input id="consentDisclaimer" type="checkbox"><span id="consentDisclaimerText">Comprendo che Refertium è uno strumento di supporto alla stesura del testo clinico: non effettua diagnosi, non sostituisce il medico e non prende decisioni cliniche.</span></label>
     </div>
     <div class="row" style="margin-top:18px">
       <button class="primary" id="openSelf" type="button">Apri Refertium</button>
@@ -838,6 +851,8 @@ function limitOf(u) { return Number(u && u.tokenLimit || 0); }
 function planPrice(u) { return Number(u && u.planPrice || 0); }
 function pct(u) { const limit = limitOf(u); return limit ? Math.min(100, Math.round(usage(u).total / limit * 100)) : 0; }
 function dictationSeconds(u) { return Number(usage(u).dictationSeconds || 0); }
+function dictationHourLimit(u) { return Number(u && u.dictationHourLimit || 0); }
+function dictationOverLimit(u) { const limit = dictationHourLimit(u); return Boolean(limit && dictationSeconds(u) >= limit * 3600); }
 function hours(seconds) {
   const value = Number(seconds || 0) / 3600;
   return value >= 10 ? `${Math.round(value)}h` : `${value.toLocaleString("it-IT", { maximumFractionDigits: 1 })}h`;
@@ -869,7 +884,9 @@ function consentAccepted() {
   return $("consentPrivacy").checked && $("consentData").checked && $("consentDisclaimer").checked;
 }
 function updateConsentState() {
-  $("loginBtn").disabled = !consentAccepted();
+  if ($("openSelf") && me && me.role === "user") {
+    $("openSelf").disabled = !canOpenSelf();
+  }
 }
 
 function show(id) {
@@ -906,7 +923,7 @@ function summary() {
     blocked: users.filter(u => u.license === "blocked").length,
     limited: users.filter(u => u.license === "limited").length,
     withHtml: users.filter(u => u.hasHtml).length,
-    overLimit: users.filter(overLimit).length,
+    overLimit: users.filter(u => overLimit(u) || dictationOverLimit(u)).length,
     paid: paidUsers.length,
     demo: demoUsers.length,
     monthlyRevenue,
@@ -916,10 +933,6 @@ function summary() {
 }
 
 async function boot() {
-  if (!sessionStorage.getItem("refertium_consent_ok")) {
-    show("loginView");
-    return;
-  }
   try {
     const data = await api("/api/me");
     me = data.user;
@@ -964,6 +977,7 @@ function renderDashboard() {
   const s = summary();
   $("totUsers").textContent = fmt(s.total);
   $("onlineUsers").textContent = fmt(s.online);
+  $("totalTokens").textContent = fmt(s.totalTokens);
   $("activeUsers").textContent = fmt(s.active);
   $("demoUsers").textContent = `${fmt(s.demo)} in demo · ${fmt(s.paid)} paganti`;
   $("dictationHours").textContent = hours(s.totalDictationSeconds);
@@ -1019,7 +1033,7 @@ function doctorCard(u) {
       <span class="pill">${u.isDemo ? "Demo" : "Pagante"}</span>
     </div>
     <div class="usage-line"><div class="bar"><i style="width:${percentage}%"></i></div></div>
-    <div class="note" style="margin-top:7px">${esc(u.planName || "Senza piano")} · ${u.isDemo ? "demo" : money(planPrice(u)) + "/mese"} · ${hours(dictationSeconds(u))}</div>
+    <div class="note" style="margin-top:7px">${esc(u.planName || "Senza piano")} · ${u.isDemo ? "demo" : money(planPrice(u)) + "/mese"} · ${hours(dictationSeconds(u))}${dictationHourLimit(u) ? " / " + dictationHourLimit(u) + "h" : ""}</div>
   </button>`;
 }
 
@@ -1066,6 +1080,7 @@ function renderDetail() {
   $("isDemo").value = u.isDemo ? "true" : "false";
   $("license").value = u.license || "active";
   $("limit").value = u.tokenLimit || "";
+  $("dictationHourLimit").value = String(u.dictationHourLimit == null ? 10 : u.dictationHourLimit);
   $("softwareLanguage").value = u.softwareLanguage || "it";
   $("edition").value = u.edition || "pro";
   $("distillate").value = u.distillate || "";
@@ -1082,8 +1097,12 @@ function renderUsage(u) {
   $("used").textContent = fmt(us.total);
   $("lim").textContent = limit ? fmt(limit) : "Illimitato";
   $("dictated").textContent = hours(us.dictationSeconds || 0);
-  $("dictatedNote").textContent = `${fmt(Math.round(Number(us.dictationSeconds || 0) / 60))} minuti`;
-  $("limitNote").textContent = overLimit(u) ? "limite raggiunto" : "mensile";
+  const hourLimit = dictationHourLimit(u);
+  const usedHours = Number(us.dictationSeconds || 0) / 3600;
+  $("dictatedNote").textContent = hourLimit
+    ? `${usedHours.toLocaleString("it-IT", { maximumFractionDigits: 1 })} / ${hourLimit} ore`
+    : `${fmt(Math.round(Number(us.dictationSeconds || 0) / 60))} minuti`;
+  $("limitNote").textContent = overLimit(u) ? "limite token raggiunto" : dictationOverLimit(u) ? "limite ore raggiunto" : "mensile";
   $("bar").style.width = percentage + "%";
   $("usageRows").innerHTML = us.events.slice().reverse().map(e => `
     <tr>
@@ -1105,22 +1124,28 @@ function renderUser() {
   $("selfPlan").textContent = me.planName || "Refertium";
   $("selfPlanSub").textContent = me.isDemo ? "demo" : "attivo";
   $("selfAppStatus").textContent = me.hasHtml ? "Pronta" : "In attesa";
-  const blocked = me.license === "blocked" || !me.hasHtml || overLimit(me);
-  $("openSelf").disabled = blocked;
+  const hourLimit = dictationHourLimit(me);
+  const usedHours = Number(dictationSeconds(me) || 0) / 3600;
+  $("selfDictation").textContent = hours(dictationSeconds(me));
+  $("selfDictationSub").textContent = hourLimit
+    ? `${usedHours.toLocaleString("it-IT", { maximumFractionDigits: 1 })} / ${hourLimit} ore`
+    : `${fmt(Math.round(dictationSeconds(me) / 60))} minuti`;
+  const blocked = me.license === "blocked" || !me.hasHtml || overLimit(me) || dictationOverLimit(me);
+  $("openSelf").disabled = blocked || !consentAccepted();
   $("blocked").classList.toggle("hidden", !blocked);
-  $("blocked").textContent = me.license === "blocked" ? "Licenza bloccata." : !me.hasHtml ? "App non ancora caricata." : "Limite token raggiunto.";
+  $("blocked").textContent = me.license === "blocked" ? "Licenza bloccata." : !me.hasHtml ? "App non ancora caricata." : overLimit(me) ? "Limite token raggiunto." : "Limite ore dettate raggiunto.";
+  updateConsentState();
+}
+
+function canOpenSelf() {
+  return Boolean(me && me.role === "user" && me.license !== "blocked" && me.hasHtml && !overLimit(me) && !dictationOverLimit(me) && consentAccepted());
 }
 
 $("loginForm").onsubmit = async e => {
   e.preventDefault();
   $("loginErr").textContent = "";
-  if (!consentAccepted()) {
-    $("loginErr").textContent = t[lang].consentError;
-    return;
-  }
   try {
     const data = await api("/api/login", { method: "POST", body: JSON.stringify({ username: $("username").value, password: $("password").value }) });
-    sessionStorage.setItem("refertium_consent_ok", "1");
     me = data.user;
     setWho(me);
     if (me.role === "admin") await loadAdmin();
@@ -1132,7 +1157,6 @@ $("loginForm").onsubmit = async e => {
 
 async function logout() {
   await api("/api/logout", { method: "POST" });
-  sessionStorage.removeItem("refertium_consent_ok");
   me = null;
   setWho(null);
   show("loginView");
@@ -1154,7 +1178,7 @@ async function createUser() {
   const stamp = Date.now();
   const data = await api("/api/users", {
     method: "POST",
-    body: JSON.stringify({ name: "Nuovo medico", firstName: "", lastName: "", specialties: ["urgenza"], softwareLanguage: "it", edition: "pro", distillate: "", username: "medico" + stamp, email: "", password: "demo123", license: "active", tokenLimit: 600000, planName: "Demo", planPrice: 0, isDemo: true })
+    body: JSON.stringify({ name: "Nuovo medico", firstName: "", lastName: "", specialties: ["urgenza"], softwareLanguage: "it", edition: "pro", distillate: "", username: "medico" + stamp, email: "", password: "demo123", license: "active", tokenLimit: 600000, dictationHourLimit: 10, planName: "Demo", planPrice: 0, isDemo: true })
   });
   selected = data.user.id;
   await loadAdmin();
@@ -1230,7 +1254,8 @@ $("userForm").onsubmit = async e => {
       planPrice: Number($("planPrice").value || 0),
       isDemo: $("isDemo").value === "true",
       license: $("license").value,
-      tokenLimit: Number($("limit").value || 0)
+      tokenLimit: Number($("limit").value || 0),
+      dictationHourLimit: Number($("dictationHourLimit").value || 0)
     })
   });
   const file = $("htmlFile").files[0];
@@ -1265,7 +1290,8 @@ $("generateApp").onclick = async () => {
         planPrice: Number($("planPrice").value || 0),
         isDemo: $("isDemo").value === "true",
         license: $("license").value,
-        tokenLimit: Number($("limit").value || 0)
+        tokenLimit: Number($("limit").value || 0),
+        dictationHourLimit: Number($("dictationHourLimit").value || 0)
       })
     });
     const result = await api("/api/users/" + u.id + "/generate-html", { method: "POST" });
@@ -1300,7 +1326,14 @@ $("openApp").onclick = () => {
   const u = selectedUser();
   if (u) window.open("/app/" + u.id, "_blank");
 };
-$("openSelf").onclick = () => window.open("/app/" + me.id, "_blank");
+$("openSelf").onclick = () => {
+  if (!canOpenSelf()) {
+    $("blocked").classList.remove("hidden");
+    $("blocked").textContent = t[lang].consentError;
+    return;
+  }
+  window.open("/app/" + me.id, "_blank");
+};
 
 document.addEventListener("click", e => {
   const trigger = e.target.closest("[data-user]");
