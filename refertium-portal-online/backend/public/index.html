@@ -28,7 +28,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 14px/1.5 var(--font); }
   body { overflow-x: hidden; }
-  button, input, select { font: inherit; }
+  button, input, select, textarea { font: inherit; }
   button { cursor: pointer; }
   .hidden { display: none !important; }
 
@@ -236,7 +236,7 @@
   .sub { margin: 8px 0 20px; color: var(--muted); }
   .field { display: grid; gap: 7px; margin: 14px 0; }
   label { color: var(--quiet); font-size: 12px; font-weight: 740; letter-spacing: .055em; text-transform: uppercase; }
-  input, select {
+  input, select, textarea {
     min-height: 42px;
     width: 100%;
     border: 1px solid var(--line);
@@ -247,7 +247,9 @@
     outline: none;
   }
 
-  input:focus, select:focus {
+  textarea { min-height: 132px; resize: vertical; line-height: 1.45; }
+
+  input:focus, select:focus, textarea:focus {
     border-color: rgba(18, 220, 232, .55);
     box-shadow: 0 0 0 3px rgba(18, 220, 232, .12);
   }
@@ -416,6 +418,23 @@
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .check-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .check-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .03);
+    font-size: 13px;
+    font-weight: 650;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .check-pill input { width: 15px; height: 15px; min-height: 15px; accent-color: var(--accent); }
   .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .toolbar input { max-width: 320px; }
 
@@ -627,7 +646,11 @@
       <div class="detail-layout">
         <form class="card" id="userForm">
           <h3>Dati utente</h3>
-          <div class="field"><label>Nome medico</label><input id="name"></div>
+          <div class="two">
+            <div class="field"><label>Nome</label><input id="firstName" placeholder="Mario"></div>
+            <div class="field"><label>Cognome</label><input id="lastName" placeholder="Rossi"></div>
+          </div>
+          <div class="field"><label>Nome visualizzato</label><input id="name"></div>
           <div class="two">
             <div class="field"><label>Username</label><input id="doctorUsername"></div>
             <div class="field"><label>Email opzionale</label><input id="userEmail" type="email"></div>
@@ -642,9 +665,28 @@
             <div class="field"><label>Licenza</label><select id="license"><option value="active">Attiva</option><option value="limited">Limitata</option><option value="blocked">Bloccata</option></select></div>
             <div class="field"><label>Limite token mensile</label><input id="limit" type="number" min="0" step="1000"></div>
           </div>
-          <div class="field"><label>HTML personalizzato</label><input id="htmlFile" type="file" accept=".html,text/html"><div class="note" id="htmlInfo">Nessun file caricato.</div></div>
+          <h3 style="margin-top:22px">Generatore Refertium</h3>
+          <div class="two">
+            <div class="field"><label>Lingua software</label><select id="softwareLanguage"><option value="it">Italiano personalizzato</option><option value="en">English standard</option></select></div>
+            <div class="field"><label>Edizione</label><select id="edition"><option value="pro">Pro con dettatura</option><option value="text">Text senza dettatura</option></select></div>
+          </div>
+          <div class="field">
+            <label>Badge specialità</label>
+            <div class="check-grid" id="specialtyGrid">
+              <label class="check-pill"><input type="checkbox" value="urgenza">Urgenza</label>
+              <label class="check-pill"><input type="checkbox" value="neuro">Neuro</label>
+              <label class="check-pill"><input type="checkbox" value="body">Body</label>
+              <label class="check-pill"><input type="checkbox" value="msk">MSK</label>
+              <label class="check-pill"><input type="checkbox" value="toracica">Toracica</label>
+              <label class="check-pill"><input type="checkbox" value="senologia">Senologia</label>
+              <label class="check-pill"><input type="checkbox" value="eco">Eco</label>
+            </div>
+          </div>
+          <div class="field"><label>Distillati / frasi tipiche</label><textarea id="distillate" placeholder="Incolla qui stile, formule e frasi tipiche del medico. Per English standard puoi lasciarlo vuoto."></textarea></div>
+          <div class="field"><label>HTML personalizzato manuale</label><input id="htmlFile" type="file" accept=".html,text/html"><div class="note" id="htmlInfo">Nessun file caricato.</div></div>
           <div class="row">
             <button class="primary">Salva</button>
+            <button class="ghost" type="button" id="generateApp">Genera app</button>
             <button class="ghost" type="button" id="resetUsage">Azzera token</button>
             <button class="danger" type="button" id="deleteUser">Elimina</button>
           </div>
@@ -801,6 +843,20 @@ function licenseLabel(u) { return u.license === "blocked" ? "Bloccata" : u.licen
 function licenseDot(u) { return u.license === "blocked" ? "bad" : u.license === "limited" ? "warn" : "ok"; }
 function overLimit(u) { const limit = limitOf(u); return Boolean(limit && usage(u).total >= limit); }
 function selectedUser() { return users.find(u => u.id === selected) || users[0]; }
+function selectedSpecialties() {
+  return Array.from(document.querySelectorAll("#specialtyGrid input:checked")).map(input => input.value);
+}
+function setSelectedSpecialties(values) {
+  const selectedValues = Array.isArray(values) && values.length ? values : ["urgenza"];
+  document.querySelectorAll("#specialtyGrid input").forEach(input => {
+    input.checked = selectedValues.includes(input.value);
+  });
+}
+function displayNameFromFields() {
+  const first = $("firstName").value.trim();
+  const last = $("lastName").value.trim();
+  return [first, last].filter(Boolean).join(" ") || $("name").value.trim() || "Nuovo medico";
+}
 function consentAccepted() {
   return $("consentPrivacy").checked && $("consentData").checked && $("consentDisclaimer").checked;
 }
@@ -979,6 +1035,8 @@ function renderDetail() {
     return;
   }
   $("detailTitle").textContent = u.name;
+  $("firstName").value = u.firstName || "";
+  $("lastName").value = u.lastName || "";
   $("name").value = u.name || "";
   $("doctorUsername").value = u.username || "";
   $("userEmail").value = u.email || "";
@@ -988,7 +1046,12 @@ function renderDetail() {
   $("isDemo").value = u.isDemo ? "true" : "false";
   $("license").value = u.license || "active";
   $("limit").value = u.tokenLimit || "";
-  $("htmlInfo").textContent = u.hasHtml ? `Caricato: ${u.htmlName || "app.html"}` : "Nessun file caricato.";
+  $("softwareLanguage").value = u.softwareLanguage || "it";
+  $("edition").value = u.edition || "pro";
+  $("distillate").value = u.distillate || "";
+  setSelectedSpecialties(u.specialties);
+  const generated = u.generatedAt ? ` · generato ${new Date(u.generatedAt).toLocaleString("it-IT")}` : "";
+  $("htmlInfo").textContent = u.hasHtml ? `Caricato: ${u.htmlName || "app.html"}${generated}` : "Nessun file caricato.";
   renderUsage(u);
 }
 
@@ -1071,7 +1134,7 @@ async function createUser() {
   const stamp = Date.now();
   const data = await api("/api/users", {
     method: "POST",
-    body: JSON.stringify({ name: "Nuovo medico", username: "medico" + stamp, email: "", password: "demo123", license: "active", tokenLimit: 600000, planName: "Demo", planPrice: 0, isDemo: true })
+    body: JSON.stringify({ name: "Nuovo medico", firstName: "", lastName: "", specialties: ["urgenza"], softwareLanguage: "it", edition: "pro", distillate: "", username: "medico" + stamp, email: "", password: "demo123", license: "active", tokenLimit: 600000, planName: "Demo", planPrice: 0, isDemo: true })
   });
   selected = data.user.id;
   await loadAdmin();
@@ -1087,6 +1150,13 @@ $("navUsers").onclick = () => setPage("users");
 $("navDetail").onclick = () => setPage("detail");
 $("searchUsers").oninput = renderUsersTable;
 $("clearSearch").onclick = () => { $("searchUsers").value = ""; renderUsersTable(); };
+$("firstName").oninput = () => { $("name").value = displayNameFromFields(); };
+$("lastName").oninput = () => { $("name").value = displayNameFromFields(); };
+$("softwareLanguage").onchange = () => {
+  if ($("softwareLanguage").value === "en" && !$("distillate").value.trim()) {
+    $("distillate").placeholder = "English standard: nome e cognome bastano. Lascia vuoto se non vuoi uno stile personalizzato.";
+  }
+};
 
 $("userForm").onsubmit = async e => {
   e.preventDefault();
@@ -1095,7 +1165,13 @@ $("userForm").onsubmit = async e => {
   await api("/api/users/" + u.id, {
     method: "PATCH",
     body: JSON.stringify({
-      name: $("name").value,
+      name: displayNameFromFields(),
+      firstName: $("firstName").value,
+      lastName: $("lastName").value,
+      specialties: selectedSpecialties(),
+      softwareLanguage: $("softwareLanguage").value,
+      edition: $("edition").value,
+      distillate: $("distillate").value,
       username: $("doctorUsername").value,
       email: $("userEmail").value,
       password: $("userPass").value || undefined,
@@ -1113,6 +1189,44 @@ $("userForm").onsubmit = async e => {
   }
   await loadAdmin();
   setPage("detail");
+};
+
+$("generateApp").onclick = async () => {
+  const u = selectedUser();
+  if (!u) return;
+  $("generateApp").disabled = true;
+  $("generateApp").textContent = "Genero...";
+  try {
+    await api("/api/users/" + u.id, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: displayNameFromFields(),
+        firstName: $("firstName").value,
+        lastName: $("lastName").value,
+        specialties: selectedSpecialties(),
+        softwareLanguage: $("softwareLanguage").value,
+        edition: $("edition").value,
+        distillate: $("distillate").value,
+        username: $("doctorUsername").value,
+        email: $("userEmail").value,
+        password: $("userPass").value || undefined,
+        planName: $("planName").value,
+        planPrice: Number($("planPrice").value || 0),
+        isDemo: $("isDemo").value === "true",
+        license: $("license").value,
+        tokenLimit: Number($("limit").value || 0)
+      })
+    });
+    const result = await api("/api/users/" + u.id + "/generate-html", { method: "POST" });
+    $("htmlInfo").textContent = "Generato: " + (result.htmlName || "Refertium personalizzato");
+    await loadAdmin();
+    setPage("detail");
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    $("generateApp").disabled = false;
+    $("generateApp").textContent = "Genera app";
+  }
 };
 
 $("resetUsage").onclick = async () => {
