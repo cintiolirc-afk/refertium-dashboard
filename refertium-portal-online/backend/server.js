@@ -685,10 +685,20 @@ async function readTemplateHtml() {
   const candidates = [PERSISTENT_TEMPLATE_FILE, BUNDLED_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
   for (const file of candidates) {
     try {
-      return await fs.readFile(file, 'utf8');
+      const html = await fs.readFile(file, 'utf8');
+      if (isValidRefertiumTemplate(html)) return html;
     } catch {}
   }
   throw Object.assign(new Error('Template madre mancante'), { status: 500 });
+}
+
+function isValidRefertiumTemplate(html) {
+  return Boolean(
+    html &&
+    html.includes('@@REFERTIUM_INJECTION_POINT@@ DOCTOR_BADGE START') &&
+    html.includes('@@REFERTIUM_INJECTION_POINT@@ MAGIC_PDF_TEXT START') &&
+    html.includes('const PROXY_URL')
+  );
 }
 
 async function templateStatus() {
@@ -700,7 +710,9 @@ async function templateStatus() {
   for (const item of candidates) {
     try {
       const stat = await fs.stat(item.file);
-      if (stat.isFile()) return { templateReady: true, file: item.label, size: stat.size };
+      if (!stat.isFile()) continue;
+      const html = await fs.readFile(item.file, 'utf8');
+      if (isValidRefertiumTemplate(html)) return { templateReady: true, file: item.label, size: stat.size };
     } catch {}
   }
   return { templateReady: false, file: '', size: 0 };
