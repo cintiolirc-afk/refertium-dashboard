@@ -239,7 +239,10 @@ function requireAdmin(user) {
 function getMonthlyUsage(user) {
   user.usage = user.usage || {};
   const key = monthKey();
-  user.usage[key] = user.usage[key] || { total: 0, events: [] };
+  user.usage[key] = user.usage[key] || { total: 0, dictationSeconds: 0, events: [] };
+  user.usage[key].total = Number(user.usage[key].total || 0);
+  user.usage[key].dictationSeconds = Number(user.usage[key].dictationSeconds || 0);
+  user.usage[key].events = Array.isArray(user.usage[key].events) ? user.usage[key].events : [];
   return user.usage[key];
 }
 
@@ -284,6 +287,7 @@ function injectLicenseGuard(html, user) {
   const guard = `<script>
 (function(){
   var USER_ID=${JSON.stringify(user.id)};
+  var PROXY_TOKEN=${JSON.stringify(user.proxyToken || '')};
   var CHECK_MS=30000;
   var overlay;
   function block(message){
@@ -308,6 +312,66 @@ function injectLicenseGuard(html, user) {
   setInterval(check,CHECK_MS);
   document.addEventListener('visibilitychange',function(){ if(!document.hidden) check(); });
   window.addEventListener('focus',check);
+  function reportDictation(seconds, source){
+    seconds=Math.max(0,Math.round(Number(seconds)||0));
+    if(seconds<2) return;
+    var body=JSON.stringify({userId:USER_ID,seconds:seconds,source:source||'microphone'});
+    if(navigator.sendBeacon){
+      try{
+        var blob=new Blob([body],{type:'application/json'});
+        if(navigator.sendBeacon('/api/dictation-usage',blob)) return;
+      }catch(e){}
+    }
+    fetch('/api/dictation-usage',{method:'POST',headers:{'content-type':'application/json'},body:body,credentials:'same-origin',keepalive:true}).catch(function(){});
+  }
+  function watchStream(stream){
+    if(!stream||!stream.getAudioTracks) return;
+    var tracks=stream.getAudioTracks();
+    if(!tracks.length) return;
+    var start=Date.now();
+    var reported=false;
+    function done(){
+      if(reported) return;
+      if(tracks.some(function(t){ return t.readyState!=='ended'; })) return;
+      reported=true;
+      reportDictation((Date.now()-start)/1000,'microphone');
+    }
+    tracks.forEach(function(track){
+      track.addEventListener&&track.addEventListener('ended',done,{once:true});
+      var originalStop=track.stop&&track.stop.bind(track);
+      if(originalStop&&!track.__refertiumStopWrapped){
+        track.__refertiumStopWrapped=true;
+        track.stop=function(){ try{return originalStop();} finally{setTimeout(done,0);} };
+      }
+    });
+  }
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    var originalGetUserMedia=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia=function(constraints){
+      return originalGetUserMedia(constraints).then(function(stream){
+        try{ if(constraints&&constraints.audio) watchStream(stream); }catch(e){}
+        return stream;
+      });
+    };
+  }
+  function aiUrl(input){
+    var url=typeof input==='string'?input:(input&&input.url)||'';
+    return /\\/v1\\/(chat\\/completions|responses|audio\\/transcriptions)/.test(url);
+  }
+  if(window.fetch){
+    var originalFetch=window.fetch.bind(window);
+    window.fetch=function(input,init){
+      init=init||{};
+      try{
+        if(aiUrl(input)){
+          var headers=new Headers(init.headers||(input&&input.headers)||{});
+          if(PROXY_TOKEN) headers.set('X-Refertium-Proxy-Token',PROXY_TOKEN);
+          init.headers=headers;
+        }
+      }catch(e){}
+      return originalFetch(input,init);
+    };
+  }
 })();
 </script>`;
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, m => m + guard);
@@ -397,6 +461,26 @@ async function handleApi(req, res, db, user, pathname) {
       tokenLimit: user.role === 'admin' ? Number(target.tokenLimit || 0) : undefined,
       message: blocked ? 'La licenza e stata bloccata dall amministratore.' : overLimit ? 'Il limite mensile e stato raggiunto.' : 'Licenza attiva.'
     });
+  }
+  if (pathname === '/api/dictation-usage' && req.method === 'POST') {
+    requireAuth(user);
+    const body = await readJson(req);
+    let target = user.role === 'user' ? user : null;
+    if (user.role === 'admin') {
+      const appUserId = parseCookies(req)[APP_USER_COOKIE];
+      const requestedId = String(body.userId || appUserId || '');
+      target = db.users.find(u => u.id === requestedId && u.role === 'user') || null;
+    }
+    if (!target || target.role !== 'user') return send(res, 404, { ok: false, error: 'Utente non trovato' });
+    const seconds = Math.max(0, Math.round(Number(body.seconds || 0)));
+    await recordTokens(db, target, {
+      operation: 'Dettatura',
+      tokens: 0,
+      dictationSeconds: seconds,
+      source: body.source || 'app',
+      status: 200
+    });
+    return send(res, 200, { ok: true, usage: getMonthlyUsage(target) });
   }
   if (pathname === '/api/users' && req.method === 'GET') {
     requireAdmin(user);
@@ -494,7 +578,7 @@ async function handleApi(req, res, db, user, pathname) {
     const target = db.users.find(u => u.id === resetMatch[1] && u.role === 'user');
     if (!target) return send(res, 404, { error: 'Utente non trovato' });
     target.usage = target.usage || {};
-    target.usage[monthKey()] = { total: 0, events: [] };
+    target.usage[monthKey()] = { total: 0, dictationSeconds: 0, events: [] };
     target.updatedAt = new Date().toISOString();
     await saveDb(db);
     return send(res, 200, { user: publicUser(target) });
@@ -525,6 +609,7 @@ async function handleApi(req, res, db, user, pathname) {
     await recordTokens(db, target, {
       operation: body.operation || 'AI',
       tokens: Number(body.tokens || 0),
+      dictationSeconds: Number(body.dictationSeconds || body.audioSeconds || 0),
       source: body.source || 'cloudflare',
       status: Number(body.status || 200)
     });
@@ -568,6 +653,7 @@ async function proxyOpenAI(req, res, db, user, pathname) {
   const responseBuffer = Buffer.from(await upstream.arrayBuffer());
 
   let tokens = 0;
+  const dictationSeconds = pathname.includes('audio') ? estimateAudioSecondsFromBody(body, req.headers['content-type'] || '') : 0;
   let operation = pathname.includes('audio') ? 'Trascrizione' : pathname.includes('responses') ? 'Responses' : 'Chat completions';
   if (contentType.includes('application/json')) {
     try {
@@ -577,7 +663,7 @@ async function proxyOpenAI(req, res, db, user, pathname) {
     } catch {}
   }
   if (!tokens) tokens = estimateTokensFromRequest(pathname, body, req.headers['content-type'] || '');
-  await recordTokens(db, billingUser, { operation, tokens, source: tokens ? 'server' : 'estimate', status: upstream.status });
+  await recordTokens(db, billingUser, { operation, tokens, dictationSeconds, source: tokens ? 'server' : 'estimate', status: upstream.status });
 
   res.writeHead(upstream.status, {
     'content-type': contentType,
@@ -599,14 +685,23 @@ function estimateTokensFromRequest(pathname, body, contentType) {
   }
 }
 
+function estimateAudioSecondsFromBody(body, contentType) {
+  if (!body || !body.length) return 0;
+  const bitrate = contentType.includes('audio/mp4') ? 96000 : 128000;
+  return Math.max(1, Math.round((body.length * 8) / bitrate));
+}
+
 async function recordTokens(db, user, event) {
   const usage = getMonthlyUsage(user);
   const tokens = Math.max(0, Math.round(Number(event.tokens || 0)));
+  const dictationSeconds = Math.max(0, Math.round(Number(event.dictationSeconds || 0)));
   usage.total += tokens;
+  usage.dictationSeconds += dictationSeconds;
   usage.events.push({
     at: new Date().toISOString(),
     operation: event.operation || 'AI',
     tokens,
+    dictationSeconds,
     source: event.source || 'server',
     status: event.status || 200
   });
