@@ -66,9 +66,13 @@ async function loadDb() {
   try {
     const db = JSON.parse(await fs.readFile(DB_FILE, 'utf8'));
     const changed = normalizeDb(db);
+    const recovered = await recoverDbIfBetter(db);
+    if (recovered) return recovered;
     if (changed) await saveDb(db);
     return db;
   } catch {
+    const recovered = await recoverDbIfBetter(null);
+    if (recovered) return recovered;
     const now = new Date().toISOString();
     const db = {
       users: [
@@ -112,6 +116,58 @@ async function loadDb() {
     await saveDb(db);
     return db;
   }
+}
+
+async function recoverDbIfBetter(currentDb) {
+  const currentCount = Array.isArray(currentDb && currentDb.users) ? currentDb.users.length : 0;
+  let best = null;
+  const candidates = await findDbCandidates();
+  for (const file of candidates) {
+    if (path.resolve(file) === path.resolve(DB_FILE)) continue;
+    try {
+      const candidate = JSON.parse(await fs.readFile(file, 'utf8'));
+      if (!Array.isArray(candidate.users)) continue;
+      if (!best || candidate.users.length > best.db.users.length) best = { file, db: candidate };
+    } catch {}
+  }
+  if (!best || best.db.users.length <= currentCount) return null;
+  normalizeDb(best.db);
+  await fs.mkdir(path.dirname(DB_FILE), { recursive: true });
+  try {
+    if (fss.existsSync(DB_FILE)) {
+      await fs.copyFile(DB_FILE, `${DB_FILE}.before-recovery-${Date.now()}.bak`);
+    }
+  } catch {}
+  await fs.writeFile(DB_FILE, JSON.stringify(best.db, null, 2));
+  console.log(`Refertium recovery: database recuperato da ${best.file} con ${best.db.users.length} utenti.`);
+  return best.db;
+}
+
+async function findDbCandidates() {
+  const roots = Array.from(new Set([
+    PERSISTENT_ROOT,
+    ROOT,
+    path.join(ROOT, 'backend'),
+    '/var/data',
+    '/opt/render/project/src'
+  ]));
+  const out = [];
+  async function walk(dir, depth) {
+    if (depth < 0) return;
+    let entries = [];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isFile() && entry.name === 'db.json') out.push(full);
+      if (entry.isDirectory() && !['node_modules', '.git'].includes(entry.name)) await walk(full, depth - 1);
+    }
+  }
+  for (const root of roots) await walk(root, 5);
+  return Array.from(new Set(out));
 }
 
 function normalizeDb(db) {
