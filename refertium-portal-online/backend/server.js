@@ -336,7 +336,7 @@ async function serveUserApp(req, res, db, user, targetUserId) {
   if (isOverDictationLimit(target)) return send(res, 402, pageMessage('Limite ore raggiunto', 'Il limite mensile di ore dettate e stato raggiunto.'), { 'content-type': 'text/html; charset=utf-8' });
   if (!target.htmlFile) return send(res, 404, pageMessage('App non caricata', 'L admin deve caricare l HTML personalizzato per questo utente.'), { 'content-type': 'text/html; charset=utf-8' });
   const htmlPath = path.join(UPLOAD_DIR, target.htmlFile);
-  const html = injectLicenseGuard(await fs.readFile(htmlPath, 'utf8'), target);
+  const html = injectLicenseGuard(rewriteRefertiumHtml(await fs.readFile(htmlPath, 'utf8'), target), target);
   res.writeHead(200, {
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',
@@ -551,6 +551,7 @@ function rewriteRefertiumHtml(html, user) {
     html = html.replace(/const\s+PROXY_URL\s*=\s*['"][^'"]*['"]\s*;/, `const PROXY_URL = ${JSON.stringify(CLOUDFLARE_PROXY_URL)};`);
     html = html.replace(/const\s+PROXY_AUTH\s*=\s*['"][^'"]*['"]\s*;/, `const PROXY_AUTH = ${JSON.stringify(CLOUDFLARE_PROXY_AUTH)};`);
   }
+  if (html.includes('window.__REFERTIUM_PROXY_MODE__=')) return html;
   const guard = `<script>
 window.__REFERTIUM_USER__=${JSON.stringify({ id: user.id, name: user.name, license: user.license, tokenLimit: user.tokenLimit })};
 window.__REFERTIUM_PROXY_MODE__=${JSON.stringify(REFERTIUM_PROXY_MODE)};
@@ -700,7 +701,7 @@ async function generateRefertiumHtmlForUser(user) {
   html = replaceBetweenMarkers(html, 'ENABLED_DISTRICTS', enabledDistricts.length ? `var ENABLED_DISTRICTS = ${JSON.stringify(enabledDistricts)};\n` : 'var ENABLED_DISTRICTS = null;\n');
   html = replaceBetweenMarkers(html, 'IS_VERGINE', 'var IS_VERGINE = false;\n');
   html = replaceBetweenMarkers(html, 'EDITION', `var EDITION = '${edition}';\nvar INCLUDE_DICTATION = (EDITION !== 'text');\n`);
-  return html;
+  return rewriteRefertiumHtml(html, user);
 }
 
 async function readTemplateHtml(language = 'it') {
