@@ -543,9 +543,33 @@
     margin: 0 auto;
   }
 
+  .finance-grid {
+    display: grid;
+    grid-template-columns: minmax(420px, 1.05fr) minmax(360px, .95fr);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .finance-kpi {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .finance-table-wrap { overflow-x: auto; }
+
+  .sim-result {
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(2, 8, 23, .56);
+  }
+
   @media (max-width: 1080px) {
-    .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .panel-grid, .detail-form { grid-template-columns: 1fr; }
+    .cards, .finance-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .panel-grid, .detail-form, .finance-grid { grid-template-columns: 1fr; }
     .usage-card .cards { grid-template-columns: 1fr; }
   }
 
@@ -558,7 +582,7 @@
     .hero-logo { gap: 16px; }
     .hero-logo .mark { width: 86px; height: 86px; }
     .hero-logo .mark svg { width: 86px; height: 86px; }
-    .login-metrics, .cards, .doctor-grid, .two, .three { grid-template-columns: 1fr; }
+    .login-metrics, .cards, .finance-kpi, .doctor-grid, .two, .three { grid-template-columns: 1fr; }
     .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
     .content { padding: 18px; }
     .page-head { display: grid; }
@@ -642,6 +666,7 @@
     <button class="nav-btn active" id="navDashboard" type="button">Dashboard</button>
     <button class="nav-btn" id="navUsers" type="button">Utenti</button>
     <button class="nav-btn" id="navDetail" type="button">Dettaglio utente</button>
+    <button class="nav-btn" id="navFinance" type="button">CEO / Finance</button>
     <div class="nav-title">Medici</div>
     <div class="user-list" id="users"></div>
     <button class="primary" id="newUser" type="button" style="width:100%;margin-top:12px">Nuovo utente</button>
@@ -802,6 +827,66 @@
   </section>
 </main>
 
+<main class="app hidden" id="financeView">
+  <aside class="sidebar">
+    <span class="pill"><span class="dot ok"></span>CEO</span>
+    <div class="nav-title">Controllo</div>
+    <button class="nav-btn active" type="button">Portale Finance</button>
+    <button class="ghost hidden" id="backAdmin" type="button" style="width:100%;margin-top:12px">Torna admin</button>
+    <button class="ghost" id="logoutFinance" type="button" style="width:100%;margin-top:10px">Esci</button>
+  </aside>
+  <section class="content">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow">Refertium Finance</p>
+        <h1 class="page-title">Portale CEO</h1>
+      </div>
+      <button class="ghost" id="refreshFinance" type="button">Aggiorna</button>
+    </div>
+    <div class="finance-kpi">
+      <div class="metric-card"><span>RRM</span><b id="financeMrr">€0</b><small>ricavi mensili ricorrenti</small></div>
+      <div class="metric-card"><span>ARR</span><b id="financeArr">€0</b><small>proiezione annuale</small></div>
+      <div class="metric-card"><span>Costo API</span><b id="financeApiCost">€0</b><small id="financeApiCostSub">stima mese corrente</small></div>
+      <div class="metric-card"><span>Margine lordo</span><b id="financeMargin">€0</b><small id="financeMarginSub">RRM meno API</small></div>
+      <div class="metric-card"><span>Paganti</span><b id="financePaid">0</b><small id="financePaidSub">clienti attivi</small></div>
+      <div class="metric-card"><span>Demo</span><b id="financeDemo">0</b><small>potenziale conversione</small></div>
+      <div class="metric-card"><span>Ore dettate</span><b id="financeHours">0h</b><small>mese corrente</small></div>
+      <div class="metric-card"><span>Token AI</span><b id="financeTokens">0</b><small>mese corrente</small></div>
+    </div>
+    <div class="finance-grid">
+      <section class="card">
+        <h3>Economia per medico</h3>
+        <div class="finance-table-wrap">
+          <table>
+            <thead><tr><th>Medico</th><th>Piano</th><th>Ricavo</th><th>Token</th><th>Ore</th><th>Costo API</th><th>Margine</th></tr></thead>
+            <tbody id="financeRows"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="card">
+        <h3>Simulatore crescita</h3>
+        <div class="two">
+          <div class="field"><label>Nuovi clienti</label><input id="simCustomers" type="number" min="0" step="1" value="10"></div>
+          <div class="field"><label>Prezzo medio €</label><input id="simPrice" type="number" min="0" step="1" value="99"></div>
+        </div>
+        <div class="two">
+          <div class="field"><label>Costo API medio €/cliente</label><input id="simApiCost" type="number" min="0" step="1" value="8"></div>
+          <div class="field"><label>Churn mensile %</label><input id="simChurn" type="number" min="0" max="100" step="1" value="3"></div>
+        </div>
+        <div class="sim-result" id="simResult"></div>
+      </section>
+      <section class="card">
+        <h3>Gestione portale</h3>
+        <div id="financePortalSummary"></div>
+      </section>
+      <section class="card">
+        <h3>Note costo API</h3>
+        <p class="note">I costi sono una stima gestionale: token AI convertiti con costo medio per milione e dettatura convertita a costo orario. Servono per vigilare margini e andamento, non per fatturazione fiscale.</p>
+      </section>
+    </div>
+  </section>
+</main>
+
 <main class="user-home hidden" id="userView">
   <section class="card user-panel">
     <span class="pill" id="userLicensePill"><span class="dot ok"></span>Licenza</span>
@@ -849,6 +934,8 @@
 <script>
 const $ = id => document.getElementById(id);
 const month = new Date().toISOString().slice(0, 7);
+const TOKEN_EUR_PER_MILLION = 2.5;
+const DICTATION_EUR_PER_HOUR = 0.33;
 let me = null;
 let users = [];
 let selected = "";
@@ -944,6 +1031,7 @@ async function api(url, opt = {}) {
 
 function fmt(n) { return Number(n || 0).toLocaleString("it-IT"); }
 function money(n) { return "€" + Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 0 }); }
+function moneyPrecise(n) { return "€" + Number(n || 0).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function usage(u) { return (u.usage && u.usage[month]) || { total: 0, dictationSeconds: 0, events: [] }; }
 function limitOf(u) { return Number(u && u.tokenLimit || 0); }
 function planPrice(u) { return Number(u && u.planPrice || 0); }
@@ -958,6 +1046,11 @@ function hours(seconds) {
 function minutes(seconds) {
   const value = Math.round(Number(seconds || 0) / 60);
   return value ? `${fmt(value)} min` : "-";
+}
+function apiCost(u) {
+  const tokenCost = usage(u).total / 1000000 * TOKEN_EUR_PER_MILLION;
+  const dictationCost = dictationSeconds(u) / 3600 * DICTATION_EUR_PER_HOUR;
+  return tokenCost + dictationCost;
 }
 function esc(s) { return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c])); }
 function licenseLabel(u) { return u.license === "blocked" ? "Bloccata" : u.license === "limited" ? "Limitata" : "Attiva"; }
@@ -988,15 +1081,16 @@ function updateConsentState() {
 }
 
 function show(id) {
-  ["loginView", "adminView", "userView"].forEach(view => $(view).classList.add("hidden"));
+  ["loginView", "adminView", "financeView", "userView"].forEach(view => $(view).classList.add("hidden"));
   $(id).classList.remove("hidden");
   document.body.classList.toggle("is-logged-in", id !== "loginView");
   $("logout").classList.toggle("hidden", id === "loginView");
 }
 
 function setWho(user) {
-  const dot = user && user.role === "admin" ? "ok" : user ? licenseDot(user) : "";
-  $("who").innerHTML = `<span class="dot ${dot}"></span>${esc(user ? (user.role === "admin" ? "Admin" : user.name) : "Console")}`;
+  const dot = user && ["admin", "finance"].includes(user.role) ? "ok" : user ? licenseDot(user) : "";
+  const label = user ? (user.role === "admin" ? "Admin" : user.role === "finance" ? "CEO" : user.name) : "Console";
+  $("who").innerHTML = `<span class="dot ${dot}"></span>${esc(label)}`;
 }
 
 function setPage(next) {
@@ -1036,6 +1130,7 @@ async function boot() {
     me = data.user;
     setWho(me);
     if (me.role === "admin") await loadAdmin();
+    else if (me.role === "finance") await loadFinance();
     else renderUser();
   } catch {
     show("loginView");
@@ -1049,6 +1144,13 @@ async function loadAdmin() {
   renderAdmin();
   refreshTemplateStatus();
   show("adminView");
+}
+
+async function loadFinance() {
+  users = (await api("/api/users")).users;
+  renderFinance();
+  show("financeView");
+  $("backAdmin").classList.toggle("hidden", !me || me.role !== "admin");
 }
 
 function renderAdmin() {
@@ -1099,6 +1201,66 @@ function renderDashboard() {
     ${summaryRow("Utenti online", s.online, s.total)}
     <div class="empty" style="margin-top:14px">Ore dettate questo mese: <strong>${hours(s.totalDictationSeconds)}</strong></div>
     <div class="empty" style="margin-top:14px">RRM attuale: <strong>${money(s.monthlyRevenue)}</strong> al mese</div>
+  `;
+}
+
+function renderFinance() {
+  const s = summary();
+  const totalApiCost = users.reduce((sum, u) => sum + apiCost(u), 0);
+  const margin = s.monthlyRevenue - totalApiCost;
+  $("financeMrr").textContent = money(s.monthlyRevenue);
+  $("financeArr").textContent = money(s.monthlyRevenue * 12);
+  $("financeApiCost").textContent = moneyPrecise(totalApiCost);
+  $("financeApiCostSub").textContent = `${moneyPrecise(TOKEN_EUR_PER_MILLION)} / 1M token · ${moneyPrecise(DICTATION_EUR_PER_HOUR)} / ora`;
+  $("financeMargin").textContent = moneyPrecise(margin);
+  $("financeMarginSub").textContent = s.monthlyRevenue ? `${Math.round(Math.max(0, margin) / s.monthlyRevenue * 100)}% lordo stimato` : "nessun ricavo";
+  $("financePaid").textContent = fmt(s.paid);
+  $("financePaidSub").textContent = `${fmt(s.active)} licenze attive`;
+  $("financeDemo").textContent = fmt(s.demo);
+  $("financeHours").textContent = hours(s.totalDictationSeconds);
+  $("financeTokens").textContent = fmt(s.totalTokens);
+
+  const rows = users.slice().sort((a, b) => planPrice(b) - planPrice(a) || usage(b).total - usage(a).total);
+  $("financeRows").innerHTML = rows.map(u => {
+    const revenue = u.isDemo || u.license === "blocked" ? 0 : planPrice(u);
+    const cost = apiCost(u);
+    return `<tr>
+      <td><strong>${esc(u.name)}</strong><br><span class="note">${esc(u.username || "")}</span></td>
+      <td>${esc(u.planName || "-")}<br><span class="note">${u.isDemo ? "Demo" : "Pagante"} · ${licenseLabel(u)}</span></td>
+      <td>${money(revenue)}</td>
+      <td>${fmt(usage(u).total)}</td>
+      <td>${hours(dictationSeconds(u))}</td>
+      <td>${moneyPrecise(cost)}</td>
+      <td>${moneyPrecise(revenue - cost)}</td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="7"><span class="note">Nessun medico presente.</span></td></tr>`;
+
+  $("financePortalSummary").innerHTML = `
+    ${summaryRow("Clienti paganti", s.paid, Math.max(1, s.total))}
+    ${summaryRow("Utenti in demo", s.demo, Math.max(1, s.total))}
+    ${summaryRow("Licenze bloccate", s.blocked, Math.max(1, s.total))}
+    ${summaryRow("App generate/caricate", s.withHtml, Math.max(1, s.total))}
+    <div class="empty" style="margin-top:14px">Break-even API: <strong>${moneyPrecise(totalApiCost)}</strong> / mese</div>
+  `;
+  renderSimulation();
+}
+
+function renderSimulation() {
+  const s = summary();
+  const newCustomers = Number($("simCustomers").value || 0);
+  const avgPrice = Number($("simPrice").value || 0);
+  const avgApi = Number($("simApiCost").value || 0);
+  const churn = Number($("simChurn").value || 0) / 100;
+  const addedMrr = newCustomers * avgPrice;
+  const addedCost = newCustomers * avgApi;
+  const projectedMrr = s.monthlyRevenue + addedMrr;
+  const projectedNet = projectedMrr - users.reduce((sum, u) => sum + apiCost(u), 0) - addedCost;
+  const churnRisk = projectedMrr * churn;
+  $("simResult").innerHTML = `
+    <div class="row" style="justify-content:space-between"><strong>Nuovo RRM stimato</strong><span>${money(projectedMrr)}</span></div>
+    <div class="row" style="justify-content:space-between;margin-top:8px"><strong>Margine dopo API</strong><span>${moneyPrecise(projectedNet)}</span></div>
+    <div class="row" style="justify-content:space-between;margin-top:8px"><strong>Rischio churn mensile</strong><span>${moneyPrecise(churnRisk)}</span></div>
+    <p class="note" style="margin:12px 0 0">Scenario: +${fmt(newCustomers)} clienti a ${money(avgPrice)}/mese con ${money(avgApi)} di costo API medio.</p>
   `;
 }
 
@@ -1260,6 +1422,7 @@ $("loginForm").onsubmit = async e => {
     me = data.user;
     setWho(me);
     if (me.role === "admin") await loadAdmin();
+    else if (me.role === "finance") await loadFinance();
     else renderUser();
   } catch (err) {
     $("loginErr").textContent = err.message;
@@ -1276,6 +1439,7 @@ async function logout() {
 $("logout").onclick = logout;
 $("logoutInline").onclick = logout;
 $("logoutUser").onclick = logout;
+$("logoutFinance").onclick = logout;
 ["consentPrivacy", "consentData", "consentDisclaimer"].forEach(id => $(id).onchange = updateConsentState);
 
 $("langToggle").onclick = () => {
@@ -1300,9 +1464,13 @@ $("newUser").onclick = createUser;
 $("newUserTop").onclick = createUser;
 $("refreshDashboard").onclick = loadAdmin;
 $("refreshDetail").onclick = loadAdmin;
+$("refreshFinance").onclick = loadFinance;
 $("navDashboard").onclick = () => setPage("dashboard");
 $("navUsers").onclick = () => setPage("users");
 $("navDetail").onclick = () => setPage("detail");
+$("navFinance").onclick = loadFinance;
+$("backAdmin").onclick = async () => { await loadAdmin(); setPage("dashboard"); };
+["simCustomers", "simPrice", "simApiCost", "simChurn"].forEach(id => $(id).oninput = renderSimulation);
 $("searchUsers").oninput = renderUsersTable;
 $("clearSearch").onclick = () => { $("searchUsers").value = ""; renderUsersTable(); };
 $("firstName").oninput = () => { $("name").value = displayNameFromFields(); };
