@@ -11,6 +11,7 @@ const CLOUDFLARE_PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || 'https://refert
 const CLOUDFLARE_PROXY_AUTH = process.env.CLOUDFLARE_PROXY_AUTH || 'refertium-sec-2026';
 const WORKER_SHARED_SECRET = process.env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev';
 const ADMIN_BOOTSTRAP_PASSWORD = process.env.REFERTIUM_ADMIN_PASSWORD || 'refertium-admin';
+const FINANCE_BOOTSTRAP_PASSWORD = process.env.REFERTIUM_FINANCE_PASSWORD || '';
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const TEMPLATE_DIR = path.join(ROOT, 'templates');
@@ -66,9 +67,10 @@ async function loadDb() {
   try {
     const db = JSON.parse(await fs.readFile(DB_FILE, 'utf8'));
     const changed = normalizeDb(db);
+    const financeChanged = ensureFinanceUser(db);
     const recovered = await recoverDbIfBetter(db);
     if (recovered) return recovered;
-    if (changed) await saveDb(db);
+    if (changed || financeChanged) await saveDb(db);
     return db;
   } catch {
     const recovered = await recoverDbIfBetter(null);
@@ -110,7 +112,22 @@ async function loadDb() {
           usage: {},
           createdAt: now,
           updatedAt: now
-        }
+        },
+        ...(FINANCE_BOOTSTRAP_PASSWORD ? [{
+          id: 'finance-console',
+          role: 'finance',
+          name: 'Finance Refertium',
+          username: 'finance',
+          email: 'finance@refertium.local',
+          passwordHash: hashPassword(FINANCE_BOOTSTRAP_PASSWORD),
+          license: 'active',
+          tokenLimit: 0,
+          htmlFile: '',
+          htmlName: '',
+          usage: {},
+          createdAt: now,
+          updatedAt: now
+        }] : [])
       ]
     };
     await saveDb(db);
@@ -120,6 +137,7 @@ async function loadDb() {
 
 async function recoverDbIfBetter(currentDb) {
   const currentCount = Array.isArray(currentDb && currentDb.users) ? currentDb.users.length : 0;
+  if (currentCount > 2) return null;
   let best = null;
   const candidates = await findDbCandidates();
   for (const file of candidates) {
@@ -131,13 +149,17 @@ async function recoverDbIfBetter(currentDb) {
     } catch {}
   }
   if (!best || best.db.users.length <= currentCount) return null;
-  normalizeDb(best.db);
+  const changed = normalizeDb(best.db);
+  const financeChanged = ensureFinanceUser(best.db);
   await fs.mkdir(path.dirname(DB_FILE), { recursive: true });
   try {
     if (fss.existsSync(DB_FILE)) {
       await fs.copyFile(DB_FILE, `${DB_FILE}.before-recovery-${Date.now()}.bak`);
     }
   } catch {}
+  if (changed || financeChanged) {
+    best.db.updatedAt = new Date().toISOString();
+  }
   await fs.writeFile(DB_FILE, JSON.stringify(best.db, null, 2));
   console.log(`Refertium recovery: database recuperato da ${best.file} con ${best.db.users.length} utenti.`);
   return best.db;
@@ -191,6 +213,11 @@ function normalizeDb(db) {
       user.updatedAt = new Date().toISOString();
       changed = true;
     }
+    if (user.role === 'finance' && process.env.REFERTIUM_FINANCE_PASSWORD && !verifyPassword(FINANCE_BOOTSTRAP_PASSWORD, user.passwordHash)) {
+      user.passwordHash = hashPassword(FINANCE_BOOTSTRAP_PASSWORD);
+      user.updatedAt = new Date().toISOString();
+      changed = true;
+    }
     if (user.role === 'user' && user.planName == null) {
       user.planName = user.isDemo === false ? 'Standard' : 'Demo';
       changed = true;
@@ -238,6 +265,28 @@ function normalizeDb(db) {
   return changed;
 }
 
+function ensureFinanceUser(db) {
+  if (!FINANCE_BOOTSTRAP_PASSWORD) return false;
+  if (db.users.some(u => u.role === 'finance' || String(u.username || '').toLowerCase() === 'finance')) return false;
+  const now = new Date().toISOString();
+  db.users.push({
+    id: 'finance-console',
+    role: 'finance',
+    name: 'Finance Refertium',
+    username: 'finance',
+    email: 'finance@refertium.local',
+    passwordHash: hashPassword(FINANCE_BOOTSTRAP_PASSWORD),
+    license: 'active',
+    tokenLimit: 0,
+    htmlFile: '',
+    htmlName: '',
+    usage: {},
+    createdAt: now,
+    updatedAt: now
+  });
+  return true;
+}
+
 async function saveDb(db) {
   await ensureDirs();
   await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
@@ -264,7 +313,7 @@ function publicUser(user, options = {}) {
     planName: user.planName || '',
     planPrice: Number(user.planPrice || 0),
     isDemo: Boolean(user.isDemo),
-    proxyToken: user.proxyToken || '',
+    proxyToken: includeSensitive ? (user.proxyToken || '') : '',
     htmlName: user.htmlName || '',
     hasHtml: Boolean(user.htmlFile),
     usage: includeUsage ? (user.usage || {}) : {},
@@ -346,6 +395,11 @@ function requireAuth(user) {
 function requireAdmin(user) {
   requireAuth(user);
   if (user.role !== 'admin') throw Object.assign(new Error('Permesso negato'), { status: 403 });
+}
+
+function requireFinance(user) {
+  requireAuth(user);
+  if (!['admin', 'finance'].includes(user.role)) throw Object.assign(new Error('Permesso negato'), { status: 403 });
 }
 
 function getMonthlyUsage(user) {
@@ -902,8 +956,8 @@ async function handleApi(req, res, db, user, pathname) {
     return send(res, 200, { ok: true, usage: getMonthlyUsage(target) });
   }
   if (pathname === '/api/users' && req.method === 'GET') {
-    requireAdmin(user);
-    return send(res, 200, { users: db.users.filter(u => u.role === 'user').map(u => publicUser(u, { includeUsage: true, includeSensitive: true })) });
+    requireFinance(user);
+    return send(res, 200, { users: db.users.filter(u => u.role === 'user').map(u => publicUser(u, { includeUsage: true, includeSensitive: user.role === 'admin' })) });
   }
   if (pathname === '/api/template-status' && req.method === 'GET') {
     requireAdmin(user);
