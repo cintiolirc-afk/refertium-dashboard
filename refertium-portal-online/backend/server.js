@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || process.env.REFERTIUM_PORT || 47825);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const REFERTIUM_PROXY_MODE = process.env.REFERTIUM_PROXY_MODE || 'cloudflare';
+const REFERTIUM_PROXY_MODE = process.env.REFERTIUM_PROXY_MODE || 'local';
 const CLOUDFLARE_PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || 'https://refertium-api.cintioli-rc.workers.dev';
 const CLOUDFLARE_PROXY_AUTH = process.env.CLOUDFLARE_PROXY_AUTH || 'refertium-sec-2026';
 const WORKER_SHARED_SECRET = process.env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev';
@@ -543,6 +543,7 @@ function pageMessage(title, text) {
 }
 
 function rewriteRefertiumHtml(html, user) {
+  const usesLocalProxy = REFERTIUM_PROXY_MODE === 'local';
   if (REFERTIUM_PROXY_MODE === 'local') {
     html = html.replace(/const\s+PROXY_URL\s*=\s*['"][^'"]*['"]\s*;/, "const PROXY_URL = window.location.origin;");
     html = html.replace(/const\s+PROXY_AUTH\s*=\s*['"][^'"]*['"]\s*;/, "const PROXY_AUTH = 'session';");
@@ -552,13 +553,31 @@ function rewriteRefertiumHtml(html, user) {
   }
   const guard = `<script>
 window.__REFERTIUM_USER__=${JSON.stringify({ id: user.id, name: user.name, license: user.license, tokenLimit: user.tokenLimit })};
+window.__REFERTIUM_PROXY_MODE__=${JSON.stringify(REFERTIUM_PROXY_MODE)};
 (function(){
   var limit=${Number(user.tokenLimit || 0)};
   var used=${Number(getMonthlyUsage(user).total || 0)};
+  var usesLocalProxy=${JSON.stringify(usesLocalProxy)};
+  function forceBackendProxyRuntime(){
+    if(!usesLocalProxy) return;
+    try{
+      if(window.state){
+        state.apiKey='proxy';
+        state.deepgramKey='';
+        state.sttProvider='openai';
+        try{ localStorage.setItem('reportify_stt_provider','openai'); }catch(e){}
+      }
+    }catch(e){}
+  }
+  forceBackendProxyRuntime();
+  document.addEventListener('DOMContentLoaded', forceBackendProxyRuntime);
+  setTimeout(forceBackendProxyRuntime, 300);
+  setTimeout(forceBackendProxyRuntime, 1200);
   var originalFetch=window.fetch&&window.fetch.bind(window);
   function aiUrl(input){ var url=typeof input==='string'?input:(input&&input.url)||''; return /\\/v1\\/(chat\\/completions|responses|audio\\/transcriptions)/.test(url); }
   if(originalFetch){
     window.fetch=async function(input, init){
+      forceBackendProxyRuntime();
       if(aiUrl(input) && limit>0 && used>=limit) throw new Error('Limite token Refertium raggiunto.');
       var resp=await originalFetch(input, init);
       try {
