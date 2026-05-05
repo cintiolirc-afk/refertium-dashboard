@@ -194,12 +194,21 @@ async function findDbCandidates() {
     }
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
-      if (entry.isFile() && entry.name === 'db.json') out.push(full);
+      if (entry.isFile() && isDbCandidateName(entry.name)) out.push(full);
       if (entry.isDirectory() && !['node_modules', '.git'].includes(entry.name)) await walk(full, depth - 1);
     }
   }
   for (const root of roots) await walk(root, 5);
   return Array.from(new Set(out));
+}
+
+function isDbCandidateName(name) {
+  return (
+    name === 'db.json' ||
+    name.startsWith('db.json.before-recovery-') ||
+    name === 'db.json.bak' ||
+    name.endsWith('.db.json')
+  );
 }
 
 function normalizeDb(db) {
