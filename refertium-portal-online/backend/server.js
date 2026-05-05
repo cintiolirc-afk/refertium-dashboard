@@ -136,8 +136,7 @@ async function loadDb() {
 }
 
 async function recoverDbIfBetter(currentDb) {
-  const currentCount = Array.isArray(currentDb && currentDb.users) ? currentDb.users.length : 0;
-  if (currentCount > 2) return null;
+  const currentCount = recoverableUserCount(currentDb);
   let best = null;
   const candidates = await findDbCandidates();
   for (const file of candidates) {
@@ -145,10 +144,11 @@ async function recoverDbIfBetter(currentDb) {
     try {
       const candidate = JSON.parse(await fs.readFile(file, 'utf8'));
       if (!Array.isArray(candidate.users)) continue;
-      if (!best || candidate.users.length > best.db.users.length) best = { file, db: candidate };
+      const count = recoverableUserCount(candidate);
+      if (!best || count > best.count) best = { file, db: candidate, count };
     } catch {}
   }
-  if (!best || best.db.users.length <= currentCount) return null;
+  if (!best || best.count <= currentCount) return null;
   const changed = normalizeDb(best.db);
   const financeChanged = ensureFinanceUser(best.db);
   await fs.mkdir(path.dirname(DB_FILE), { recursive: true });
@@ -163,6 +163,16 @@ async function recoverDbIfBetter(currentDb) {
   await fs.writeFile(DB_FILE, JSON.stringify(best.db, null, 2));
   console.log(`Refertium recovery: database recuperato da ${best.file} con ${best.db.users.length} utenti.`);
   return best.db;
+}
+
+function recoverableUserCount(db) {
+  if (!db || !Array.isArray(db.users)) return 0;
+  return db.users.filter(user => {
+    if (!user || user.role !== 'user') return false;
+    if (user.id === 'demo-user') return false;
+    if (String(user.username || '').toLowerCase() === 'demo') return false;
+    return true;
+  }).length;
 }
 
 async function findDbCandidates() {
