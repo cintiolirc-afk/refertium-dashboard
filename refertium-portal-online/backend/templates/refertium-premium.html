@@ -817,22 +817,16 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       }
       const pre = preprocessDictation(rawText);
       setStatus('Pulizia testo con AI…');
-      openPreview('Trascrizione pulita');
-      lastPreviewMode = 'append';
+      // La dettatura è la voce del medico — la inseriamo direttamente
+      // nell'editor senza chiedere conferma (a differenza degli output AI
+      // generativi come Magic, Conclusioni e Modifica con AI).
       let buffer = '';
-      let lastRender = 0;
-      await cleanupDictationAI(pre, (delta) => {
-        buffer += delta;
-        const now = Date.now();
-        if (now - lastRender > 80) {
-          aiPreviewBody.textContent = buffer;
-          aiPreviewBody.appendChild(makeCursor());
-          aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;
-          lastRender = now;
-        }
-      });
-      aiPreviewBody.textContent = buffer.trim();
-      setStatus('Pronto per inserimento', 'ok');
+      await cleanupDictationAI(pre, (delta) => { buffer += delta; });
+      const cleaned = buffer.trim();
+      if (cleaned) {
+        insertIntoEditor(cleaned, { replaceSelection: false, asBlock: true });
+      }
+      setStatus('Testo inserito', 'ok');
       setTimeout(() => setStatus(''), 1200);
     } catch (err) {
       console.error(err);

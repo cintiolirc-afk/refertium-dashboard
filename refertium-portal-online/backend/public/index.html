@@ -4,24 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Refertium Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: dark;
-    --bg: #020817;
-    --surface: #071326;
-    --surface-2: #0a1a31;
-    --surface-3: #0d223b;
-    --text: #f7fbff;
-    --muted: #a9b8cc;
-    --quiet: #71839b;
-    --line: rgba(179, 218, 255, .11);
-    --line-strong: rgba(179, 218, 255, .18);
-    --accent: #12dce8;
-    --accent-2: #0e8dff;
-    --danger: #ef6969;
-    --warning: #f4bd61;
-    --ok: #12dce8;
-    --radius: 8px;
+    /* Palette Refertium RIS — navy + verde acqua + bianco */
+    --bg: #050d1a;
+    --surface: #0a1628;
+    --surface-2: #112340;
+    --surface-3: #1f3a5e;
+    --text: #e8edf5;
+    --text-strong: #ffffff;
+    --muted: #8a9ab5;
+    --quiet: #5a6a85;
+    --line: rgba(93, 202, 165, .14);
+    --line-strong: rgba(93, 202, 165, .28);
+    --accent: #5DCAA5;
+    --accent-2: #7ed8b8;
+    --accent-soft: rgba(93, 202, 165, .12);
+    --accent-ink: #050d1a;
+    --danger: #e07070;
+    --warning: #f4c065;
+    --ok: #5DCAA5;
+    --radius: 10px;
+    --serif: "EB Garamond", Georgia, "Times New Roman", serif;
     --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
@@ -55,21 +63,16 @@
     min-width: 0;
   }
 
-  .mark {
-    width: 42px;
-    height: 42px;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(18, 220, 232, .22);
-    border-radius: 9px;
-    background: rgba(4, 17, 36, .74);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.03), 0 18px 50px rgba(18, 220, 232, .08);
-    flex: 0 0 auto;
+  /* Wordmark "Refertium." in EB Garamond, allineato al RIS */
+  .brand-name {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: .015em;
+    color: var(--text-strong);
   }
-
-  .mark svg { width: 31px; height: 31px; overflow: visible; }
-  .brand-name { font-size: 19px; font-weight: 780; letter-spacing: -.03em; }
   .brand-name span { color: var(--accent); }
+  .brand .mark { display: none; } /* legacy SVG mark non più mostrato */
   .spacer { flex: 1; }
 
   .ghost {
@@ -86,11 +89,13 @@
     border: 0;
     border-radius: var(--radius);
     padding: 10px 14px;
-    background: linear-gradient(135deg, #19e7f0, #0e91ff);
-    color: #001225;
-    font-weight: 760;
-    box-shadow: 0 16px 34px rgba(14, 141, 255, .18);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 700;
+    box-shadow: 0 12px 26px rgba(93, 202, 165, .18);
+    transition: background 160ms cubic-bezier(.16,1,.3,1);
   }
+  .primary:hover { background: var(--accent-2); }
 
   .danger {
     min-height: 38px;
@@ -128,12 +133,9 @@
     place-items: center;
     padding: 34px 18px;
     background:
-      linear-gradient(90deg, rgba(144,204,255,.026) 1px, transparent 1px),
-      linear-gradient(180deg, rgba(144,204,255,.026) 1px, transparent 1px),
-      radial-gradient(circle at 50% 46%, rgba(14,141,255,.07), transparent 36%),
-      radial-gradient(circle at 28% 24%, rgba(18,220,232,.055), transparent 28%),
+      radial-gradient(circle at 50% 46%, rgba(93,202,165,.06), transparent 36%),
+      radial-gradient(circle at 28% 24%, rgba(93,202,165,.04), transparent 28%),
       var(--bg);
-    background-size: 44px 44px, 44px 44px, auto, auto, auto;
   }
 
   .login-panel {
@@ -143,7 +145,7 @@
     border: 1px solid var(--line-strong);
     border-radius: 14px;
     overflow: hidden;
-    background: linear-gradient(135deg, rgba(4, 12, 26, .96), rgba(2, 8, 18, .98));
+    background: linear-gradient(135deg, #0a1628 0%, #050d1a 100%);
     box-shadow: 0 34px 110px rgba(0, 0, 0, .58);
   }
 
@@ -154,29 +156,28 @@
     justify-content: center;
     padding: clamp(28px, 5vw, 56px);
     background:
-      radial-gradient(circle at 43% 48%, rgba(14,141,255,.075), transparent 44%),
-      linear-gradient(135deg, rgba(255,255,255,.018), rgba(255,255,255,.004)),
-      #030b18;
+      radial-gradient(circle at 43% 48%, rgba(93,202,165,.07), transparent 44%),
+      linear-gradient(135deg, rgba(255,255,255,.015), rgba(255,255,255,.003)),
+      #0a1628;
   }
 
   .hero-logo {
     display: inline-flex;
-    align-items: center;
-    gap: 22px;
+    align-items: baseline;
+    gap: 4px;
   }
 
-  .hero-logo .mark {
-    width: 132px;
-    height: 132px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-  }
+  .hero-logo .mark { display: none; } /* legacy SVG mark non più mostrato */
 
-  .hero-logo .mark svg { width: 132px; height: 132px; }
-  .wordmark { font-size: clamp(58px, 8vw, 104px); font-weight: 380; letter-spacing: -.05em; line-height: 1; }
-  .wordmark span { color: inherit; }
+  .wordmark {
+    font-family: var(--serif);
+    font-size: clamp(58px, 8vw, 104px);
+    font-weight: 500;
+    letter-spacing: .005em;
+    line-height: 1;
+    color: var(--text-strong);
+  }
+  .wordmark span { color: var(--accent); }
   .login-identity .brand-subtitle {
     display: block;
     margin: 18px 0 0;
@@ -592,20 +593,7 @@
 <body>
 <header class="shell-top">
   <div class="brand">
-    <div class="mark" aria-hidden="true">
-      <svg viewBox="0 0 96 96" fill="none">
-        <path d="M45 19v58" stroke="#20e7f0" stroke-width="4" stroke-linecap="round"/>
-        <path d="M41 20c-8 0-12 5-13 11-8 0-14 6-14 14-7 2-11 8-11 15 0 8 6 15 14 15 2 8 9 13 17 13 6 0 11-3 14-8V25c-2-3-4-5-7-5Z" stroke="#20e7f0" stroke-width="4" stroke-linejoin="round"/>
-        <path d="M18 45c3 0 6 2 7 5M16 62c4-2 9-1 12 3M28 32c4 0 7 3 7 7M28 76c0-5 4-9 9-9" stroke="#20e7f0" stroke-width="4" stroke-linecap="round"/>
-        <circle cx="22" cy="38" r="3" stroke="#20e7f0" stroke-width="4"/>
-        <circle cx="30" cy="56" r="3" stroke="#20e7f0" stroke-width="4"/>
-        <circle cx="35" cy="45" r="3" stroke="#20e7f0" stroke-width="4"/>
-        <path d="M54 21h23c6 0 11 5 11 11v43c0 6-5 11-11 11H54V21Z" fill="#12dce8"/>
-        <path d="M71 86V67h17" fill="#0797d8"/>
-        <path d="M63 40h18M63 53h18M63 66h12" stroke="#022044" stroke-width="5" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <div class="brand-name">Refer<span>tium</span></div>
+    <div class="brand-name">Refertium<span>.</span></div>
   </div>
   <span class="pill" id="who"><span class="dot"></span>Console</span>
   <div class="spacer"></div>
@@ -618,20 +606,7 @@
     <div class="login-identity">
       <div>
         <div class="hero-logo">
-          <div class="mark" aria-hidden="true">
-            <svg viewBox="0 0 96 96" fill="none">
-              <path d="M45 19v58" stroke="#20e7f0" stroke-width="4" stroke-linecap="round"/>
-              <path d="M41 20c-8 0-12 5-13 11-8 0-14 6-14 14-7 2-11 8-11 15 0 8 6 15 14 15 2 8 9 13 17 13 6 0 11-3 14-8V25c-2-3-4-5-7-5Z" stroke="#20e7f0" stroke-width="4" stroke-linejoin="round"/>
-              <path d="M18 45c3 0 6 2 7 5M16 62c4-2 9-1 12 3M28 32c4 0 7 3 7 7M28 76c0-5 4-9 9-9" stroke="#20e7f0" stroke-width="4" stroke-linecap="round"/>
-              <circle cx="22" cy="38" r="3" stroke="#20e7f0" stroke-width="4"/>
-              <circle cx="30" cy="56" r="3" stroke="#20e7f0" stroke-width="4"/>
-              <circle cx="35" cy="45" r="3" stroke="#20e7f0" stroke-width="4"/>
-              <path d="M54 21h23c6 0 11 5 11 11v43c0 6-5 11-11 11H54V21Z" fill="#12dce8"/>
-              <path d="M71 86V67h17" fill="#0797d8"/>
-              <path d="M63 40h18M63 53h18M63 66h12" stroke="#022044" stroke-width="5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="wordmark">Refer<span>tium</span></div>
+          <div class="wordmark">Refertium<span>.</span></div>
         </div>
         <p class="brand-subtitle" id="brandSubtitle">Benvenuto nel futuro della refertazione</p>
         <h1 id="heroTitle"></h1>

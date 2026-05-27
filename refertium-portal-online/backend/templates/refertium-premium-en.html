@@ -437,22 +437,15 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       if (!rawText) { setStatus('Empty transcription', 'err'); setTimeout(() => setStatus(''), 1800); return; }
       const pre = preprocessDictation(rawText);
       setStatus('Cleaning text with AI…');
-      openPreview('Cleaned transcription');
-      lastPreviewMode = 'append';
+      // Dictation is the doctor's own voice — insert directly into the editor
+      // without confirmation (unlike generative AI outputs).
       let buffer = '';
-      let lastRender = 0;
-      await cleanupDictationAI(pre, (delta) => {
-        buffer += delta;
-        const now = Date.now();
-        if (now - lastRender > 80) {
-          aiPreviewBody.textContent = buffer;
-          aiPreviewBody.appendChild(makeCursor());
-          aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;
-          lastRender = now;
-        }
-      });
-      aiPreviewBody.textContent = buffer.trim();
-      setStatus('Ready to insert', 'ok');
+      await cleanupDictationAI(pre, (delta) => { buffer += delta; });
+      const cleaned = buffer.trim();
+      if (cleaned) {
+        insertIntoEditor(cleaned, { replaceSelection: false, asBlock: true });
+      }
+      setStatus('Text inserted', 'ok');
       setTimeout(() => setStatus(''), 1200);
     } catch (err) {
       console.error(err);
