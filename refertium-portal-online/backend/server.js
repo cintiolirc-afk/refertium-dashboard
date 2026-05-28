@@ -1264,10 +1264,21 @@ function requireWorker(req) {
 }
 
 function resolveAiBillingUser(req, db, user) {
+  // Eccezione per Refertium International: l'editor è servito da /international
+  // come MVP pubblico, senza login dashboard. Il backend mette il cookie
+  // APP_USER_COOKIE = international-demo all'apertura della pagina, e qui lo
+  // riconosciamo come billing holder per le chiamate AI. Il limite token
+  // dell'utente "international-demo" funge da rate-limit complessivo per
+  // la rotta pubblica.
+  const cookies = parseCookies(req);
+  const appUserId = cookies[APP_USER_COOKIE];
+  if (!user && appUserId === INTERNATIONAL_DEMO_USER_ID) {
+    const intl = db.users.find(u => u.id === INTERNATIONAL_DEMO_USER_ID);
+    if (intl) return intl;
+  }
   requireAuth(user);
   if (user.role === 'user') return user;
   if (user.role === 'admin') {
-    const appUserId = parseCookies(req)[APP_USER_COOKIE];
     const target = appUserId && db.users.find(u => u.id === appUserId && u.role === 'user');
     if (target) return target;
   }
