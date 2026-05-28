@@ -458,7 +458,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       if (blob.size < 1000) { setStatus('Audio too short', 'err'); setTimeout(() => setStatus(''), 1800); return; }
       const rawText = await transcribeBlobDirect(blob);
       if (!rawText) { setStatus('Empty transcription', 'err'); setTimeout(() => setStatus(''), 1800); return; }
-      const pre = preprocessDictation(rawText);
+      // 1) context-aware medical corrections on raw Whisper (gallbladder, etc.)
+      // 2) spoken-punctuation preprocessing (comma, period, etc.)
+      const corrected = applyMedicalCorrections(rawText);
+      const pre = preprocessDictation(corrected);
       setStatus('Cleaning text with AI…');
       // Dictation is the doctor's own voice — insert directly into the editor
       // without confirmation (unlike generative AI outputs).
@@ -507,6 +510,48 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     return t;
   }
 
+  // Always-on radiology dictionary for the Whisper prompt. Combined with
+  // the per-doctor WHISPER_PROMPT injected by the backend. Helps Whisper
+  // recognise technical terms it would mishear in isolation
+  // (e.g. "gallbladder" misheard as "gull bladder").
+  const WHISPER_BASE_EN = [
+    'Radiology reporting dictation.',
+    // General
+    'parenchyma, echotexture, echogenicity, hyperechoic, hypoechoic, isoechoic, anechoic,',
+    'contrast medium, IV contrast, fluid collection, focal lesion, signal alteration,',
+    'enhancement, hyperintense, hypointense, isointense.',
+    // Abdomen
+    'liver, hepatic, gallbladder, stone-free, pericholecystic, common bile duct,',
+    'intrahepatic bile ducts, extrahepatic bile ducts, pancreas, spleen, splenic, adrenal,',
+    'kidneys, parenchymal, bladder, prostate, ureter, calyx, renal pelvis, portal vein,',
+    'abdominal aorta, IVC, mesentery, peritoneum.',
+    // Chest
+    'lung parenchyma, mediastinum, hilum, pleura, pleural effusion, atelectasis,',
+    'consolidation, ground glass, opacity, pulmonary nodule, bronchiectasis,',
+    'pulmonary embolism, PE.',
+    // Neuro
+    'brain, falx cerebri, tentorium, lateral ventricles, choroid plexus, corpus callosum,',
+    'basal ganglia, thalami, spinal cord, cerebellum, vermis, white matter, grey matter,',
+    'leukoencephalopathy, cortical atrophy, gliosis, edema, hemorrhage, ischemia, stroke.',
+    // MSK
+    'joint, capsule, synovial, meniscus, articular cartilage, chondropathy,',
+    'subchondral bone, bone marrow edema, fracture, ligament injury, tendon,',
+    'rotator cuff, supraspinatus, infraspinatus, subscapularis, teres minor, glenoid labrum.',
+    // Recurring formulas
+    'no focal abnormalities of note, within normal limits for age, clinical follow-up,',
+    'further evaluation recommended.',
+  ].join(' ');
+
+  function buildWhisperPrompt() {
+    const userKeywords = (typeof WHISPER_PROMPT === 'string' && WHISPER_PROMPT.trim())
+      ? WHISPER_PROMPT.trim()
+      : '';
+    const combined = userKeywords
+      ? (WHISPER_BASE_EN + ' Doctor recurring terms: ' + userKeywords + '.')
+      : WHISPER_BASE_EN;
+    return combined.slice(0, 900);
+  }
+
   async function transcribeBlobDirect(blob) {
     try { return await attemptTranscribe(blob, 'gpt-4o-transcribe'); }
     catch (err) {
@@ -526,7 +571,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     fd.append('file', blob, 'dictation.' + ext);
     fd.append('model', model);
     fd.append('language', 'en');
-    if (WHISPER_PROMPT) fd.append('prompt', WHISPER_PROMPT);
+    const promptText = buildWhisperPrompt();
+    if (promptText) fd.append('prompt', promptText);
+    fd.append('temperature', '0');
     fd.append('response_format', 'json');
     const headers = {};
     if (PROXY_AUTH && PROXY_AUTH !== 'session') headers['Authorization'] = 'Bearer ' + PROXY_AUTH;
@@ -534,6 +581,43 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     if (!r.ok) { const txt = await r.text().catch(() => ''); throw new Error('STT ' + model + ': ' + r.status + ' ' + txt.slice(0, 200)); }
     const data = await r.json();
     return (data && (data.text || data.transcript || '')) || '';
+  }
+
+  // Context-aware medical corrections applied AFTER Whisper, BEFORE the AI
+  // cleanup. Patterns are deliberately tight so we never break legitimate
+  // phrases (e.g. "renal cysts").
+  function applyMedicalCorrections(text) {
+    if (!text) return text;
+    let t = text;
+    const rules = [
+      // common bile duct: "common bile duck" / "common bald duct" etc.
+      [/\bcommon\s+b(?:i|a)l[ed]?\s+du[ck]+t\b/gi, 'common bile duct'],
+      // gallbladder split: "gall bladder", "gull bladder", "ball bladder"
+      [/\b(?:gall?|gull|ball|gold)\s*bladder\b/gi, 'gallbladder'],
+      // ground glass
+      [/\bground\s*g[la]ss\b/gi, 'ground glass'],
+      // pericholecystic
+      [/\bperi[\s-]*cho?le[\s-]*cyst(?:ic)?\b/gi, 'pericholecystic'],
+      // parenchyma truncations
+      [/\bparen[\s-]*chyma\b/gi, 'parenchyma'],
+      // echotexture
+      [/\bec(?:ho)?[\s-]*tex(?:ture)?\b/gi, 'echotexture'],
+      // echogenicity variants
+      [/\bhyper[\s-]*ec(?:ho)?[\s-]*ic\b/gi, 'hyperechoic'],
+      [/\bhypo[\s-]*ec(?:ho)?[\s-]*ic\b/gi, 'hypoechoic'],
+      [/\biso[\s-]*ec(?:ho)?[\s-]*ic\b/gi, 'isoechoic'],
+      [/\ban[\s-]*ec(?:ho)?[\s-]*ic\b/gi, 'anechoic'],
+      // pulmonary embolism
+      [/\bpulmonary\s+emb(?:o)?l(?:ism)?\b/gi, 'pulmonary embolism'],
+      // rotator cuff
+      [/\bro?tator\s+cuff\b/gi, 'rotator cuff'],
+      // IV contrast
+      [/\b(?:i\.?v\.?|intra\s*venous)\s+contrast\b/gi, 'IV contrast'],
+    ];
+    for (const r of rules) {
+      t = t.replace(r[0], r[1]);
+    }
+    return t;
   }
 
   // Philosophy: this function is ONLY a spelling/punctuation corrector. The
@@ -548,6 +632,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '3) double or wrong spacing;',
       '4) capital letter at start of sentence and after period;',
       '5) accidental word repetitions ("the the", "of of", "not not").',
+      'MEDICAL TERMINOLOGY: if the text contains correct radiology terms (gallbladder, common bile duct, pericholecystic, parenchyma, echotexture, ground glass, etc.), KEEP THEM LITERAL — do not replace them with non-medical synonyms.',
       'ABSOLUTE RULES — never break them:',
       '- DO NOT add words, sentences, sections or titles the doctor did not dictate.',
       '- DO NOT insert headings like "TECHNIQUE", "FINDINGS", "IMPRESSION", "INDICATION" if the doctor did not say them.',

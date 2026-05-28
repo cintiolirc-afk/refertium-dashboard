@@ -843,7 +843,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
         setTimeout(() => setStatus(''), 1800);
         return;
       }
-      const pre = preprocessDictation(rawText);
+      // 1) correzioni mediche context-aware sulla raw Whisper (colecisti, ecc.)
+      // 2) preprocessing punteggiatura parlata (virgola, punto, ecc.)
+      const corrected = applyMedicalCorrections(rawText);
+      const pre = preprocessDictation(corrected);
       setStatus('Pulizia testo con AI…');
       // La dettatura è la voce del medico — la inseriamo direttamente
       // nell'editor senza chiedere conferma (a differenza degli output AI
@@ -869,6 +872,54 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     const c = document.createElement('span');
     c.className = 'stream-cursor';
     return c;
+  }
+
+  // ─── Correzioni mediche context-aware ─────────────────────
+  // Applicate DOPO Whisper, PRIMA del cleanup AI. Pattern molto restrittivi:
+  // matchiamo SOLO quando il contesto è inequivocabile (es. "le cisti" seguito
+  // da un termine biliare → "colecisti"). Mai sostituzioni cieche, che
+  // romperebbero frasi legittime tipo "le cisti renali multiple".
+  function applyMedicalCorrections(text) {
+    if (!text) return text;
+    let t = text;
+    const rules = [
+      // colecisti — solo se seguito da termini biliari/strutturali tipici
+      [/\b(la|le|de(?:lla|lle))\s+cisti(\s+(?:alitiasic|distes|pareti|normo|colecist|in\s+sede|con\s+pareti|non\s+disteso|disteso|fondo|infundibul|litiasic))/gi,
+        (_, p1, p2) => (p1.toLowerCase().startsWith('de') ? 'della colecisti' : (p1.toLowerCase() === 'la' ? 'la colecisti' : 'la colecisti')) + p2],
+      // coledoco — Whisper a volte spezza "co e doco" / "co le doco" / "il dotto co"
+      [/\bco[\s-]*le[\s-]*doc[ck]?o\b/gi, 'coledoco'],
+      [/\bdotto\s+co[\s-]*le[\s-]*doc?o\b/gi, 'dotto coledoco'],
+      [/\bdotto\s+col[\s-]*doc?o\b/gi, 'dotto coledoco'],
+      // alitiasica spelling
+      [/\bali\s*tia\s*sica\b/gi, 'alitiasica'],
+      [/\ba[\s-]*litiasica\b/gi, 'alitiasica'],
+      // pericolecistica
+      [/\bperi[\s-]*cole[\s-]*cisti[\s-]*ca\b/gi, 'pericolecistica'],
+      // parenchima troncato
+      [/\bparen[\s-]*chima\b/gi, 'parenchima'],
+      [/\bparen[\s-]*chi(?=[a-z])/gi, 'parenchim'],
+      // ecostruttura/ecogenicità
+      [/\bec(?:o)?[\s-]*strut(?:tura)?\b/gi, 'ecostruttura'],
+      [/\bec(?:o)?[\s-]*gen(?:icit[aà])?\b/gi, 'ecogenicità'],
+      [/\biper[\s-]*ec(?:o)?[\s-]*gen[a-z]*\b/gi, 'iperecogeno'],
+      [/\bipo[\s-]*ec(?:o)?[\s-]*gen[a-z]*\b/gi, 'ipoecogeno'],
+      [/\biso[\s-]*ec(?:o)?[\s-]*gen[a-z]*\b/gi, 'isoecogeno'],
+      [/\ban[\s-]*ec(?:o)?[\s-]*gen[a-z]*\b/gi, 'anecogeno'],
+      // vie biliari
+      [/\bvie\s+bili(?:ari)?\s+intra[\s-]*epatiche\b/gi, 'vie biliari intraepatiche'],
+      [/\bvie\s+bili(?:ari)?\s+extra[\s-]*epatiche\b/gi, 'vie biliari extraepatiche'],
+      // ground glass
+      [/\bground\s*g[la]ss\b/gi, 'ground glass'],
+      // cuffia dei rotatori
+      [/\bcuffia\s+dei?\s+rotatori\b/gi, 'cuffia dei rotatori'],
+      // mdc / ev / e.v.
+      [/\bmezzo\s+di\s+contrasto\b/gi, 'mezzo di contrasto'],
+      [/\b(?:e[\s.]*v[\s.]?|endo[\s-]?venoso)\b/gi, 'ev'],
+    ];
+    for (const r of rules) {
+      t = t.replace(r[0], r[1]);
+    }
+    return t;
   }
 
   // ─── Preprocessing dittatura ──────────────────────────────
@@ -899,6 +950,48 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   }
 
   // ─── Whisper transcribe (gpt-4o-transcribe + whisper-1) ───
+  // Dizionario radiologico italiano sempre presente nel prompt Whisper.
+  // Si combina con WHISPER_PROMPT (iniettato dal backend con le keyword del
+  // distillato del singolo medico) per migliorare il riconoscimento dei
+  // termini tecnici che da soli — fuori contesto — Whisper sbaglia.
+  // Es: "colecisti" senza prompt diventa "le cisti", "coledoco" diventa "co e doco".
+  const WHISPER_BASE_IT = [
+    'Refertazione radiologica.',
+    // Generale
+    'parenchima, ecostruttura, ecogenicità, iperecogeno, ipoecogeno, isoecogeno, anecogeno,',
+    'mezzo di contrasto, mdc, intravenoso, ev, falda fluida, raccolta liquida, lesione focale,',
+    'alterazione del segnale, captazione, hyperintensa, ipointensa, isointensa, restringimento.',
+    // Addome
+    'fegato, epatico, colecisti, alitiasica, pericolecistica, coledoco, vie biliari intraepatiche,',
+    'vie biliari extraepatiche, pancreas, milza, splenico, surrene, reni, parenchimale, vescica,',
+    'prostata, uretere, calice, bacinetto, vena porta, aorta addominale, vena cava, mesentere.',
+    // Torace
+    'parenchima polmonare, mediastino, ilo polmonare, pleura, versamento pleurico, atelettasia,',
+    'addensamento, ground glass, opacità, nodulo polmonare, bronchiectasie, embolia polmonare.',
+    // Neuro
+    'encefalo, falce cerebrale, tentorio, ventricoli laterali, plesso coroideo, corpo calloso,',
+    'nuclei della base, talami, midollo, cervelletto, vermis, sostanza bianca, sostanza grigia,',
+    'leucoencefalopatia, atrofia corticale, gliosi, edema, emorragia, ischemia, ictus.',
+    // MSK
+    'articolazione, capsula, sinoviale, menisco, cartilagine articolare, condropatia,',
+    'osso subcondrale, edema midollare, frattura, lesione legamentosa, tendine, cuffia dei rotatori,',
+    'sovraspinato, sottospinato, sottoscapolare, piccolo rotondo, labbro glenoideo.',
+    // Formule ricorrenti
+    'non si apprezzano alterazioni focali di rilievo, in assenza di, in presenza di,',
+    'quadro nei limiti per l’età, controllo clinico, consigliato approfondimento.',
+  ].join(' ');
+
+  function buildWhisperPrompt() {
+    const userKeywords = (typeof WHISPER_PROMPT === 'string' && WHISPER_PROMPT.trim())
+      ? WHISPER_PROMPT.trim()
+      : '';
+    // Limite ~224 token: base + keyword utente. Tagliamo per sicurezza.
+    const combined = userKeywords
+      ? (WHISPER_BASE_IT + ' Termini ricorrenti del medico: ' + userKeywords + '.')
+      : WHISPER_BASE_IT;
+    return combined.slice(0, 900); // soglia generosa, Whisper tronca da solo
+  }
+
   async function transcribeBlobDirect(blob) {
     try {
       return await attemptTranscribe(blob, 'gpt-4o-transcribe');
@@ -919,7 +1012,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     fd.append('file', blob, 'dictation.' + ext);
     fd.append('model', model);
     fd.append('language', 'it');
-    if (WHISPER_PROMPT) fd.append('prompt', WHISPER_PROMPT);
+    const promptText = buildWhisperPrompt();
+    if (promptText) fd.append('prompt', promptText);
+    // Temperature 0 → output più ancorato al dizionario contestuale.
+    fd.append('temperature', '0');
     fd.append('response_format', 'json');
 
     const headers = {};
@@ -951,6 +1047,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '3) spaziature doppie o errate;',
       '4) maiuscola a inizio frase e dopo il punto;',
       '5) ripetizioni accidentali della stessa parola ("il il", "di di", "non non").',
+      'TERMINOLOGIA MEDICA: se il testo contiene parole tecniche radiologiche corrette (colecisti, coledoco, pericolecistica, alitiasica, parenchima, ecostruttura, ground glass, ecc.), MANTIENILE LETTERALI — non sostituirle con sinonimi non medici.',
       'REGOLE ASSOLUTE — non infrangerle MAI:',
       '- NON aggiungere parole, frasi, sezioni o titoli che il medico non ha dettato.',
       '- NON inserire titoli come "TECNICA", "REPERTI", "CONCLUSIONI", "INDICAZIONE" se il medico non li ha pronunciati.',
