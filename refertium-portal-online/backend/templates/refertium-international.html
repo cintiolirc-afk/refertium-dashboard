@@ -659,6 +659,8 @@
       statusConclusionsGen: 'Genero le conclusioni…', statusConclusionsReady: 'Conclusioni pronte',
       statusRewriting: 'Riscrittura in corso…', statusReady: 'Pronto',
       statusExporting: 'Riscrittura in altra lingua…',
+      statusPivotEn: '1/2 · Passaggio in inglese clinico…',
+      statusPivotTarget: '2/2 · Riscrittura nativa in',
       toastTooShort: 'Audio troppo breve', toastEmpty: 'Trascrizione vuota',
       toastMicUnavailable: 'Microfono non disponibile', toastMicDenied: 'Impossibile accedere al microfono',
       toastEditorEmpty: 'Editor vuoto', toastWriteIndication: 'Scrivi un appunto prima di usare Magic',
@@ -691,6 +693,8 @@
       statusConclusionsGen: 'Gerando a impressão…', statusConclusionsReady: 'Impressão pronta',
       statusRewriting: 'Reescrevendo…', statusReady: 'Pronto',
       statusExporting: 'Reescrita em outro idioma…',
+      statusPivotEn: '1/2 · Passagem para inglês clínico…',
+      statusPivotTarget: '2/2 · Reescrita nativa em',
       toastTooShort: 'Áudio muito curto', toastEmpty: 'Transcrição vazia',
       toastMicUnavailable: 'Microfone indisponível', toastMicDenied: 'Não foi possível acessar o microfone',
       toastEditorEmpty: 'Editor vazio', toastWriteIndication: 'Escreva uma nota antes de usar o Magic',
@@ -723,6 +727,8 @@
       statusConclusionsGen: 'Generando la impresión…', statusConclusionsReady: 'Impresión lista',
       statusRewriting: 'Reescribiendo…', statusReady: 'Listo',
       statusExporting: 'Reescritura en otro idioma…',
+      statusPivotEn: '1/2 · Paso por inglés clínico…',
+      statusPivotTarget: '2/2 · Reescritura nativa en',
       toastTooShort: 'Audio demasiado corto', toastEmpty: 'Transcripción vacía',
       toastMicUnavailable: 'Micrófono no disponible', toastMicDenied: 'No se pudo acceder al micrófono',
       toastEditorEmpty: 'Editor vacío', toastWriteIndication: 'Escribe una nota antes de usar Magic',
@@ -755,6 +761,8 @@
       statusConclusionsGen: 'Generating impression…', statusConclusionsReady: 'Impression ready',
       statusRewriting: 'Rewriting…', statusReady: 'Ready',
       statusExporting: 'Rewriting in another language…',
+      statusPivotEn: '1/2 · Passing through clinical English…',
+      statusPivotTarget: '2/2 · Native rewrite in',
       toastTooShort: 'Audio too short', toastEmpty: 'Empty transcription',
       toastMicUnavailable: 'Microphone unavailable', toastMicDenied: 'Could not access the microphone',
       toastEditorEmpty: 'Editor is empty', toastWriteIndication: 'Write a note before using Magic',
@@ -787,6 +795,8 @@
       statusConclusionsGen: 'Génération de la conclusion…', statusConclusionsReady: 'Conclusion prête',
       statusRewriting: 'Réécriture…', statusReady: 'Prêt',
       statusExporting: 'Réécriture dans une autre langue…',
+      statusPivotEn: '1/2 · Passage par l’anglais clinique…',
+      statusPivotTarget: '2/2 · Réécriture native en',
       toastTooShort: 'Audio trop court', toastEmpty: 'Transcription vide',
       toastMicUnavailable: 'Microphone indisponible', toastMicDenied: 'Impossible d\'accéder au microphone',
       toastEditorEmpty: 'Éditeur vide', toastWriteIndication: 'Écrivez une note avant d\'utiliser Magic',
@@ -819,6 +829,8 @@
       statusConclusionsGen: 'Beurteilung wird generiert…', statusConclusionsReady: 'Beurteilung bereit',
       statusRewriting: 'Neuschrift läuft…', statusReady: 'Bereit',
       statusExporting: 'Neuschrift in anderer Sprache…',
+      statusPivotEn: '1/2 · Übergang über klinisches Englisch…',
+      statusPivotTarget: '2/2 · Native Neuschrift in',
       toastTooShort: 'Audio zu kurz', toastEmpty: 'Leere Transkription',
       toastMicUnavailable: 'Mikrofon nicht verfügbar', toastMicDenied: 'Zugriff auf Mikrofon verweigert',
       toastEditorEmpty: 'Editor leer', toastWriteIndication: 'Notiz schreiben bevor Magic verwendet wird',
@@ -1308,7 +1320,9 @@
   }
 
   // ─── Esporta in lingua: RISCRITTURA AI (non traduzione) ───
-  async function aiTranslateRewrite(sourceText, sourceLang, targetLang, onDelta) {
+  // Singolo stage di riscrittura nativa (source language → target language).
+  // Estratto come helper così possiamo concatenare due passaggi quando serve.
+  async function aiRewriteOneStage(sourceText, sourceLang, targetLang, onDelta) {
     const srcName = langName(sourceLang);
     const tgtName = langName(targetLang);
     const system = [
@@ -1330,6 +1344,35 @@
       messages: [{ role: 'system', content: system }, { role: 'user', content: sourceText }],
       temperature: 0.3,
     }, onDelta);
+  }
+
+  // Pipeline export con pivot inglese OBBLIGATORIO: source → EN → target.
+  // L'inglese è la "lingua pivot" perché i modelli LLM hanno copertura
+  // massima sul vocabolario radiologico inglese; passare attraverso di esso
+  // riduce gli errori su coppie meno comuni (es. PT→DE, ES→FR) rispetto al
+  // mapping diretto.
+  // Edge case: se source o target sono già inglese, un solo passaggio basta.
+  async function aiTranslateRewrite(sourceText, sourceLang, targetLang, onDelta, onStage) {
+    // Caso A: già una delle due lingue è inglese → singolo stage
+    if (sourceLang === 'en' || targetLang === 'en') {
+      if (onStage) onStage('single', targetLang);
+      await aiRewriteOneStage(sourceText, sourceLang, targetLang, onDelta);
+      return;
+    }
+    // Caso B: pivot inglese — due stage
+    // Stage 1: source → English (silenzioso, accumula in buffer)
+    if (onStage) onStage('pivot-en', 'en');
+    let englishBuffer = '';
+    await aiRewriteOneStage(sourceText, sourceLang, 'en', (delta) => {
+      englishBuffer += delta;
+    });
+    const englishText = englishBuffer.trim();
+    if (!englishText) {
+      throw new Error('Pivot stage produced no English output');
+    }
+    // Stage 2: English → target (streaming visibile all'utente)
+    if (onStage) onStage('pivot-target', targetLang);
+    await aiRewriteOneStage(englishText, 'en', targetLang, onDelta);
   }
 
   async function streamChatCompletion(payload, onDelta) {
@@ -1533,16 +1576,29 @@
     let lastRender = 0;
     lastPreviewMode = 'append'; // mostriamo solo, l'utente decide se sostituire (vedi sotto)
     try {
-      await aiTranslateRewrite(sourceText, langInput, targetLang, (delta) => {
-        buffer += delta;
-        const now = Date.now();
-        if (now - lastRender > 80) {
-          aiPreviewBody.textContent = buffer;
-          aiPreviewBody.appendChild(makeCursor());
-          aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;
-          lastRender = now;
+      await aiTranslateRewrite(sourceText, langInput, targetLang,
+        (delta) => {
+          buffer += delta;
+          const now = Date.now();
+          if (now - lastRender > 80) {
+            aiPreviewBody.textContent = buffer;
+            aiPreviewBody.appendChild(makeCursor());
+            aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;
+            lastRender = now;
+          }
+        },
+        // Status callback fra le due stage del pivot inglese
+        (stage, lang) => {
+          if (stage === 'pivot-en') {
+            setStatus(L().statusPivotEn);
+          } else if (stage === 'pivot-target') {
+            // Reset del buffer: lo stream di stage 2 è ciò che mostriamo
+            buffer = '';
+            aiPreviewBody.textContent = '';
+            setStatus(L().statusPivotTarget + ' ' + langName(lang) + '…');
+          }
         }
-      });
+      );
       lastPreviewText = buffer.trim();
       aiPreviewBody.textContent = lastPreviewText;
 
