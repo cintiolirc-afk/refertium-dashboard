@@ -461,6 +461,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         PDF
       </button>
+      <button id="btnReset" class="tbtn danger" title="Svuota completamente l'editor (Reset)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Reset
+      </button>
     </div>
   </nav>
 
@@ -724,6 +728,24 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
 
   $('btnPdf').addEventListener('click', () => downloadPdf());
 
+  // ─── Reset completo dell'editor ───────────────────────────
+  $('btnReset').addEventListener('click', () => {
+    // Niente da fare se è già vuoto
+    if (!getEditorText().trim()) {
+      showToast('Editor già vuoto');
+      return;
+    }
+    const ok = window.confirm('Svuotare completamente l\'editor?\n\nIl testo del referto andrà perso. Conferma solo se hai già salvato/copiato.');
+    if (!ok) return;
+    // Svuoto editor, chiudo eventuale preview AI, resetto stato
+    editor.innerHTML = '';
+    if (aiPreview && aiPreview.classList.contains('visible')) closePreview();
+    savedSelectionRange = null;
+    setStatus('');
+    editor.focus();
+    showToast('Editor azzerato');
+  });
+
   // ─── Dictation (Whisper) ───────────────────────────────────
   const recState = {
     recorder: null,
@@ -958,15 +980,42 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     const styleHint = writingStyle === 'synth'
       ? 'Usa stile sintetico, sezioni chiare, elenchi quando utile.'
       : 'Usa stile discorsivo italiano medico, paragrafi compiuti.';
-    const system = [
-      'Sei un radiologo esperto che redige referti in italiano.',
-      'Il testo dell\'utente contiene l\'INDICAZIONE CLINICA o un appunto: espandilo in un referto strutturato con sezioni TECNICA, REPERTI, CONCLUSIONI.',
-      'Se nel testo è già presente del referto, integralo migliorandone la struttura.',
+
+    // Costruisco il system prompt. Se il medico ha un distillato configurato
+    // (MAGIC_PDF_TEXT = sue refertazioni tipiche / template / frasi ricorrenti),
+    // viene SEMPRE incluso come riferimento di stile per il Magic — qualunque
+    // sia il contenuto dell'editor. È così che Magic resta "personale" del
+    // singolo radiologo e non genera testi a caso.
+    const distillate = (typeof MAGIC_PDF_TEXT === 'string' ? MAGIC_PDF_TEXT : '').trim();
+    const systemLines = [
+      'Sei un assistente di refertazione radiologica in italiano.',
+      'Il testo dell\'utente contiene l\'INDICAZIONE CLINICA o un appunto sintetico: espandilo in un referto strutturato con sezioni TECNICA, REPERTI, CONCLUSIONI.',
+      'Se nel testo è già presente del referto, integralo migliorandone la struttura senza alterarne i reperti.',
       'NON inventare reperti specifici non plausibili: usa formulazioni neutre se mancano dettagli ("non si apprezzano alterazioni focali di rilievo", "quadro nei limiti per l\'età", ecc.).',
       'Punteggiatura, terminologia e ortografia impeccabili.',
       styleHint,
-      'Output: SOLO il referto, niente commenti.',
-    ].join(' ');
+    ];
+    if (distillate) {
+      systemLines.push(
+        '',
+        'STILE E MODELLI DEL MEDICO (vincolante):',
+        'Qui sotto trovi una collezione delle refertazioni tipiche di questo radiologo. È il SUO modo di referare. DEVI riproporne:',
+        '- la stessa struttura di sezioni (titoli e ordine);',
+        '- lo stesso lessico medico e le stesse formule ricorrenti;',
+        '- lo stesso livello di dettaglio e di sintesi;',
+        '- le stesse abbreviazioni e convenzioni (mdc, ev, ecc.);',
+        '- lo stesso tono (discorsivo vs sintetico) coerente con quanto trovi.',
+        'Quando l\'esame richiesto coincide con un template presente nel distillato, usa quel template come scheletro letterale, adattando solo i dettagli del caso.',
+        'Quando non hai un template esatto, applica comunque lo stile generale (lessico, tono, formulazione neutra) ricavato dal distillato.',
+        'NON inventare reperti che non risultano coerenti col distillato.',
+        '',
+        '=== INIZIO DISTILLATO ===',
+        distillate,
+        '=== FINE DISTILLATO ===',
+      );
+    }
+    systemLines.push('', 'Output: SOLO il referto, niente commenti, niente preamboli.');
+    const system = systemLines.join('\n');
 
     await streamChatCompletion({
       model: 'gpt-4o-mini',
@@ -974,7 +1023,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
         { role: 'system', content: system },
         { role: 'user', content: input || 'Esame radiologico generico.' },
       ],
-      temperature: 0.4,
+      temperature: 0.3,
     }, onDelta);
   }
 
@@ -1078,7 +1127,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
 
   // ─── Magic ────────────────────────────────────────────────
   $('btnMagic').addEventListener('click', async () => {
-    const input = getEditorText() || (MAGIC_PDF_TEXT || '');
+    // L'input di Magic è SEMPRE quello dell'editor (indicazione clinica /
+    // appunti). Il distillato del medico non va usato come "input": è già
+    // incluso nel system prompt di aiGenerateMagicDraft come stile vincolante.
+    const input = getEditorText();
     if (!input.trim()) {
       showToast('Scrivi una indicazione prima di usare Magic', 'err');
       return;

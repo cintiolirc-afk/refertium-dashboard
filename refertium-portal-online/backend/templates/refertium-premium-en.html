@@ -156,6 +156,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         PDF
       </button>
+      <button id="btnReset" class="tbtn danger" title="Clear the editor entirely (Reset)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Reset
+      </button>
     </div>
   </nav>
 
@@ -377,6 +381,19 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   });
   $('btnPdf').addEventListener('click', () => downloadPdf());
 
+  // ─── Full reset of the editor ─────────────────────────────
+  $('btnReset').addEventListener('click', () => {
+    if (!getEditorText().trim()) { showToast('Editor already empty'); return; }
+    const ok = window.confirm('Clear the entire editor?\n\nReport text will be lost. Confirm only if you have already saved/copied it.');
+    if (!ok) return;
+    editor.innerHTML = '';
+    if (aiPreview && aiPreview.classList.contains('visible')) closePreview();
+    savedSelectionRange = null;
+    setStatus('');
+    editor.focus();
+    showToast('Editor cleared');
+  });
+
   const recState = { recorder: null, chunks: [], mimeType: '', startedAt: 0, timerId: null, isRecording: false };
   const btnRec = $('btnRec');
 
@@ -554,19 +571,45 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
 
   async function aiGenerateMagicDraft(input, onDelta) {
     const styleHint = writingStyle === 'synth' ? 'Use concise style, clear sections, lists when useful.' : 'Use prose medical English, complete paragraphs.';
-    const system = [
-      'You are an experienced radiologist drafting reports in English.',
-      'The user text contains the CLINICAL INDICATION or a note: expand it into a structured report with TECHNIQUE, FINDINGS, IMPRESSION sections.',
-      'If report text is already present, integrate and improve its structure.',
+    // Always include the doctor's distillate (MAGIC_PDF_TEXT) in the system
+    // prompt as a binding style/template reference, regardless of what is in
+    // the editor. That way Magic stays "personal" to the radiologist instead
+    // of drifting into random outputs.
+    const distillate = (typeof MAGIC_PDF_TEXT === 'string' ? MAGIC_PDF_TEXT : '').trim();
+    const systemLines = [
+      'You are a radiology reporting assistant writing in English.',
+      'The user text contains the CLINICAL INDICATION or a short note: expand it into a structured report with TECHNIQUE, FINDINGS, IMPRESSION sections.',
+      'If report text is already present, integrate and improve its structure without altering the findings.',
       'DO NOT invent unlikely specific findings: use neutral phrasing when details are missing.',
       'Impeccable punctuation, terminology, spelling.',
       styleHint,
-      'Output: ONLY the report, no commentary.',
-    ].join(' ');
+    ];
+    if (distillate) {
+      systemLines.push(
+        '',
+        'DOCTOR STYLE & TEMPLATES (binding):',
+        'Below is a collection of this radiologist\'s typical reports. It is THEIR voice. You MUST mirror:',
+        '- the same section structure (titles and order);',
+        '- the same medical lexicon and recurring formulas;',
+        '- the same level of detail and brevity;',
+        '- the same abbreviations and conventions (e.g. IV contrast wording);',
+        '- the same tone (prose vs concise) consistent with what you find.',
+        'When the requested exam matches a template present in the distillate, use that template as a literal skeleton, adapting only case-specific details.',
+        'When you do not have an exact match, still apply the general style (lexicon, tone, neutral phrasing) inferred from the distillate.',
+        'DO NOT invent findings that are inconsistent with the distillate.',
+        '',
+        '=== DISTILLATE START ===',
+        distillate,
+        '=== DISTILLATE END ===',
+      );
+    }
+    systemLines.push('', 'Output: ONLY the report, no commentary, no preamble.');
+    const system = systemLines.join('\n');
+
     await streamChatCompletion({
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: input || 'Generic radiologic examination.' }],
-      temperature: 0.4,
+      temperature: 0.3,
     }, onDelta);
   }
 
@@ -644,7 +687,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   $('aiDiscard').addEventListener('click', () => closePreview());
 
   $('btnMagic').addEventListener('click', async () => {
-    const input = getEditorText() || (MAGIC_PDF_TEXT || '');
+    // Magic input is ALWAYS the editor text (indication / notes).
+    // The doctor's distillate is not used as "input": it is already included
+    // in the system prompt of aiGenerateMagicDraft as binding style.
+    const input = getEditorText();
     if (!input.trim()) { showToast('Write an indication first', 'err'); return; }
     saveSelection();
     openPreview('Magic — draft report');
