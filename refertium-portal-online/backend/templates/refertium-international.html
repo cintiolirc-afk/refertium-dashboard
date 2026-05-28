@@ -1,0 +1,1641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Refertium International — Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     Refertium International — Design System
+     (navy + verde acqua + bianco, EB Garamond + Inter)
+     ============================================================ */
+  :root {
+    color-scheme: dark;
+    --bg:           #050d1a;
+    --bg-elevated:  #0a1628;
+    --panel:        #0a1628;
+    --panel-2:      #112340;
+    --panel-hover:  rgba(93, 202, 165, 0.08);
+    --line:         #1f3a5e;
+    --line-strong:  #2c4a76;
+    --line-focus:   rgba(93, 202, 165, 0.50);
+
+    --text:         #e8edf5;
+    --text-strong:  #ffffff;
+    --text-dim:     #8a9ab5;
+    --muted:        #5a6a85;
+
+    --accent:       #5DCAA5;
+    --accent-strong:#7ed8b8;
+    --accent-soft:  rgba(93, 202, 165, 0.12);
+    --accent-ink:   #050d1a;
+
+    --warn:         #f4c065;
+    --danger:       #e07070;
+
+    --shadow:       0 4px 12px -2px rgba(0, 0, 0, 0.4);
+    --shadow-lg:    0 12px 32px -6px rgba(0, 0, 0, 0.55);
+
+    --radius:       10px;
+    --radius-sm:    8px;
+    --radius-lg:    14px;
+    --ease:         cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 14px;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+  }
+  ::selection { background: var(--accent); color: var(--accent-ink); }
+
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ─── Top bar ─── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 14px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .brand {
+    display: inline-flex; align-items: baseline; gap: 6px;
+    font-family: "EB Garamond", serif;
+  }
+  .brand-mark {
+    font-size: 22px; font-weight: 600; color: var(--text-strong);
+    letter-spacing: 0.01em;
+  }
+  .brand-mark .accent { color: var(--accent); }
+  .brand-suffix {
+    font-style: italic; font-size: 18px; font-weight: 500;
+    color: var(--accent); letter-spacing: 0.005em;
+  }
+
+  .lang-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px 6px 14px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    border: 1px solid var(--line-strong);
+    color: var(--text);
+    font-size: 12.5px; cursor: pointer;
+    transition: background 150ms var(--ease), border-color 150ms var(--ease);
+  }
+  .lang-chip:hover { background: rgba(93,202,165,0.18); border-color: var(--accent); }
+  .lang-chip .label {
+    color: var(--accent); font-weight: 700;
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .lang-chip .flag {
+    font-size: 14px; line-height: 1;
+    display: inline-block; margin-right: -2px;
+    /* Mantiene proporzioni emoji bandiera su tutti i browser */
+  }
+  .lang-chip .value { color: var(--text-strong); font-weight: 600; }
+  .lang-chip .caret {
+    width: 0; height: 0;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid var(--text-dim);
+  }
+  .dd-item .flag {
+    font-size: 16px; line-height: 1;
+    display: inline-block; min-width: 22px;
+  }
+
+  /* ─── Toolbar ─── */
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .tool-group {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 6px; border-right: 1px solid var(--line);
+  }
+  .tool-group:last-child { border-right: none; }
+  .tbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 34px; padding: 0 12px;
+    border-radius: var(--radius-sm);
+    background: transparent; color: var(--text);
+    border: 1px solid transparent; cursor: pointer;
+    font: inherit; font-size: 13px; font-weight: 500;
+    transition: background 150ms var(--ease), border-color 150ms var(--ease), color 150ms var(--ease);
+  }
+  .tbtn:hover { background: var(--panel-hover); }
+  .tbtn.active {
+    background: var(--accent-soft); color: var(--accent);
+    border-color: var(--accent);
+  }
+  .tbtn.primary {
+    background: var(--accent); color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .tbtn.primary:hover { background: var(--accent-strong); }
+  .tbtn.danger { color: var(--danger); }
+  .tbtn.danger:hover { background: rgba(224,112,112,0.10); }
+  .tbtn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .tbtn svg { width: 16px; height: 16px; }
+
+  .rec-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--danger);
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  .rec-timer {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-dim); font-size: 12px;
+    min-width: 36px;
+  }
+
+  /* ─── Status bar ─── */
+  .statusbar {
+    padding: 8px 24px; border-bottom: 1px solid var(--line);
+    background: var(--panel-2); display: none;
+    align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--text-dim);
+  }
+  .statusbar.visible { display: flex; }
+  .statusbar .spin {
+    width: 12px; height: 12px;
+    border: 2px solid var(--line-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .statusbar.err { color: var(--danger); }
+  .statusbar.ok { color: var(--accent); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Workspace ─── */
+  .workspace { flex: 1; display: flex; overflow: hidden; }
+  .editor-wrap {
+    flex: 1; overflow-y: auto;
+    padding: 32px 24px 80px;
+    background:
+      radial-gradient(1200px 600px at 50% -200px, rgba(93,202,165,0.04), transparent 60%),
+      var(--bg);
+  }
+  .paper {
+    max-width: 880px; margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 56px 64px; min-height: 70vh;
+    transition: box-shadow 200ms var(--ease);
+  }
+  .paper:focus-within { box-shadow: var(--shadow-lg); border-color: var(--line-strong); }
+  .editor {
+    font-family: "EB Garamond", Georgia, serif;
+    font-size: 17px; line-height: 1.75;
+    color: var(--text); min-height: 60vh;
+    outline: none; white-space: pre-wrap; word-wrap: break-word;
+  }
+  .editor p { margin: 0 0 1em; }
+  .editor strong { color: var(--text-strong); font-weight: 600; }
+
+  /* ─── AI Preview panel ─── */
+  .ai-preview {
+    max-width: 880px; margin: 16px auto 0;
+    border: 1px solid var(--accent);
+    background: var(--panel);
+    border-radius: var(--radius-lg);
+    overflow: hidden; box-shadow: var(--shadow);
+    display: none;
+  }
+  .ai-preview.visible { display: block; }
+  .ai-preview-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--accent-soft);
+    border-bottom: 1px solid var(--accent);
+  }
+  .ai-preview-title {
+    color: var(--accent); font-weight: 600;
+    font-size: 13px; display: flex; align-items: center; gap: 8px;
+  }
+  .ai-preview-actions { display: flex; gap: 8px; }
+  .ai-preview-body {
+    padding: 20px 24px;
+    font-family: "EB Garamond", serif;
+    font-size: 16px; line-height: 1.7;
+    color: var(--text);
+    max-height: 50vh; overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .stream-cursor {
+    display: inline-block; width: 2px; height: 1em;
+    background: var(--accent);
+    animation: blink 0.8s infinite;
+    vertical-align: text-bottom; margin-left: 1px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ─── Dropdown (lang select + export lang) ─── */
+  .dd { position: relative; }
+  .dd-menu {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    min-width: 240px;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: 6px; z-index: 50;
+    display: none;
+  }
+  .dd-menu-left { right: auto; left: 0; }
+  .dd-menu.open { display: block; }
+  .dd-menu .dd-head {
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dim); padding: 8px 10px 4px;
+  }
+  .dd-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 9px 10px;
+    background: transparent; border: 0;
+    color: var(--text); font: inherit; font-size: 13.5px;
+    text-align: left; cursor: pointer; border-radius: 6px;
+    transition: background 120ms var(--ease);
+  }
+  .dd-item:hover { background: var(--panel-hover); color: var(--text-strong); }
+  .dd-item.selected { background: var(--accent-soft); color: var(--accent-strong); }
+  .dd-item .code {
+    font-family: "Inter", sans-serif; font-weight: 700;
+    color: var(--accent); font-size: 10.5px;
+    letter-spacing: 0.08em; min-width: 24px;
+  }
+
+  /* ─── Modale ─── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(5, 13, 26, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100; display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-backdrop.visible { display: flex; }
+  .modal {
+    width: 100%; max-width: 520px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 24px;
+  }
+  .modal h3 {
+    margin: 0 0 16px; color: var(--text-strong);
+    font-size: 17px; font-weight: 600;
+  }
+  .modal label {
+    display: block; font-size: 13px;
+    color: var(--text-dim); margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .modal textarea, .modal input[type="text"] {
+    width: 100%; padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text);
+    border: 1px solid var(--line-strong);
+    font: inherit; font-size: 14px;
+    resize: vertical; outline: none;
+    transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+  }
+  .modal textarea:focus, .modal input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .modal-actions {
+    display: flex; justify-content: flex-end; gap: 8px;
+    margin-top: 16px;
+  }
+
+  .sep { flex: 1; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 12px 20px;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    color: var(--text); font-size: 13px;
+    z-index: 200; opacity: 0;
+    transition: all 250ms var(--ease);
+    pointer-events: none;
+  }
+  .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.err { border-color: var(--danger); color: var(--danger); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">Refertium<span class="accent">.</span></span>
+      <span class="brand-suffix">International</span>
+    </div>
+  </header>
+
+  <!-- Toolbar -->
+  <nav class="toolbar" id="toolbar">
+    <!-- Lingua INPUT (in cui parla il radiologo) — primo gruppo a sinistra -->
+    <div class="tool-group">
+      <div class="dd">
+        <button id="langInputChip" class="lang-chip" type="button" aria-haspopup="listbox">
+          <span class="label" data-i18n="speakIn">Parlo in</span>
+          <span class="flag" id="langInputFlag" aria-hidden="true">🇮🇹</span>
+          <span class="value" id="langInputValue">Italiano</span>
+          <span class="caret"></span>
+        </button>
+        <div id="langInputMenu" class="dd-menu dd-menu-left" role="listbox">
+          <div class="dd-head" data-i18n="ddHeadInput">Lingua di dettatura</div>
+          <!-- popolato da JS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-group">
+      <button id="btnRec" class="tbtn primary" data-i18n-title="btnRecTitle" title="Dettatura vocale (Whisper)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <span id="recLabel" data-i18n="btnRec">Detta</span>
+      </button>
+    </div>
+
+    <div class="tool-group">
+      <button class="tbtn" data-cmd="bold" data-i18n-title="btnBold" title="Grassetto"><strong>B</strong></button>
+      <button class="tbtn" data-cmd="italic" data-i18n-title="btnItalic" title="Corsivo"><em>I</em></button>
+      <button class="tbtn" data-cmd="underline" data-i18n-title="btnUnderline" title="Sottolineato"><span style="text-decoration:underline">U</span></button>
+    </div>
+
+    <div class="tool-group">
+      <button id="btnFontDown" class="tbtn" data-i18n-title="btnFontDown" title="Riduci dimensione">A−</button>
+      <button id="btnFontUp" class="tbtn" data-i18n-title="btnFontUp" title="Aumenta dimensione">A+</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="tool-group">
+      <button id="btnMagic" class="tbtn" data-i18n-title="btnMagicTitle" title="Magic: espandi/migliora">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.7L18 9.5l-4.1 1.8L12 16l-1.9-4.7L6 9.5l4.1-1.8z"/><path d="M19 14l.8 1.8L21.5 17l-1.7 1.2L19 20l-.8-1.8L16.5 17l1.7-1.2z"/></svg>
+        <span data-i18n="btnMagic">Magic</span>
+      </button>
+      <button id="btnConclusions" class="tbtn" data-i18n-title="btnConclusionsTitle" title="Genera Conclusioni dal corpo">
+        <span data-i18n="btnConclusions">Conclusioni AI</span>
+      </button>
+      <button id="btnRewrite" class="tbtn" data-i18n-title="btnRewriteTitle" title="Modifica selezione con AI">
+        <span data-i18n="btnRewrite">Modifica con AI</span>
+      </button>
+    </div>
+
+    <div class="tool-group">
+      <!-- Export in lingua: dropdown 6 lingue -->
+      <div class="dd">
+        <button id="btnExportLang" class="tbtn" data-i18n-title="btnExportTitle" title="Esporta referto in un'altra lingua">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+          <span data-i18n="btnExport">Esporta in lingua</span>
+          <span class="caret" style="margin-left:4px"></span>
+        </button>
+        <div id="exportLangMenu" class="dd-menu" role="listbox">
+          <div class="dd-head" data-i18n="ddHeadExport">Riscrivi e scarica come</div>
+          <!-- popolato da JS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-group">
+      <button id="btnCopy" class="tbtn" data-i18n-title="btnCopyTitle" title="Copia testo">
+        <span data-i18n="btnCopy">Copia</span>
+      </button>
+      <button id="btnPdf" class="tbtn" data-i18n-title="btnPdfTitle" title="Scarica PDF">
+        <span data-i18n="btnPdf">PDF</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Status bar -->
+  <div class="statusbar" id="statusbar">
+    <span class="spin" id="statusSpin"></span>
+    <span id="statusText">In elaborazione…</span>
+  </div>
+
+  <!-- Workspace -->
+  <main class="workspace">
+    <div class="editor-wrap">
+      <article class="paper">
+        <div
+          id="editor"
+          class="editor"
+          contenteditable="true"
+          spellcheck="true"
+          aria-label="Editor"
+        ></div>
+      </article>
+
+      <!-- AI Preview panel -->
+      <section class="ai-preview" id="aiPreview" aria-live="polite">
+        <header class="ai-preview-header">
+          <span class="ai-preview-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.7L18 9.5l-4.1 1.8L12 16l-1.9-4.7L6 9.5l4.1-1.8z"/></svg>
+            <span id="aiPreviewKind" data-i18n="aiPreviewKindDefault">Proposta AI</span>
+          </span>
+          <div class="ai-preview-actions">
+            <button class="tbtn danger" id="aiDiscard" data-i18n="aiDiscard">× Scarta</button>
+            <button class="tbtn primary" id="aiInsert" data-i18n="aiInsert">✓ Inserisci</button>
+          </div>
+        </header>
+        <div class="ai-preview-body" id="aiPreviewBody"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Modale Modifica con AI -->
+<div class="modal-backdrop" id="rewriteModal">
+  <div class="modal">
+    <h3 data-i18n="modalTitle">Modifica selezione con AI</h3>
+    <label for="rewriteInstr" data-i18n="modalLabel">Istruzione</label>
+    <textarea id="rewriteInstr" rows="3" data-i18n-placeholder="modalPlaceholder" placeholder="Es. rendi più sintetico, riformula in stile descrittivo…"></textarea>
+    <div class="modal-actions">
+      <button class="tbtn" id="rewriteCancel" data-i18n="modalCancel">Annulla</button>
+      <button class="tbtn primary" id="rewriteRun" data-i18n="modalRun">Esegui</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================
+     Config (da rimpiazzare a deploy: PROXY_URL + PROXY_AUTH)
+     ============================================================ -->
+<script>
+  // Stesso schema Cloudflare Worker degli altri editor Refertium.
+  const PROXY_URL = 'https://refertium-api.cintioli-rc.workers.dev';
+  const PROXY_AUTH = 'refertium-sec-2026';
+</script>
+
+<!-- ============================================================
+     Lingue + dizionari Whisper + traduzione/riscrittura
+     ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  // ─── Lingue supportate ─────────────────────────────────────
+  // code = ISO 639-1 (Whisper language param), flag = bandiera emoji (Unicode)
+  const LANGS = [
+    { code: 'it', nativeName: 'Italiano',  flag: '🇮🇹', whisperCode: 'it' },
+    { code: 'pt', nativeName: 'Português', flag: '🇧🇷', whisperCode: 'pt' },
+    { code: 'es', nativeName: 'Español',   flag: '🇪🇸', whisperCode: 'es' },
+    { code: 'en', nativeName: 'English',   flag: '🇬🇧', whisperCode: 'en' },
+    { code: 'fr', nativeName: 'Français',  flag: '🇫🇷', whisperCode: 'fr' },
+    { code: 'de', nativeName: 'Deutsch',   flag: '🇩🇪', whisperCode: 'de' },
+  ];
+
+  // ─── Dizionari radiologici per lingua (Whisper prompt) ────
+  // Compatti ma rappresentativi: anatomia generale + addome + torace +
+  // neuro + MSK + formule ricorrenti. Servono come "ancoraggio" del
+  // modello su terminologia tecnica fuori dal vocabolario quotidiano.
+  const WHISPER_BASES = {
+    it: [
+      'Refertazione radiologica.',
+      'parenchima, ecostruttura, ecogenicità, iperecogeno, ipoecogeno,',
+      'mezzo di contrasto, mdc, ev, fegato, colecisti, alitiasica,',
+      'pericolecistica, coledoco, vie biliari intraepatiche, pancreas,',
+      'milza, surrene, prostata, vena porta, aorta addominale,',
+      'parenchima polmonare, mediastino, pleura, ground glass, atelettasia,',
+      'embolia polmonare, encefalo, falce cerebrale, ventricoli laterali,',
+      'corpo calloso, talami, cervelletto, sostanza bianca, leucoencefalopatia,',
+      'cuffia dei rotatori, sovraspinato, menisco, condropatia,',
+      'non si apprezzano alterazioni focali di rilievo, quadro nei limiti.',
+    ].join(' '),
+    pt: [
+      'Laudo radiológico.',
+      'parênquima, ecotextura, ecogenicidade, hiperecogênico, hipoecogênico,',
+      'meio de contraste, contraste endovenoso, fígado, vesícula biliar,',
+      'alitiásica, pericolecístico, colédoco, vias biliares intra-hepáticas,',
+      'pâncreas, baço, suprarrenal, próstata, veia porta, aorta abdominal,',
+      'parênquima pulmonar, mediastino, pleura, vidro fosco, atelectasia,',
+      'embolia pulmonar, encéfalo, foice cerebral, ventrículos laterais,',
+      'corpo caloso, tálamos, cerebelo, substância branca, leucoencefalopatia,',
+      'manguito rotador, supraespinhoso, menisco, condropatia,',
+      'sem alterações focais significativas, achados dentro dos limites.',
+    ].join(' '),
+    es: [
+      'Informe radiológico.',
+      'parénquima, ecoestructura, ecogenicidad, hiperecogénico, hipoecogénico,',
+      'medio de contraste, contraste intravenoso, hígado, vesícula biliar,',
+      'alitiásica, pericolecístico, colédoco, vías biliares intrahepáticas,',
+      'páncreas, bazo, suprarrenal, próstata, vena porta, aorta abdominal,',
+      'parénquima pulmonar, mediastino, pleura, vidrio deslustrado, atelectasia,',
+      'embolia pulmonar, encéfalo, hoz del cerebro, ventrículos laterales,',
+      'cuerpo calloso, tálamos, cerebelo, sustancia blanca, leucoencefalopatía,',
+      'manguito rotador, supraespinoso, menisco, condropatía,',
+      'sin alteraciones focales significativas, hallazgos dentro de los límites.',
+    ].join(' '),
+    en: [
+      'Radiology report dictation.',
+      'parenchyma, echotexture, echogenicity, hyperechoic, hypoechoic,',
+      'contrast medium, IV contrast, liver, gallbladder, stone-free,',
+      'pericholecystic, common bile duct, intrahepatic bile ducts, pancreas,',
+      'spleen, adrenal, prostate, portal vein, abdominal aorta,',
+      'lung parenchyma, mediastinum, pleura, ground glass, atelectasis,',
+      'pulmonary embolism, brain, falx cerebri, lateral ventricles,',
+      'corpus callosum, thalami, cerebellum, white matter, leukoencephalopathy,',
+      'rotator cuff, supraspinatus, meniscus, chondropathy,',
+      'no focal abnormalities of note, within normal limits for age.',
+    ].join(' '),
+    fr: [
+      'Compte-rendu radiologique.',
+      'parenchyme, échostructure, échogénicité, hyperéchogène, hypoéchogène,',
+      'produit de contraste, contraste intraveineux, foie, vésicule biliaire,',
+      'alithiasique, péricholécystique, cholédoque, voies biliaires intrahépatiques,',
+      'pancréas, rate, surrénale, prostate, veine porte, aorte abdominale,',
+      'parenchyme pulmonaire, médiastin, plèvre, verre dépoli, atélectasie,',
+      'embolie pulmonaire, encéphale, faux du cerveau, ventricules latéraux,',
+      'corps calleux, thalamus, cervelet, substance blanche, leucoencéphalopathie,',
+      'coiffe des rotateurs, sus-épineux, ménisque, chondropathie,',
+      'pas d\'anomalie focale significative, examen dans les limites.',
+    ].join(' '),
+    de: [
+      'Radiologischer Befund.',
+      'Parenchym, Echotextur, Echogenität, hyperechogen, hypoechogen,',
+      'Kontrastmittel, intravenöses Kontrastmittel, Leber, Gallenblase,',
+      'steinfrei, perizystisch, Ductus choledochus, intrahepatische Gallenwege,',
+      'Pankreas, Milz, Nebenniere, Prostata, Pfortader, Bauchaorta,',
+      'Lungenparenchym, Mediastinum, Pleura, Milchglastrübung, Atelektase,',
+      'Lungenembolie, Hirn, Falx cerebri, Seitenventrikel,',
+      'Corpus callosum, Thalami, Kleinhirn, weiße Substanz, Leukenzephalopathie,',
+      'Rotatorenmanschette, Supraspinatus, Meniskus, Chondropathie,',
+      'kein Hinweis auf fokale Läsionen, altersentsprechender Befund.',
+    ].join(' '),
+  };
+
+  // ─── Correzioni context-aware per lingua ──────────────────
+  // Solo i pattern più sicuri. Ogni lingua ha pochi pattern ad alta
+  // precisione — il dizionario Whisper è la prima linea di difesa.
+  const MED_CORRECTIONS = {
+    it: [
+      [/\b(la|le|de(?:lla|lle))\s+cisti(\s+(?:alitiasic|distes|pareti|colecist|in\s+sede|infundibul|litiasic))/gi,
+        (_, p1, p2) => 'colecisti' + p2],
+      [/\bco[\s-]*le[\s-]*doc[ck]?o\b/gi, 'coledoco'],
+      [/\ba[\s-]*litiasica\b/gi, 'alitiasica'],
+      [/\bperi[\s-]*cole[\s-]*cisti[\s-]*ca\b/gi, 'pericolecistica'],
+      [/\bground\s*g[la]ss\b/gi, 'ground glass'],
+    ],
+    pt: [
+      [/\bves[íi]cula\s+bil[ií]ar\b/gi, 'vesícula biliar'],
+      [/\bcol[ée]doc?o\b/gi, 'colédoco'],
+      [/\bperic[oó]l?ec[íi]stico\b/gi, 'pericolecístico'],
+      [/\bvidro\s*fosc?o\b/gi, 'vidro fosco'],
+    ],
+    es: [
+      [/\bves[íi]cula\s+biliar\b/gi, 'vesícula biliar'],
+      [/\bcol[ée]doc?o\b/gi, 'colédoco'],
+      [/\bvidrio\s+desl?ustrad?o\b/gi, 'vidrio deslustrado'],
+    ],
+    en: [
+      [/\b(?:gall?|gull|ball|gold)\s*bladder\b/gi, 'gallbladder'],
+      [/\bcommon\s+b(?:i|a)l[ed]?\s+du[ck]+t\b/gi, 'common bile duct'],
+      [/\bperi[\s-]*cho?le[\s-]*cyst(?:ic)?\b/gi, 'pericholecystic'],
+      [/\bground\s*g[la]ss\b/gi, 'ground glass'],
+    ],
+    fr: [
+      [/\bv[ée]sicule\s+biliaire\b/gi, 'vésicule biliaire'],
+      [/\bchol[ée]doque?\b/gi, 'cholédoque'],
+      [/\bverre\s+d[ée]poli\b/gi, 'verre dépoli'],
+    ],
+    de: [
+      [/\bDuctus\s+chol?edoch?us\b/gi, 'Ductus choledochus'],
+      [/\bGallen?\s*blas[e]\b/gi, 'Gallenblase'],
+      [/\bMilchglas\s*tr[üu]bung\b/gi, 'Milchglastrübung'],
+    ],
+  };
+
+  // ─── Etichette UI localizzate (i18n completo nelle 6 lingue) ───
+  const UI_STRINGS = {
+    it: {
+      speakIn: 'Parlo in', ddHeadInput: 'Lingua di dettatura', ddHeadExport: 'Riscrivi e scarica come',
+      btnRec: 'Detta', btnRecStop: 'Stop', btnRecTitle: 'Dettatura vocale',
+      btnBold: 'Grassetto', btnItalic: 'Corsivo', btnUnderline: 'Sottolineato',
+      btnFontUp: 'Aumenta dimensione', btnFontDown: 'Riduci dimensione',
+      btnMagic: 'Magic', btnMagicTitle: 'Espandi o migliora il referto',
+      btnConclusions: 'Conclusioni AI', btnConclusionsTitle: 'Genera le conclusioni dal corpo',
+      btnRewrite: 'Modifica con AI', btnRewriteTitle: 'Modifica la selezione con AI',
+      btnExport: 'Esporta in lingua', btnExportTitle: 'Esporta il referto in un\'altra lingua',
+      btnCopy: 'Copia', btnCopyTitle: 'Copia testo', btnPdf: 'PDF', btnPdfTitle: 'Scarica PDF',
+      aiInsert: '✓ Inserisci', aiDiscard: '× Scarta', aiPreviewKindDefault: 'Proposta AI',
+      aiPreviewMagic: 'Magic — bozza referto', aiPreviewConclusions: 'Conclusioni AI',
+      aiPreviewRewrite: 'Modifica con AI', aiPreviewExport: 'Riscrittura nativa in',
+      modalTitle: 'Modifica selezione con AI', modalLabel: 'Istruzione',
+      modalPlaceholder: 'Es. rendi più sintetico, riformula in stile descrittivo…',
+      modalCancel: 'Annulla', modalRun: 'Esegui',
+      statusRecording: 'Sto registrando…', statusTranscribing: 'Trascrizione in corso…',
+      statusCleaning: 'Pulizia testo con AI…', statusInserted: 'Testo inserito',
+      statusGenerating: 'Generazione referto in corso…', statusDraftReady: 'Bozza pronta',
+      statusConclusionsGen: 'Genero le conclusioni…', statusConclusionsReady: 'Conclusioni pronte',
+      statusRewriting: 'Riscrittura in corso…', statusReady: 'Pronto',
+      statusExporting: 'Riscrittura in altra lingua…',
+      toastTooShort: 'Audio troppo breve', toastEmpty: 'Trascrizione vuota',
+      toastMicUnavailable: 'Microfono non disponibile', toastMicDenied: 'Impossibile accedere al microfono',
+      toastEditorEmpty: 'Editor vuoto', toastWriteIndication: 'Scrivi un appunto prima di usare Magic',
+      toastMagicFailed: 'Magic fallito', toastConclusionsFailed: 'Conclusioni fallite',
+      toastSelectFirst: 'Seleziona prima il testo da modificare',
+      toastInserted: 'Inserito nel referto', toastCopyOk: 'Testo copiato negli appunti',
+      toastCopyFail: 'Copia non riuscita', toastSelectionLost: 'Selezione persa',
+      toastEmptySelection: 'Selezione vuota', toastPopupBlocked: 'Pop-up bloccato',
+      toastTranslateFailed: 'Riscrittura fallita',
+    },
+    pt: {
+      speakIn: 'Falo em', ddHeadInput: 'Idioma de ditado', ddHeadExport: 'Reescrever e baixar como',
+      btnRec: 'Ditar', btnRecStop: 'Parar', btnRecTitle: 'Ditado por voz',
+      btnBold: 'Negrito', btnItalic: 'Itálico', btnUnderline: 'Sublinhado',
+      btnFontUp: 'Aumentar tamanho', btnFontDown: 'Reduzir tamanho',
+      btnMagic: 'Magic', btnMagicTitle: 'Expandir ou melhorar o laudo',
+      btnConclusions: 'Impressão IA', btnConclusionsTitle: 'Gerar impressão a partir do corpo',
+      btnRewrite: 'Editar com IA', btnRewriteTitle: 'Editar a seleção com IA',
+      btnExport: 'Exportar em outro idioma', btnExportTitle: 'Exportar o laudo em outro idioma',
+      btnCopy: 'Copiar', btnCopyTitle: 'Copiar texto', btnPdf: 'PDF', btnPdfTitle: 'Baixar PDF',
+      aiInsert: '✓ Inserir', aiDiscard: '× Descartar', aiPreviewKindDefault: 'Proposta IA',
+      aiPreviewMagic: 'Magic — rascunho do laudo', aiPreviewConclusions: 'Impressão IA',
+      aiPreviewRewrite: 'Editar com IA', aiPreviewExport: 'Reescrita nativa em',
+      modalTitle: 'Editar seleção com IA', modalLabel: 'Instrução',
+      modalPlaceholder: 'Ex. torne mais sintético, reformule em estilo descritivo…',
+      modalCancel: 'Cancelar', modalRun: 'Executar',
+      statusRecording: 'Gravando…', statusTranscribing: 'Transcrição em andamento…',
+      statusCleaning: 'Limpeza do texto com IA…', statusInserted: 'Texto inserido',
+      statusGenerating: 'Gerando o laudo…', statusDraftReady: 'Rascunho pronto',
+      statusConclusionsGen: 'Gerando a impressão…', statusConclusionsReady: 'Impressão pronta',
+      statusRewriting: 'Reescrevendo…', statusReady: 'Pronto',
+      statusExporting: 'Reescrita em outro idioma…',
+      toastTooShort: 'Áudio muito curto', toastEmpty: 'Transcrição vazia',
+      toastMicUnavailable: 'Microfone indisponível', toastMicDenied: 'Não foi possível acessar o microfone',
+      toastEditorEmpty: 'Editor vazio', toastWriteIndication: 'Escreva uma nota antes de usar o Magic',
+      toastMagicFailed: 'Magic falhou', toastConclusionsFailed: 'Impressão falhou',
+      toastSelectFirst: 'Selecione o texto a editar primeiro',
+      toastInserted: 'Inserido no laudo', toastCopyOk: 'Texto copiado',
+      toastCopyFail: 'Cópia não realizada', toastSelectionLost: 'Seleção perdida',
+      toastEmptySelection: 'Seleção vazia', toastPopupBlocked: 'Pop-up bloqueado',
+      toastTranslateFailed: 'Reescrita falhou',
+    },
+    es: {
+      speakIn: 'Hablo en', ddHeadInput: 'Idioma de dictado', ddHeadExport: 'Reescribir y descargar como',
+      btnRec: 'Dictar', btnRecStop: 'Parar', btnRecTitle: 'Dictado por voz',
+      btnBold: 'Negrita', btnItalic: 'Cursiva', btnUnderline: 'Subrayado',
+      btnFontUp: 'Aumentar tamaño', btnFontDown: 'Reducir tamaño',
+      btnMagic: 'Magic', btnMagicTitle: 'Expandir o mejorar el informe',
+      btnConclusions: 'Impresión IA', btnConclusionsTitle: 'Generar impresión desde el cuerpo',
+      btnRewrite: 'Editar con IA', btnRewriteTitle: 'Editar la selección con IA',
+      btnExport: 'Exportar a otro idioma', btnExportTitle: 'Exportar el informe a otro idioma',
+      btnCopy: 'Copiar', btnCopyTitle: 'Copiar texto', btnPdf: 'PDF', btnPdfTitle: 'Descargar PDF',
+      aiInsert: '✓ Insertar', aiDiscard: '× Descartar', aiPreviewKindDefault: 'Propuesta IA',
+      aiPreviewMagic: 'Magic — borrador del informe', aiPreviewConclusions: 'Impresión IA',
+      aiPreviewRewrite: 'Editar con IA', aiPreviewExport: 'Reescritura nativa en',
+      modalTitle: 'Editar selección con IA', modalLabel: 'Instrucción',
+      modalPlaceholder: 'Ej. hazlo más sintético, reformula en estilo descriptivo…',
+      modalCancel: 'Cancelar', modalRun: 'Ejecutar',
+      statusRecording: 'Grabando…', statusTranscribing: 'Transcripción en curso…',
+      statusCleaning: 'Limpieza del texto con IA…', statusInserted: 'Texto insertado',
+      statusGenerating: 'Generando informe…', statusDraftReady: 'Borrador listo',
+      statusConclusionsGen: 'Generando la impresión…', statusConclusionsReady: 'Impresión lista',
+      statusRewriting: 'Reescribiendo…', statusReady: 'Listo',
+      statusExporting: 'Reescritura en otro idioma…',
+      toastTooShort: 'Audio demasiado corto', toastEmpty: 'Transcripción vacía',
+      toastMicUnavailable: 'Micrófono no disponible', toastMicDenied: 'No se pudo acceder al micrófono',
+      toastEditorEmpty: 'Editor vacío', toastWriteIndication: 'Escribe una nota antes de usar Magic',
+      toastMagicFailed: 'Magic falló', toastConclusionsFailed: 'Impresión falló',
+      toastSelectFirst: 'Selecciona primero el texto a editar',
+      toastInserted: 'Insertado en el informe', toastCopyOk: 'Texto copiado',
+      toastCopyFail: 'Copia fallida', toastSelectionLost: 'Selección perdida',
+      toastEmptySelection: 'Selección vacía', toastPopupBlocked: 'Ventana emergente bloqueada',
+      toastTranslateFailed: 'Reescritura fallida',
+    },
+    en: {
+      speakIn: 'Speak in', ddHeadInput: 'Dictation language', ddHeadExport: 'Rewrite and download as',
+      btnRec: 'Dictate', btnRecStop: 'Stop', btnRecTitle: 'Voice dictation',
+      btnBold: 'Bold', btnItalic: 'Italic', btnUnderline: 'Underline',
+      btnFontUp: 'Increase size', btnFontDown: 'Decrease size',
+      btnMagic: 'Magic', btnMagicTitle: 'Expand or improve the report',
+      btnConclusions: 'AI Impression', btnConclusionsTitle: 'Generate Impression from body',
+      btnRewrite: 'Edit with AI', btnRewriteTitle: 'Edit selection with AI',
+      btnExport: 'Export in language', btnExportTitle: 'Export the report in another language',
+      btnCopy: 'Copy', btnCopyTitle: 'Copy text', btnPdf: 'PDF', btnPdfTitle: 'Download PDF',
+      aiInsert: '✓ Insert', aiDiscard: '× Discard', aiPreviewKindDefault: 'AI proposal',
+      aiPreviewMagic: 'Magic — draft report', aiPreviewConclusions: 'AI Impression',
+      aiPreviewRewrite: 'Edit with AI', aiPreviewExport: 'Native rewrite in',
+      modalTitle: 'Edit selection with AI', modalLabel: 'Instruction',
+      modalPlaceholder: 'E.g. make it more concise, reformulate in descriptive style…',
+      modalCancel: 'Cancel', modalRun: 'Run',
+      statusRecording: 'Recording…', statusTranscribing: 'Transcribing…',
+      statusCleaning: 'Cleaning text with AI…', statusInserted: 'Text inserted',
+      statusGenerating: 'Generating report…', statusDraftReady: 'Draft ready',
+      statusConclusionsGen: 'Generating impression…', statusConclusionsReady: 'Impression ready',
+      statusRewriting: 'Rewriting…', statusReady: 'Ready',
+      statusExporting: 'Rewriting in another language…',
+      toastTooShort: 'Audio too short', toastEmpty: 'Empty transcription',
+      toastMicUnavailable: 'Microphone unavailable', toastMicDenied: 'Could not access the microphone',
+      toastEditorEmpty: 'Editor is empty', toastWriteIndication: 'Write a note before using Magic',
+      toastMagicFailed: 'Magic failed', toastConclusionsFailed: 'Impression failed',
+      toastSelectFirst: 'Select text to edit first',
+      toastInserted: 'Inserted into the report', toastCopyOk: 'Text copied',
+      toastCopyFail: 'Copy failed', toastSelectionLost: 'Selection lost',
+      toastEmptySelection: 'Empty selection', toastPopupBlocked: 'Popup blocked',
+      toastTranslateFailed: 'Rewrite failed',
+    },
+    fr: {
+      speakIn: 'Je parle en', ddHeadInput: 'Langue de dictée', ddHeadExport: 'Réécrire et télécharger en',
+      btnRec: 'Dicter', btnRecStop: 'Arrêter', btnRecTitle: 'Dictée vocale',
+      btnBold: 'Gras', btnItalic: 'Italique', btnUnderline: 'Souligné',
+      btnFontUp: 'Augmenter la taille', btnFontDown: 'Réduire la taille',
+      btnMagic: 'Magic', btnMagicTitle: 'Développer ou améliorer le compte-rendu',
+      btnConclusions: 'Conclusion IA', btnConclusionsTitle: 'Générer la conclusion à partir du corps',
+      btnRewrite: 'Modifier avec IA', btnRewriteTitle: 'Modifier la sélection avec IA',
+      btnExport: 'Exporter en langue', btnExportTitle: 'Exporter le compte-rendu dans une autre langue',
+      btnCopy: 'Copier', btnCopyTitle: 'Copier le texte', btnPdf: 'PDF', btnPdfTitle: 'Télécharger le PDF',
+      aiInsert: '✓ Insérer', aiDiscard: '× Annuler', aiPreviewKindDefault: 'Proposition IA',
+      aiPreviewMagic: 'Magic — brouillon du compte-rendu', aiPreviewConclusions: 'Conclusion IA',
+      aiPreviewRewrite: 'Modifier avec IA', aiPreviewExport: 'Réécriture native en',
+      modalTitle: 'Modifier la sélection avec IA', modalLabel: 'Instruction',
+      modalPlaceholder: 'Ex. rendre plus synthétique, reformuler en style descriptif…',
+      modalCancel: 'Annuler', modalRun: 'Exécuter',
+      statusRecording: 'Enregistrement…', statusTranscribing: 'Transcription en cours…',
+      statusCleaning: 'Nettoyage du texte avec IA…', statusInserted: 'Texte inséré',
+      statusGenerating: 'Génération du compte-rendu…', statusDraftReady: 'Brouillon prêt',
+      statusConclusionsGen: 'Génération de la conclusion…', statusConclusionsReady: 'Conclusion prête',
+      statusRewriting: 'Réécriture…', statusReady: 'Prêt',
+      statusExporting: 'Réécriture dans une autre langue…',
+      toastTooShort: 'Audio trop court', toastEmpty: 'Transcription vide',
+      toastMicUnavailable: 'Microphone indisponible', toastMicDenied: 'Impossible d\'accéder au microphone',
+      toastEditorEmpty: 'Éditeur vide', toastWriteIndication: 'Écrivez une note avant d\'utiliser Magic',
+      toastMagicFailed: 'Échec de Magic', toastConclusionsFailed: 'Échec de la conclusion',
+      toastSelectFirst: 'Sélectionnez d\'abord le texte à modifier',
+      toastInserted: 'Inséré dans le compte-rendu', toastCopyOk: 'Texte copié',
+      toastCopyFail: 'Copie échouée', toastSelectionLost: 'Sélection perdue',
+      toastEmptySelection: 'Sélection vide', toastPopupBlocked: 'Pop-up bloqué',
+      toastTranslateFailed: 'Échec de la réécriture',
+    },
+    de: {
+      speakIn: 'Ich spreche', ddHeadInput: 'Diktatsprache', ddHeadExport: 'Umschreiben und herunterladen als',
+      btnRec: 'Diktieren', btnRecStop: 'Stopp', btnRecTitle: 'Sprachdiktat',
+      btnBold: 'Fett', btnItalic: 'Kursiv', btnUnderline: 'Unterstrichen',
+      btnFontUp: 'Größer', btnFontDown: 'Kleiner',
+      btnMagic: 'Magic', btnMagicTitle: 'Befund erweitern oder verbessern',
+      btnConclusions: 'KI-Beurteilung', btnConclusionsTitle: 'Beurteilung aus dem Befund generieren',
+      btnRewrite: 'Mit KI bearbeiten', btnRewriteTitle: 'Auswahl mit KI bearbeiten',
+      btnExport: 'In Sprache exportieren', btnExportTitle: 'Befund in einer anderen Sprache exportieren',
+      btnCopy: 'Kopieren', btnCopyTitle: 'Text kopieren', btnPdf: 'PDF', btnPdfTitle: 'PDF herunterladen',
+      aiInsert: '✓ Einfügen', aiDiscard: '× Verwerfen', aiPreviewKindDefault: 'KI-Vorschlag',
+      aiPreviewMagic: 'Magic — Befundentwurf', aiPreviewConclusions: 'KI-Beurteilung',
+      aiPreviewRewrite: 'Mit KI bearbeiten', aiPreviewExport: 'Native Neuschrift in',
+      modalTitle: 'Auswahl mit KI bearbeiten', modalLabel: 'Anweisung',
+      modalPlaceholder: 'Z.B. prägnanter formulieren, beschreibend umformulieren…',
+      modalCancel: 'Abbrechen', modalRun: 'Ausführen',
+      statusRecording: 'Aufnahme läuft…', statusTranscribing: 'Transkription läuft…',
+      statusCleaning: 'KI-Textbereinigung…', statusInserted: 'Text eingefügt',
+      statusGenerating: 'Befund wird generiert…', statusDraftReady: 'Entwurf bereit',
+      statusConclusionsGen: 'Beurteilung wird generiert…', statusConclusionsReady: 'Beurteilung bereit',
+      statusRewriting: 'Neuschrift läuft…', statusReady: 'Bereit',
+      statusExporting: 'Neuschrift in anderer Sprache…',
+      toastTooShort: 'Audio zu kurz', toastEmpty: 'Leere Transkription',
+      toastMicUnavailable: 'Mikrofon nicht verfügbar', toastMicDenied: 'Zugriff auf Mikrofon verweigert',
+      toastEditorEmpty: 'Editor leer', toastWriteIndication: 'Notiz schreiben bevor Magic verwendet wird',
+      toastMagicFailed: 'Magic fehlgeschlagen', toastConclusionsFailed: 'Beurteilung fehlgeschlagen',
+      toastSelectFirst: 'Zuerst Text zum Bearbeiten auswählen',
+      toastInserted: 'In den Befund eingefügt', toastCopyOk: 'Text kopiert',
+      toastCopyFail: 'Kopieren fehlgeschlagen', toastSelectionLost: 'Auswahl verloren',
+      toastEmptySelection: 'Leere Auswahl', toastPopupBlocked: 'Popup blockiert',
+      toastTranslateFailed: 'Neuschrift fehlgeschlagen',
+    },
+  };
+
+  // Helper: ottiene il dizionario delle stringhe per la lingua attiva (fallback IT)
+  function L() { return UI_STRINGS[langInput] || UI_STRINGS.it; }
+
+  // Applica le stringhe i18n al DOM in base alla lingua di input attuale.
+  // Cerca tutti gli elementi con `data-i18n` (testo), `data-i18n-title` (tooltip)
+  // e `data-i18n-placeholder` (placeholder degli input) e li aggiorna.
+  function applyUILang() {
+    const dict = L();
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.dataset.i18n;
+      if (dict[key] != null) el.textContent = dict[key];
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+      const key = el.dataset.i18nTitle;
+      if (dict[key] != null) el.setAttribute('title', dict[key]);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      const key = el.dataset.i18nPlaceholder;
+      if (dict[key] != null) el.setAttribute('placeholder', dict[key]);
+    });
+    // Lingua del documento per spellcheck e accessibility
+    document.documentElement.setAttribute('lang', langInput);
+  }
+
+  // ─── State ────────────────────────────────────────────────
+  let langInput = 'it';     // lingua in cui detta il radiologo
+  let writingStyle = 'prose';
+  let baseFontSize = 17;
+  let savedSelectionRange = null;
+  let lastPreviewMode = null;
+  let lastPreviewText = '';
+
+  const $ = (id) => document.getElementById(id);
+  const editor = $('editor');
+  const statusbar = $('statusbar');
+  const statusText = $('statusText');
+  const statusSpin = $('statusSpin');
+  const toastEl = $('toast');
+  const aiPreview = $('aiPreview');
+  const aiPreviewBody = $('aiPreviewBody');
+  const aiPreviewKind = $('aiPreviewKind');
+
+  // ─── Utilities ────────────────────────────────────────────
+  function setStatus(text, mode) {
+    if (!text) { statusbar.classList.remove('visible', 'err', 'ok'); return; }
+    statusbar.classList.add('visible');
+    statusbar.classList.toggle('err', mode === 'err');
+    statusbar.classList.toggle('ok', mode === 'ok');
+    statusSpin.style.display = (mode === 'err' || mode === 'ok') ? 'none' : 'inline-block';
+    statusText.textContent = text;
+  }
+  function showToast(msg, mode) {
+    toastEl.textContent = msg;
+    toastEl.classList.toggle('err', mode === 'err');
+    toastEl.classList.add('visible');
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(() => toastEl.classList.remove('visible'), 2400);
+  }
+  function todayString() {
+    const locale = (arguments[0] || langInput) || 'it';
+    return new Date().toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  function getEditorText() {
+    let raw = '';
+    editor.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) raw += node.textContent + '\n';
+      else if (node.nodeType === Node.ELEMENT_NODE) raw += node.innerText + '\n';
+    });
+    return raw.replace(/\n{3,}/g, '\n\n').trim();
+  }
+  function saveSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return null;
+    savedSelectionRange = range.cloneRange();
+    return savedSelectionRange;
+  }
+  function restoreSelection() {
+    if (!savedSelectionRange) return false;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedSelectionRange);
+    return true;
+  }
+  function insertIntoEditor(text, opts) {
+    opts = opts || {};
+    const replaceSelection = !!opts.replaceSelection;
+    const asBlock = opts.asBlock !== false;
+    editor.focus();
+    if (!restoreSelection()) {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    const sel = window.getSelection();
+    if (sel.rangeCount === 0) return;
+    let range = sel.getRangeAt(0);
+    if (replaceSelection && !sel.isCollapsed) range.deleteContents();
+    if (asBlock) {
+      const paragraphs = String(text).split(/\n{2,}/);
+      const frag = document.createDocumentFragment();
+      paragraphs.forEach((para) => {
+        const p = document.createElement('p');
+        const lines = para.split('\n');
+        lines.forEach((line, idx) => {
+          if (idx > 0) p.appendChild(document.createElement('br'));
+          p.appendChild(document.createTextNode(line));
+        });
+        frag.appendChild(p);
+      });
+      range.insertNode(frag);
+      range.collapse(false);
+    } else {
+      const textNode = document.createTextNode(text);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.setEndAfter(textNode);
+    }
+    sel.removeAllRanges();
+    sel.addRange(range);
+    editor.focus();
+  }
+
+  // ─── Build language menus ─────────────────────────────────
+  function buildLangMenus() {
+    const inMenu = $('langInputMenu');
+    LANGS.forEach((lng) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dd-item' + (lng.code === langInput ? ' selected' : '');
+      btn.dataset.code = lng.code;
+      btn.innerHTML = `<span class="flag" aria-hidden="true">${lng.flag}</span><span class="code">${lng.code.toUpperCase()}</span><span>${lng.nativeName}</span>`;
+      btn.addEventListener('click', () => {
+        setLangInput(lng.code);
+        $('langInputMenu').classList.remove('open');
+      });
+      inMenu.appendChild(btn);
+    });
+
+    const exMenu = $('exportLangMenu');
+    LANGS.forEach((lng) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dd-item';
+      btn.dataset.code = lng.code;
+      btn.innerHTML = `<span class="flag" aria-hidden="true">${lng.flag}</span><span class="code">${lng.code.toUpperCase()}</span><span>${lng.nativeName}</span>`;
+      btn.addEventListener('click', () => {
+        $('exportLangMenu').classList.remove('open');
+        runExportLanguage(lng.code);
+      });
+      exMenu.appendChild(btn);
+    });
+  }
+
+  function setLangInput(code) {
+    const lng = LANGS.find((l) => l.code === code);
+    if (!lng) return;
+    langInput = code;
+    // Aggiorna chip con bandiera + nome nativo
+    $('langInputValue').textContent = lng.nativeName;
+    $('langInputFlag').textContent = lng.flag;
+    // Highlight item selezionato nel dropdown
+    document.querySelectorAll('#langInputMenu .dd-item').forEach((el) => {
+      el.classList.toggle('selected', el.dataset.code === code);
+    });
+    // i18n: aggiorna TUTTE le etichette UI
+    applyUILang();
+  }
+
+  // Toggle dropdowns
+  function toggleMenu(button, menu) {
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => {
+      if (!menu.contains(e.target) && e.target !== button) menu.classList.remove('open');
+    });
+  }
+  toggleMenu($('langInputChip'), $('langInputMenu'));
+  toggleMenu($('btnExportLang'), $('exportLangMenu'));
+
+  // ─── Toolbar bindings (format buttons + font) ─────────────
+  document.querySelectorAll('.tbtn[data-cmd]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      editor.focus();
+      document.execCommand(btn.dataset.cmd, false, null);
+    });
+  });
+  $('btnFontUp').addEventListener('click', () => {
+    baseFontSize = Math.min(24, baseFontSize + 1);
+    editor.style.fontSize = baseFontSize + 'px';
+  });
+  $('btnFontDown').addEventListener('click', () => {
+    baseFontSize = Math.max(13, baseFontSize - 1);
+    editor.style.fontSize = baseFontSize + 'px';
+  });
+  $('btnCopy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(getEditorText()); showToast(L().toastCopyOk); }
+    catch { showToast(L().toastCopyFail, 'err'); }
+  });
+  $('btnPdf').addEventListener('click', () => downloadPdf(getEditorText(), langInput));
+
+  // ─── Dictation (Whisper) ──────────────────────────────────
+  const recState = {
+    recorder: null, chunks: [], mimeType: '',
+    startedAt: 0, timerId: null, isRecording: false,
+  };
+  const btnRec = $('btnRec');
+
+  btnRec.addEventListener('click', async () => {
+    if (recState.isRecording) await stopRecording();
+    else await startRecording();
+  });
+
+  async function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast(L().toastMicUnavailable, 'err');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+      let mimeType = '';
+      for (const m of candidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) { mimeType = m; break; }
+      }
+      const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recState.recorder = mr;
+      recState.chunks = [];
+      recState.mimeType = mr.mimeType || mimeType || 'audio/webm';
+      mr.ondataavailable = (e) => { if (e.data && e.data.size) recState.chunks.push(e.data); };
+      mr.onstop = onRecorderStop;
+      mr.start(250);
+      recState.isRecording = true;
+      recState.startedAt = Date.now();
+      saveSelection();
+      btnRec.classList.add('active');
+      btnRec.innerHTML = '';
+      const dot = document.createElement('span'); dot.className = 'rec-dot'; btnRec.appendChild(dot);
+      const lab = document.createElement('span'); lab.textContent = L().btnRecStop; btnRec.appendChild(lab);
+      const tim = document.createElement('span'); tim.className = 'rec-timer'; tim.textContent = '0:00'; btnRec.appendChild(tim);
+      recState.timerId = setInterval(tickTimer, 500);
+      setStatus(L().statusRecording);
+    } catch (e) {
+      console.error(e);
+      showToast(L().toastMicDenied, 'err');
+    }
+  }
+
+  function tickTimer() {
+    const elapsed = Math.floor((Date.now() - recState.startedAt) / 1000);
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    const t = m + ':' + String(s).padStart(2, '0');
+    const node = btnRec.querySelector('.rec-timer');
+    if (node) node.textContent = t;
+  }
+
+  async function stopRecording() {
+    if (!recState.recorder) return;
+    try { recState.recorder.stop(); } catch {}
+    try { recState.recorder.stream.getTracks().forEach((t) => t.stop()); } catch {}
+    clearInterval(recState.timerId);
+    recState.timerId = null;
+    recState.isRecording = false;
+    btnRec.classList.remove('active');
+    btnRec.innerHTML = '';
+    btnRec.insertAdjacentHTML('beforeend',
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg><span>' + L().btnRec + '</span>'
+    );
+  }
+
+  async function onRecorderStop() {
+    setStatus(L().statusTranscribing);
+    try {
+      const blob = new Blob(recState.chunks, { type: recState.mimeType || 'audio/webm' });
+      if (blob.size < 1000) { setStatus(L().toastTooShort, 'err'); setTimeout(() => setStatus(''), 1800); return; }
+      const rawText = await transcribeBlobDirect(blob);
+      if (!rawText) { setStatus(L().empty, 'err'); setTimeout(() => setStatus(''), 1800); return; }
+      const corrected = applyMedicalCorrections(rawText, langInput);
+      const pre = preprocessPunctuation(corrected, langInput);
+      setStatus(L().statusCleaning);
+      let buffer = '';
+      await cleanupDictationAI(pre, langInput, (delta) => { buffer += delta; });
+      const cleaned = buffer.trim();
+      if (cleaned) insertIntoEditor(cleaned, { replaceSelection: false, asBlock: true });
+      setStatus(L().statusInserted, 'ok');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (err) {
+      console.error(err);
+      setStatus('Error: ' + (err && err.message ? err.message : 'STT failed'), 'err');
+      setTimeout(() => setStatus(''), 2500);
+    }
+  }
+
+  // ─── Spoken punctuation preprocessing (lingua-aware) ──────
+  const PUNCT_RULES = {
+    it: [
+      [/\s+virgola\b/gi, ','], [/\s+punto e virgola\b/gi, ';'],
+      [/\s+due punti\b/gi, ':'], [/\s+punto\b(?!\s*\d)/gi, '.'],
+      [/\s+a capo\b/gi, '\n'], [/\s+nuovo paragrafo\b/gi, '\n\n'],
+      [/\s+apri parentesi\b/gi, ' ('], [/\s+chiudi parentesi\b/gi, ')'],
+    ],
+    pt: [
+      [/\s+v[íi]rgula\b/gi, ','], [/\s+ponto\s+e\s+v[íi]rgula\b/gi, ';'],
+      [/\s+dois\s+pontos\b/gi, ':'], [/\s+ponto\b(?!\s*\d)/gi, '.'],
+      [/\s+nova\s+linha\b/gi, '\n'], [/\s+novo\s+par[áa]grafo\b/gi, '\n\n'],
+    ],
+    es: [
+      [/\s+coma\b/gi, ','], [/\s+punto\s+y\s+coma\b/gi, ';'],
+      [/\s+dos\s+puntos\b/gi, ':'], [/\s+punto\b(?!\s*\d)/gi, '.'],
+      [/\s+nueva\s+l[íi]nea\b/gi, '\n'], [/\s+nuevo\s+p[áa]rrafo\b/gi, '\n\n'],
+    ],
+    en: [
+      [/\s+comma\b/gi, ','], [/\s+semicolon\b/gi, ';'],
+      [/\s+colon\b/gi, ':'], [/\s+period\b(?!\s*\d)/gi, '.'],
+      [/\s+full\s+stop\b(?!\s*\d)/gi, '.'],
+      [/\s+new\s+line\b/gi, '\n'], [/\s+new\s+paragraph\b/gi, '\n\n'],
+    ],
+    fr: [
+      [/\s+virgule\b/gi, ','], [/\s+point\s+virgule\b/gi, ';'],
+      [/\s+deux\s+points\b/gi, ':'], [/\s+point\b(?!\s*\d)/gi, '.'],
+      [/\s+[àa]\s+la\s+ligne\b/gi, '\n'], [/\s+nouveau\s+paragraphe\b/gi, '\n\n'],
+    ],
+    de: [
+      [/\s+Komma\b/gi, ','], [/\s+Semikolon\b/gi, ';'],
+      [/\s+Doppelpunkt\b/gi, ':'], [/\s+Punkt\b(?!\s*\d)/gi, '.'],
+      [/\s+neue\s+Zeile\b/gi, '\n'], [/\s+neuer\s+Absatz\b/gi, '\n\n'],
+    ],
+  };
+  function preprocessPunctuation(text, lang) {
+    if (!text) return '';
+    let t = ' ' + text + ' ';
+    const rules = PUNCT_RULES[lang] || PUNCT_RULES.it;
+    rules.forEach((r) => { t = t.replace(r[0], r[1]); });
+    t = t.replace(/\s*([,;:.!?])\s*/g, '$1 ');
+    t = t.replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').trim();
+    t = t.replace(/(^|[.!?]\s+)([a-zàèéìòùáéíóúñçäöüß])/g, (_, p, c) => p + c.toUpperCase());
+    return t;
+  }
+
+  function applyMedicalCorrections(text, lang) {
+    if (!text) return text;
+    let t = text;
+    const rules = MED_CORRECTIONS[lang] || [];
+    for (const r of rules) {
+      t = t.replace(r[0], r[1]);
+    }
+    return t;
+  }
+
+  // ─── Whisper transcribe with per-language prompt ──────────
+  function buildWhisperPrompt(lang) {
+    const base = WHISPER_BASES[lang] || WHISPER_BASES.it;
+    return base.slice(0, 900);
+  }
+
+  async function transcribeBlobDirect(blob) {
+    try {
+      return await attemptTranscribe(blob, 'gpt-4o-transcribe');
+    } catch (err) {
+      const msg = String(err && err.message || '');
+      const isFormatError = /400|format|corrupt|unsupported|decode/i.test(msg);
+      if (!isFormatError) throw err;
+      console.warn('Fallback whisper-1:', msg);
+      return await attemptTranscribe(blob, 'whisper-1');
+    }
+  }
+
+  async function attemptTranscribe(blob, model) {
+    const ext = (blob.type || '').includes('mp4') ? 'mp4'
+      : (blob.type || '').includes('ogg') ? 'ogg' : 'webm';
+    const fd = new FormData();
+    fd.append('file', blob, 'dictation.' + ext);
+    fd.append('model', model);
+    const lng = LANGS.find((l) => l.code === langInput) || LANGS[0];
+    fd.append('language', lng.whisperCode);
+    fd.append('prompt', buildWhisperPrompt(langInput));
+    fd.append('temperature', '0');
+    fd.append('response_format', 'json');
+    const headers = {};
+    if (PROXY_AUTH && PROXY_AUTH !== 'session') headers['Authorization'] = 'Bearer ' + PROXY_AUTH;
+    const r = await fetch(PROXY_URL + '/v1/audio/transcriptions', { method: 'POST', headers, body: fd });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      throw new Error('STT ' + model + ': ' + r.status + ' ' + txt.slice(0, 200));
+    }
+    const data = await r.json();
+    return (data && (data.text || data.transcript || '')) || '';
+  }
+
+  // ─── AI cleanup (lingua-aware, fedele) ────────────────────
+  function langName(code) {
+    const l = LANGS.find((x) => x.code === code);
+    return l ? l.nativeName : 'Italian';
+  }
+
+  async function cleanupDictationAI(rawText, lang, onDelta) {
+    const lname = langName(lang);
+    const system = [
+      `You are a spelling/punctuation corrector for radiology dictation in ${lname}.`,
+      `Return the doctor's text EXACTLY AS IS in ${lname}, with ONLY these minimal corrections:`,
+      '1) missing or wrong punctuation;',
+      '2) obvious spelling typos;',
+      '3) double or wrong spacing;',
+      '4) capital letter at start of sentence;',
+      '5) accidental word repetitions.',
+      `MEDICAL TERMINOLOGY in ${lname}: keep specialised radiology terms LITERAL — do not replace them with non-medical synonyms or with English equivalents.`,
+      'ABSOLUTE RULES — never break them:',
+      `- Output language MUST be ${lname}. Do NOT translate to any other language.`,
+      `- DO NOT add words, sentences, sections or titles the doctor did not say.`,
+      `- DO NOT insert headings (TECHNIQUE / FINDINGS / IMPRESSION) unless explicitly spoken.`,
+      `- DO NOT change the order of sentences.`,
+      `- DO NOT summarise, shorten, expand or paraphrase.`,
+      `- DO NOT replace synonyms.`,
+      `- Preserve the dictated style exactly.`,
+      'When in doubt whether to correct something, do NOT correct it.',
+      'Return ONLY the corrected text — no commentary, no notes.',
+    ].join(' ');
+    await streamChatCompletion({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: system }, { role: 'user', content: rawText }],
+      temperature: 0,
+    }, onDelta);
+  }
+
+  async function aiGenerateMagicDraft(input, lang, onDelta) {
+    const lname = langName(lang);
+    const system = [
+      `You are an experienced radiologist writing reports in ${lname}.`,
+      `The user text contains a clinical INDICATION or a note: expand it into a structured radiology report in ${lname}, with sections in ${lname} (TECNICA/REPERTI/CONCLUSIONI in Italian, TÉCNICA/ACHADOS/IMPRESSÃO in Portuguese, TÉCNICA/HALLAZGOS/IMPRESIÓN in Spanish, TECHNIQUE/FINDINGS/IMPRESSION in English, TECHNIQUE/RÉSULTATS/CONCLUSION in French, TECHNIK/BEFUNDE/BEURTEILUNG in German).`,
+      `DO NOT invent specific implausible findings: use neutral phrasing when details are missing.`,
+      `Impeccable medical terminology in ${lname}.`,
+      `Output: ONLY the report in ${lname}, no commentary.`,
+    ].join(' ');
+    await streamChatCompletion({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: system }, { role: 'user', content: input || 'General radiology exam.' }],
+      temperature: 0.4,
+    }, onDelta);
+  }
+
+  async function aiGenerateConclusions(bodyText, lang, onDelta) {
+    const lname = langName(lang);
+    const system = [
+      `You are a radiologist. Given the BODY of a radiology report (in ${lname}), write ONLY the IMPRESSION/CONCLUSIONS section, in ${lname}, concise and clinically consistent with the findings described.`,
+      `DO NOT repeat the body. DO NOT invent findings.`,
+      `Use the standard local label: CONCLUSIONI / IMPRESSÃO / IMPRESIÓN / IMPRESSION / CONCLUSION / BEURTEILUNG.`,
+      `Output: text in ${lname} starting with that label on a single line, then the content.`,
+    ].join(' ');
+    await streamChatCompletion({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: system }, { role: 'user', content: bodyText }],
+      temperature: 0.3,
+    }, onDelta);
+  }
+
+  async function aiRewriteSelection(selectedText, instruction, lang, onDelta) {
+    const lname = langName(lang);
+    const system = [
+      `You are a radiologist. Rewrite the provided text per the instruction, keeping correct medical ${lname}.`,
+      `DO NOT add findings not present. Preserve clinical meaning.`,
+      `Output: ONLY the rewritten text in ${lname}.`,
+    ].join(' ');
+    await streamChatCompletion({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: system }, { role: 'user', content: 'INSTRUCTION: ' + instruction + '\n\nTEXT:\n' + selectedText }],
+      temperature: 0.3,
+    }, onDelta);
+  }
+
+  // ─── Esporta in lingua: RISCRITTURA AI (non traduzione) ───
+  async function aiTranslateRewrite(sourceText, sourceLang, targetLang, onDelta) {
+    const srcName = langName(sourceLang);
+    const tgtName = langName(targetLang);
+    const system = [
+      `You are a senior radiologist who is bilingual in ${srcName} and ${tgtName}.`,
+      `You are given a complete radiology report written in ${srcName}.`,
+      `Your task: REWRITE IT FROM SCRATCH in ${tgtName} as a native ${tgtName}-speaking radiologist would have written it, using standard local conventions, idioms, section headings and phrasing.`,
+      `THIS IS NOT A LITERAL TRANSLATION: it is a re-authoring.`,
+      `- Preserve the EXACT clinical meaning: same anatomy, same findings, same measurements, same impression.`,
+      `- Do NOT add findings that are not in the source.`,
+      `- Do NOT remove findings that are in the source.`,
+      `- Use the section labels native to ${tgtName} radiology practice.`,
+      `- Use natural ${tgtName} sentence flow, not word-for-word mapping from ${srcName}.`,
+      `- Numerical values (mm, cm, ml, Hounsfield units, scores) must be preserved exactly.`,
+      `- Anatomical and pathological terminology must be the native ${tgtName} medical term, not a literal translation.`,
+      `Output: ONLY the final report in ${tgtName}, no commentary.`,
+    ].join(' ');
+    await streamChatCompletion({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'system', content: system }, { role: 'user', content: sourceText }],
+      temperature: 0.3,
+    }, onDelta);
+  }
+
+  async function streamChatCompletion(payload, onDelta) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (PROXY_AUTH && PROXY_AUTH !== 'session') headers['Authorization'] = 'Bearer ' + PROXY_AUTH;
+    const r = await fetch(PROXY_URL + '/v1/chat/completions', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(Object.assign({}, payload, { stream: true })),
+    });
+    if (!r.ok || !r.body) {
+      const txt = await r.text().catch(() => '');
+      throw new Error('AI ' + r.status + ': ' + txt.slice(0, 200));
+    }
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 1);
+        if (!line || !line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (data === '[DONE]') return;
+        try {
+          const json = JSON.parse(data);
+          const delta =
+            (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) ||
+            (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) ||
+            '';
+          if (delta) onDelta(delta);
+        } catch (e) { /* ignora */ }
+      }
+    }
+  }
+
+  // ─── AI Preview panel ─────────────────────────────────────
+  function openPreview(kind) {
+    aiPreviewKind.textContent = kind || 'Proposta AI';
+    aiPreviewBody.textContent = '';
+    aiPreview.classList.add('visible');
+    aiPreview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function closePreview() {
+    aiPreview.classList.remove('visible');
+    aiPreviewBody.textContent = '';
+  }
+  function makeCursor() {
+    const c = document.createElement('span');
+    c.className = 'stream-cursor';
+    return c;
+  }
+  $('aiInsert').addEventListener('click', () => {
+    const text = (lastPreviewText || aiPreviewBody.textContent).trim();
+    if (!text) return closePreview();
+    if (lastPreviewMode === 'replace') {
+      insertIntoEditor(text, { replaceSelection: true, asBlock: false });
+    } else if (lastPreviewMode === 'replace-all') {
+      // Sostituisce il contenuto dell'editor (per export in lingua applicato in place)
+      editor.innerHTML = '';
+      insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+    } else {
+      insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+    }
+    closePreview();
+    showToast(L().toastInserted);
+  });
+  $('aiDiscard').addEventListener('click', () => closePreview());
+
+  // ─── Magic ────────────────────────────────────────────────
+  $('btnMagic').addEventListener('click', async () => {
+    const input = getEditorText();
+    if (!input.trim()) {
+      showToast(L().toastWriteIndication, 'err');
+      return;
+    }
+    saveSelection();
+    openPreview(L().aiPreviewMagic + ' — ' + langName(langInput));
+    setStatus(L().statusGenerating);
+    let buffer = '';
+    let lastRender = 0;
+    lastPreviewMode = 'append';
+    try {
+      await aiGenerateMagicDraft(input, langInput, (delta) => {
+        buffer += delta;
+        const now = Date.now();
+        if (now - lastRender > 80) {
+          aiPreviewBody.textContent = buffer;
+          aiPreviewBody.appendChild(makeCursor());
+          aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;
+          lastRender = now;
+        }
+      });
+      lastPreviewText = buffer.trim();
+      aiPreviewBody.textContent = lastPreviewText;
+      setStatus(L().statusDraftReady, 'ok');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (err) {
+      console.error(err);
+      setStatus(L().toastMagicFailed + ': ' + err.message, 'err');
+      setTimeout(() => setStatus(''), 2500);
+      closePreview();
+    }
+  });
+
+  // ─── Conclusioni AI ───────────────────────────────────────
+  $('btnConclusions').addEventListener('click', async () => {
+    const body = getEditorText();
+    if (!body.trim()) { showToast(L().toastEditorEmpty, 'err'); return; }
+    saveSelection();
+    openPreview(L().aiPreviewConclusions + ' — ' + langName(langInput));
+    setStatus(L().statusConclusionsGen);
+    let buffer = '';
+    let lastRender = 0;
+    lastPreviewMode = 'append';
+    try {
+      await aiGenerateConclusions(body, langInput, (delta) => {
+        buffer += delta;
+        const now = Date.now();
+        if (now - lastRender > 80) {
+          aiPreviewBody.textContent = buffer;
+          aiPreviewBody.appendChild(makeCursor());
+          lastRender = now;
+        }
+      });
+      lastPreviewText = buffer.trim();
+      aiPreviewBody.textContent = lastPreviewText;
+      setStatus(L().statusConclusionsReady, 'ok');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (err) {
+      setStatus(L().toastConclusionsFailed + ': ' + err.message, 'err');
+      setTimeout(() => setStatus(''), 2500);
+      closePreview();
+    }
+  });
+
+  // ─── Modifica con AI ──────────────────────────────────────
+  const rewriteModal = $('rewriteModal');
+  $('btnRewrite').addEventListener('click', () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) { showToast(L().toastSelectFirst, 'err'); return; }
+    if (!editor.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      showToast(L().toastSelectFirst, 'err');
+      return;
+    }
+    saveSelection();
+    $('rewriteInstr').value = '';
+    rewriteModal.classList.add('visible');
+    setTimeout(() => $('rewriteInstr').focus(), 50);
+  });
+  $('rewriteCancel').addEventListener('click', () => rewriteModal.classList.remove('visible'));
+  $('rewriteRun').addEventListener('click', async () => {
+    const instruction = $('rewriteInstr').value.trim();
+    if (!instruction) { $('rewriteInstr').focus(); return; }
+    rewriteModal.classList.remove('visible');
+    if (!savedSelectionRange) { showToast(L().toastSelectionLost, 'err'); return; }
+    const selectedText = savedSelectionRange.toString();
+    if (!selectedText.trim()) { showToast(L().toastEmptySelection, 'err'); return; }
+    openPreview(L().aiPreviewRewrite + ' — ' + langName(langInput));
+    setStatus(L().statusRewriting);
+    let buffer = '';
+    let lastRender = 0;
+    lastPreviewMode = 'replace';
+    try {
+      await aiRewriteSelection(selectedText, instruction, langInput, (delta) => {
+        buffer += delta;
+        const now = Date.now();
+        if (now - lastRender > 80) {
+          aiPreviewBody.textContent = buffer;
+          aiPreviewBody.appendChild(makeCursor());
+          lastRender = now;
+        }
+      });
+      lastPreviewText = buffer.trim();
+      aiPreviewBody.textContent = lastPreviewText;
+      setStatus(L().statusReady, 'ok');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (err) {
+      setStatus('Rewrite failed: ' + err.message, 'err');
+      setTimeout(() => setStatus(''), 2500);
+      closePreview();
+    }
+  });
+
+  // ─── Esporta in lingua ────────────────────────────────────
+  async function runExportLanguage(targetLang) {
+    const sourceText = getEditorText();
+    if (!sourceText.trim()) {
+      showToast(L().toastEditorEmpty, 'err');
+      return;
+    }
+    const targetName = langName(targetLang);
+    saveSelection();
+    openPreview(L().aiPreviewExport + ' ' + targetName);
+    setStatus(L().statusExporting);
+    let buffer = '';
+    let lastRender = 0;
+    lastPreviewMode = 'append'; // mostriamo solo, l'utente decide se sostituire (vedi sotto)
+    try {
+      await aiTranslateRewrite(sourceText, langInput, targetLang, (delta) => {
+        buffer += delta;
+        const now = Date.now();
+        if (now - lastRender > 80) {
+          aiPreviewBody.textContent = buffer;
+          aiPreviewBody.appendChild(makeCursor());
+          aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;
+          lastRender = now;
+        }
+      });
+      lastPreviewText = buffer.trim();
+      aiPreviewBody.textContent = lastPreviewText;
+
+      // Aggiungo bottone "Scarica PDF in lingua" all'header del preview
+      injectExtraPreviewAction(targetLang);
+
+      setStatus(L().statusReady, 'ok');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (err) {
+      console.error(err);
+      setStatus(L().toastTranslateFailed + ': ' + err.message, 'err');
+      setTimeout(() => setStatus(''), 2500);
+      closePreview();
+    }
+  }
+
+  // Aggiunge dinamicamente un bottone "Scarica PDF" nel preview che,
+  // al click, apre il PDF con il referto riscritto nella lingua target.
+  function injectExtraPreviewAction(targetLang) {
+    const actions = aiPreview.querySelector('.ai-preview-actions');
+    const old = actions.querySelector('.btn-export-pdf');
+    if (old) old.remove();
+    const btn = document.createElement('button');
+    btn.className = 'tbtn btn-export-pdf';
+    btn.style.color = 'var(--accent)';
+    btn.style.border = '1px solid var(--accent)';
+    btn.textContent = '↓ PDF ' + targetLang.toUpperCase();
+    btn.addEventListener('click', () => {
+      const text = (lastPreviewText || aiPreviewBody.textContent).trim();
+      if (!text) return;
+      downloadPdf(text, targetLang);
+    });
+    actions.insertBefore(btn, actions.firstChild);
+  }
+
+  // ─── PDF download (window.print scoped to a clean doc) ────
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+  function paragraphsHtml(text) {
+    return text.split(/\n{2,}/).map((para) => {
+      const lines = para.split('\n').map(escapeHtml).join('<br/>');
+      return '<p>' + lines + '</p>';
+    }).join('\n');
+  }
+
+  function downloadPdf(text, lang) {
+    if (!text.trim()) { showToast(L().toastEditorEmpty, 'err'); return; }
+    const html = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Refertium — Report (${lang.toUpperCase()})</title>
+<style>
+@page { size: A4; margin: 24mm 22mm; }
+body { font-family: "EB Garamond", Georgia, serif; color:#0b1220; font-size:13pt; line-height:1.6; }
+h1 { font-size:18pt; font-weight:600; margin:0 0 4pt; }
+.meta { color:#475569; font-size:10.5pt; padding-bottom:6pt; border-bottom:1px solid #cbd5e1; margin-bottom:14pt; display:flex; gap:10pt; }
+.tag { background:#e6f7f0; color:#0b6e58; padding:2pt 8pt; border-radius:99px; font-family:Inter,Arial,sans-serif; font-size:8pt; letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
+p { margin: 0 0 8pt; text-align: justify; }
+.foot { margin-top: 28pt; padding-top: 8pt; border-top: 1px solid #cbd5e1; font-size: 9.5pt; color:#64748b; display:flex; justify-content: space-between; }
+.brand { font-weight: 600; }
+.brand .accent { color: #0b6e58; }
+.brand .suite { font-style: italic; color: #0b6e58; font-weight: 500; }
+</style></head><body>
+<h1>Refertium</h1>
+<div class="meta"><span>${escapeHtml(todayString(lang))}</span><span class="tag">${escapeHtml(lang.toUpperCase())}</span></div>
+${paragraphsHtml(text)}
+<div class="foot"><span class="brand">Refertium<span class="accent">.</span> <span class="suite">International</span></span><span>${escapeHtml(lang.toUpperCase())}</span></div>
+</body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { showToast(L().toastPopupBlocked, 'err'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch {} }, 400);
+  }
+
+  // ─── Init ─────────────────────────────────────────────────
+  buildLangMenus();
+  applyUILang();
+
+  // Esc chiude modali / preview
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (rewriteModal.classList.contains('visible')) rewriteModal.classList.remove('visible');
+      else if (aiPreview.classList.contains('visible')) closePreview();
+      $('langInputMenu').classList.remove('open');
+      $('exportLangMenu').classList.remove('open');
+    }
+    if (e.target === editor) setTimeout(saveSelection, 0);
+  });
+  editor.addEventListener('mouseup', () => saveSelection());
+  editor.addEventListener('keyup', () => saveSelection());
+
+})();
+</script>
+</body>
+</html>

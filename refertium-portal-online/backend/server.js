@@ -456,6 +456,73 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
+// Refertium International: editor multilingua per radiologi stranieri che
+// telerefertano per cliniche italiane. Le chiamate /v1/* passano dal proxy
+// del backend (lo stesso pattern degli altri editor): niente token nel
+// sorgente HTML, niente CORS, niente allowlist Cloudflare da gestire.
+const INTERNATIONAL_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-international.html');
+const INTERNATIONAL_DEMO_USER_ID = 'international-demo';
+
+// Idempotent: assicura che esista l'utente "international-demo" come billing
+// holder per le chiamate AI dal template international. Tetto di token mensile
+// generoso ma finito (per evitare abusi della rotta pubblica).
+async function ensureInternationalDemoUser(db) {
+  let target = db.users.find(u => u.id === INTERNATIONAL_DEMO_USER_ID);
+  if (!target) {
+    target = {
+      id: INTERNATIONAL_DEMO_USER_ID,
+      role: 'user',
+      name: 'International Demo',
+      firstName: 'International',
+      lastName: 'Demo',
+      username: 'international-demo',
+      email: '',
+      password: '',
+      license: 'active',
+      tokenLimit: 200000,          // 200k token/mese: limite generoso per demo
+      dictationHourLimit: 10,
+      softwareLanguage: 'it',
+      edition: 'pro',
+      specialties: ['urgenza'],
+      planName: 'International demo',
+      planPrice: 0,
+      isDemo: true,
+      htmlFile: '',
+      htmlName: '',
+      distillate: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    db.users.push(target);
+    await saveDb(db);
+  } else if (target.license === 'blocked') {
+    target.license = 'active';
+    await saveDb(db);
+  }
+  return target;
+}
+
+async function serveInternationalApp(req, res, user) {
+  try {
+    const db = await loadDb();
+    const billingUser = await ensureInternationalDemoUser(db);
+    const rawHtml = await fs.readFile(INTERNATIONAL_TEMPLATE_FILE, 'utf8');
+    const html = rewriteRefertiumHtml(rawHtml, billingUser);
+    res.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      // Cookie APP_USER_COOKIE = international-demo: così le successive
+      // chiamate /v1/* trovano il billing user via cookie e passano dal proxy.
+      'set-cookie': `${APP_USER_COOKIE}=${encodeURIComponent(billingUser.id)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`,
+    });
+    res.end(html);
+  } catch (err) {
+    console.error('serveInternationalApp:', err);
+    return send(res, 500, pageMessage('International template error', err.message || 'errore'),
+      { 'content-type': 'text/html; charset=utf-8' });
+  }
+}
+
 async function serveUserApp(req, res, db, user, targetUserId) {
   requireAuth(user);
   const target = user.role === 'admin' ? db.users.find(u => u.id === targetUserId) : user;
@@ -1297,6 +1364,12 @@ async function handler(req, res) {
     if (pathname.startsWith('/v1/')) return await proxyOpenAI(req, res, db, user, pathname);
     const appMatch = pathname.match(/^\/app\/([^/]+)$/);
     if (appMatch) return await serveUserApp(req, res, db, user, appMatch[1]);
+    // Refertium International — versione multilingua per radiologi stranieri.
+    // Servita come template diretto: stesso pattern degli altri (PROXY_URL e
+    // PROXY_AUTH riscritti, il backend fa proxy delle chiamate AI al worker).
+    if (pathname === '/international' || pathname === '/international/') {
+      return await serveInternationalApp(req, res, user);
+    }
     return await serveStatic(req, res, pathname);
   } catch (err) {
     const status = err.status || 500;
