@@ -304,6 +304,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     opts = opts || {};
     const replaceSelection = !!opts.replaceSelection;
     const asBlock = opts.asBlock !== false;
+    // parseHeadings: ON by default for generative AI outputs (Magic, Impression,
+    // Rewrite). Pass FALSE for dictation — never auto-promote uppercase+":"
+    // words to titles the doctor did not request.
+    const parseHeadings = opts.parseHeadings !== false;
     editor.focus();
     if (!restoreSelection()) {
       const range = document.createRange();
@@ -321,7 +325,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       const paragraphs = String(text).split(/\n{2,}/);
       const frag = document.createDocumentFragment();
       paragraphs.forEach((para) => {
-        const headingMatch = para.match(/^([A-Z]{4,16}):\s*([\s\S]*)$/);
+        const headingMatch = parseHeadings
+          ? para.match(/^([A-Z]{4,16}):\s*([\s\S]*)$/)
+          : null;
         if (headingMatch) {
           const h = document.createElement('h2');
           h.textContent = headingMatch[1];
@@ -443,7 +449,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       await cleanupDictationAI(pre, (delta) => { buffer += delta; });
       const cleaned = buffer.trim();
       if (cleaned) {
-        insertIntoEditor(cleaned, { replaceSelection: false, asBlock: true });
+        // Dictation: no heading parsing — the text is inserted faithfully,
+        // no auto-generated <h2> the doctor did not ask for.
+        insertIntoEditor(cleaned, { replaceSelection: false, asBlock: true, parseHeadings: false });
       }
       setStatus('Text inserted', 'ok');
       setTimeout(() => setStatus(''), 1200);
@@ -511,23 +519,36 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     return (data && (data.text || data.transcript || '')) || '';
   }
 
+  // Philosophy: this function is ONLY a spelling/punctuation corrector. The
+  // doctor must recognise themselves in the output: no restructuring, no
+  // added sections, no synonym substitution.
   async function cleanupDictationAI(rawText, onDelta) {
-    const styleHint = writingStyle === 'synth'
-      ? 'Concise/bullet style when appropriate, short sentences.'
-      : 'Prose style, complete sentences in clear medical English.';
     const system = [
-      'You are a radiology reporting assistant.',
-      'Clean up the dictated text: fix punctuation, spelling, spacing, obvious repetitions.',
-      'DO NOT add clinical info not present. DO NOT invent diagnoses.',
-      'Preserve correct radiology terminology.',
-      styleHint,
-      'If the text contains implicit sections (TECHNIQUE, FINDINGS, IMPRESSION), structure them with those titles in uppercase followed by ":".',
-      'Return ONLY the cleaned text, no commentary.',
+      'You are a spelling/punctuation corrector for medical radiology dictation.',
+      'Return the doctor’s text EXACTLY AS IS, with ONLY these minimal corrections:',
+      '1) missing or wrong punctuation (commas, periods, colons);',
+      '2) obvious spelling typos;',
+      '3) double or wrong spacing;',
+      '4) capital letter at start of sentence and after period;',
+      '5) accidental word repetitions ("the the", "of of", "not not").',
+      'ABSOLUTE RULES — never break them:',
+      '- DO NOT add words, sentences, sections or titles the doctor did not dictate.',
+      '- DO NOT insert headings like "TECHNIQUE", "FINDINGS", "IMPRESSION", "INDICATION" if the doctor did not say them.',
+      '- DO NOT change the order of sentences.',
+      '- DO NOT summarise, shorten or condense anything.',
+      '- DO NOT expand, paraphrase or "improve" the language.',
+      '- DO NOT substitute synonyms: if they said "shows" keep "shows", not "demonstrates".',
+      '- DO NOT add closing remarks, recommendations or clinical suggestions.',
+      '- DO NOT convert lists to prose or prose to lists.',
+      '- Preserve the dictated style exactly (prose or concise as given).',
+      '- Keep informal connectives ("however", "so", "also") as dictated.',
+      'When in doubt whether to correct something, do NOT correct it.',
+      'Return ONLY the corrected text — no commentary, no headings, no notes.',
     ].join(' ');
     await streamChatCompletion({
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: rawText }],
-      temperature: 0.2,
+      temperature: 0,
     }, onDelta);
   }
 

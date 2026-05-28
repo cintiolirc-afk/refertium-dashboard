@@ -631,6 +631,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     opts = opts || {};
     const replaceSelection = !!opts.replaceSelection;
     const asBlock = opts.asBlock !== false;
+    // parseHeadings: di default ON per output AI generativi (Magic, Conclusioni,
+    // Modifica con AI). Va passato a FALSE per la dettatura, dove non dobbiamo
+    // mai trasformare parole maiuscole+":" in titoli che il medico non ha voluto.
+    const parseHeadings = opts.parseHeadings !== false;
     editor.focus();
     if (!restoreSelection()) {
       const range = document.createRange();
@@ -649,7 +653,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       const paragraphs = String(text).split(/\n{2,}/);
       const frag = document.createDocumentFragment();
       paragraphs.forEach((para) => {
-        const headingMatch = para.match(/^([A-ZÀÈÉÌÒÙ]{4,16}):\s*([\s\S]*)$/);
+        const headingMatch = parseHeadings
+          ? para.match(/^([A-ZÀÈÉÌÒÙ]{4,16}):\s*([\s\S]*)$/)
+          : null;
         if (headingMatch) {
           const h = document.createElement('h2');
           h.textContent = headingMatch[1];
@@ -824,7 +830,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       await cleanupDictationAI(pre, (delta) => { buffer += delta; });
       const cleaned = buffer.trim();
       if (cleaned) {
-        insertIntoEditor(cleaned, { replaceSelection: false, asBlock: true });
+        // Dettatura: niente parsing di headings — il testo va inserito
+        // fedele a quello che il medico ha dettato, niente <h2> auto-generati.
+        insertIntoEditor(cleaned, { replaceSelection: false, asBlock: true, parseHeadings: false });
       }
       setStatus('Testo inserito', 'ok');
       setTimeout(() => setStatus(''), 1200);
@@ -909,18 +917,31 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   }
 
   // ─── AI cleanup streaming ─────────────────────────────────
+  // Filosofia: questa funzione è SOLO un correttore ortografico/punteggiatura.
+  // Il medico deve rivedersi nel testo prodotto: nessun rimodellamento, nessuna
+  // aggiunta di sezioni, nessuna sostituzione di sinonimi.
   async function cleanupDictationAI(rawText, onDelta) {
-    const styleHint = writingStyle === 'synth'
-      ? 'Stile sintetico/elenco puntato quando appropriato, frasi brevi.'
-      : 'Stile discorsivo, frasi complete in italiano medico chiaro.';
     const system = [
-      'Sei un assistente di refertazione radiologica.',
-      'Pulisci il testo dettato dal medico: correggi punteggiatura, ortografia, spaziature, ripetizioni evidenti.',
-      'NON aggiungere informazioni cliniche non presenti. NON inventare diagnosi.',
-      'Mantieni terminologia medica radiologica corretta.',
-      styleHint,
-      'Se il testo contiene sezioni implicite (TECNICA, REPERTI, CONCLUSIONI), strutturalo con quei titoli in maiuscolo seguiti da ":".',
-      'Restituisci SOLO il testo pulito, senza commenti.',
+      'Sei un correttore ortografico per dettatura medica radiologica.',
+      'Restituisci il testo del medico ESATTAMENTE COM’È, con SOLO queste correzioni minime:',
+      '1) punteggiatura mancante o errata (virgole, punti, due punti);',
+      '2) refusi ortografici evidenti;',
+      '3) spaziature doppie o errate;',
+      '4) maiuscola a inizio frase e dopo il punto;',
+      '5) ripetizioni accidentali della stessa parola ("il il", "di di", "non non").',
+      'REGOLE ASSOLUTE — non infrangerle MAI:',
+      '- NON aggiungere parole, frasi, sezioni o titoli che il medico non ha dettato.',
+      '- NON inserire titoli come "TECNICA", "REPERTI", "CONCLUSIONI", "INDICAZIONE" se il medico non li ha pronunciati.',
+      '- NON cambiare l’ordine delle frasi.',
+      '- NON sintetizzare, riassumere o accorciare nulla.',
+      '- NON espandere, parafrasare o "migliorare" il linguaggio.',
+      '- NON sostituire sinonimi: se ha detto "mostra" mantieni "mostra", non "evidenzia"; se ha detto "si vede" mantieni "si vede".',
+      '- NON aggiungere formule di chiusura, raccomandazioni o suggerimenti clinici.',
+      '- NON convertire elenchi in prosa, né prosa in elenchi.',
+      '- Mantieni esattamente lo stile dettato (discorsivo o sintetico che sia).',
+      '- Mantieni connettivi colloquiali ("però", "quindi", "inoltre", "comunque") così come detti.',
+      'Se sei in dubbio se correggere qualcosa, NON correggerlo.',
+      'Restituisci SOLO il testo corretto, niente commenti, niente intestazioni, niente note.',
     ].join(' ');
 
     await streamChatCompletion({
@@ -929,7 +950,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
         { role: 'system', content: system },
         { role: 'user', content: rawText },
       ],
-      temperature: 0.2,
+      temperature: 0,
     }, onDelta);
   }
 
