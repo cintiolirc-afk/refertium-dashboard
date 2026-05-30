@@ -102,6 +102,248 @@
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); padding: 12px 20px; background: var(--panel); border: 1px solid var(--accent); border-radius: var(--radius); box-shadow: var(--shadow-lg); color: var(--text); font-size: 13px; z-index: 200; opacity: 0; transition: all 250ms var(--ease); pointer-events: none; }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.err { border-color: var(--danger); color: var(--danger); }
+
+  /* ─── Checklist module ─── */
+          esistente o in nuovo blocco
+       2) HTML markup — bottone toolbar + aside drawer
+       3) Script JS — wire del drawer + CHECKLIST_TEMPLATES data
+
+     Dipendenze:
+       - var CHECKLIST_TEMPLATES (in JS) — i 49 esami strutturati
+       - window functions: streamChatCompletion(payload, onDelta)
+       - window helpers (opzionali): insertIntoEditor, getEditorText
+============================================================ -->
+
+  /* ─── Bottone toolbar "Checklist" ─── */
+  .cl-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text, #e8edf5);
+    border: 1px solid transparent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 150ms cubic-bezier(.16,1,.3,1), border-color 150ms;
+  }
+  .cl-toggle:hover { background: var(--panel-hover, rgba(93,202,165,.08)); }
+  .cl-toggle.active {
+    background: var(--accent-soft, rgba(93,202,165,.12));
+    color: var(--accent, #5DCAA5);
+    border-color: var(--accent, #5DCAA5);
+  }
+  .cl-toggle svg { width: 16px; height: 16px; }
+
+  /* ─── Backdrop scuro quando drawer aperto ─── */
+  .cl-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(5,13,26,.55);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms cubic-bezier(.16,1,.3,1);
+  }
+  .cl-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  /* ─── Drawer laterale destro ─── */
+  .cl-drawer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(540px, 90vw);
+    background: var(--panel, #0a1628);
+    border-left: 1px solid var(--line-strong, #2c4a76);
+    box-shadow: -12px 0 32px rgba(0,0,0,.4);
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform 280ms cubic-bezier(.16,1,.3,1);
+    display: flex; flex-direction: column;
+    color: var(--text, #e8edf5);
+  }
+  .cl-drawer.open { transform: translateX(0); }
+
+  .cl-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--line, #1f3a5e);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .cl-title-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .cl-title {
+    font-family: "EB Garamond", Georgia, serif;
+    font-size: 22px; font-weight: 600;
+    color: var(--text-strong, #fff);
+    letter-spacing: 0.01em;
+  }
+  .cl-title .accent { color: var(--accent, #5DCAA5); }
+  .cl-close {
+    width: 32px; height: 32px;
+    background: transparent;
+    border: 1px solid var(--line, #1f3a5e);
+    border-radius: 8px;
+    color: var(--text-dim, #8a9ab5);
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: all 150ms;
+  }
+  .cl-close:hover { color: var(--text-strong, #fff); border-color: var(--line-strong, #2c4a76); }
+  .cl-close svg { width: 14px; height: 14px; }
+
+  .cl-template-select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-elevated, #0a1628);
+    color: var(--text, #e8edf5);
+    border: 1px solid var(--line-strong, #2c4a76);
+    border-radius: 8px;
+    font: inherit; font-size: 13.5px;
+    cursor: pointer;
+  }
+  .cl-template-select:focus {
+    outline: none;
+    border-color: var(--accent, #5DCAA5);
+    box-shadow: 0 0 0 3px var(--accent-soft, rgba(93,202,165,.12));
+  }
+
+  .cl-meta-bar {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 12px; color: var(--text-dim, #8a9ab5);
+    min-height: 20px;
+  }
+  .cl-meta-bar .progress { color: var(--accent, #5DCAA5); font-weight: 600; }
+  .cl-meta-bar .modality {
+    padding: 2px 8px;
+    background: var(--accent-soft, rgba(93,202,165,.12));
+    color: var(--accent, #5DCAA5);
+    border-radius: 999px;
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  /* ─── Body scrollabile con le voci ─── */
+  .cl-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 22px 22px;
+  }
+  .cl-empty {
+    padding: 40px 16px;
+    text-align: center;
+    color: var(--text-dim, #8a9ab5);
+    font-size: 13.5px; line-height: 1.6;
+  }
+  .cl-empty strong { color: var(--accent, #5DCAA5); }
+
+  .cl-item {
+    background: var(--panel-2, #112340);
+    border: 1px solid var(--line, #1f3a5e);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    transition: border-color 150ms;
+  }
+  .cl-item.is-normal { border-color: rgba(93,202,165,.45); background: rgba(93,202,165,.05); }
+  .cl-item.is-prompt { border-color: rgba(244,192,101,.55); }
+
+  .cl-item-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .cl-item-name {
+    flex: 1;
+    font-size: 13.5px; font-weight: 600;
+    color: var(--text-strong, #fff);
+  }
+
+  .cl-state-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    background: transparent;
+    color: var(--text-dim, #8a9ab5);
+    border: 1px solid var(--line-strong, #2c4a76);
+    border-radius: 6px;
+    font: inherit; font-size: 11.5px; font-weight: 600;
+    cursor: pointer;
+    transition: all 150ms;
+  }
+  .cl-state-btn:hover { color: var(--text-strong, #fff); border-color: var(--accent, #5DCAA5); }
+  .cl-state-btn.active.normal {
+    background: var(--accent, #5DCAA5);
+    color: var(--accent-ink, #050d1a);
+    border-color: var(--accent, #5DCAA5);
+  }
+  .cl-state-btn.active.prompt {
+    background: var(--warn, #f4c065);
+    color: #1a1a1a;
+    border-color: var(--warn, #f4c065);
+  }
+
+  .cl-item-text {
+    font-size: 13px; line-height: 1.55;
+    color: var(--text, #e8edf5);
+    font-family: "EB Garamond", Georgia, serif;
+    font-size: 14.5px;
+  }
+  .cl-item-note {
+    width: 100%;
+    margin-top: 6px;
+    padding: 8px 10px;
+    background: var(--bg-elevated, #050d1a);
+    color: var(--text, #e8edf5);
+    border: 1px solid var(--line-strong, #2c4a76);
+    border-radius: 6px;
+    font: inherit; font-size: 13px;
+    resize: vertical; min-height: 60px;
+    outline: none;
+    font-family: "EB Garamond", Georgia, serif;
+  }
+  .cl-item-note:focus {
+    border-color: var(--warn, #f4c065);
+    box-shadow: 0 0 0 3px rgba(244,192,101,.18);
+  }
+
+  /* ─── Footer con bottoni azione ─── */
+  .cl-footer {
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--line, #1f3a5e);
+    display: flex; gap: 8px;
+    background: var(--panel, #0a1628);
+  }
+  .cl-btn {
+    flex: 1;
+    padding: 11px 14px;
+    border-radius: 8px;
+    font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 150ms;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .cl-btn-ghost {
+    background: transparent;
+    color: var(--text-dim, #8a9ab5);
+    border-color: var(--line-strong, #2c4a76);
+  }
+  .cl-btn-ghost:hover { color: var(--text-strong, #fff); border-color: var(--text-dim, #8a9ab5); }
+  .cl-btn-primary {
+    background: var(--accent, #5DCAA5);
+    color: var(--accent-ink, #050d1a);
+    border-color: var(--accent, #5DCAA5);
+  }
+  .cl-btn-primary:hover { background: var(--accent-strong, #7ed8b8); }
+  .cl-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .cl-btn svg { width: 14px; height: 14px; }
+
+  @media (max-width: 720px) {
+    .cl-drawer { width: 100vw; }
+  }
+
 </style>
 </head>
 <body>
@@ -148,6 +390,13 @@
       <button id="btnRewrite" class="tbtn" title="Rewrite selection with AI">Rewrite with AI</button>
     </div>
     <div class="tool-group">
+            <button id="clToggle" class="cl-toggle" type="button" title="Checklist strutturata">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        <span>Checklist</span>
+      </button>
       <button id="btnCopy" class="tbtn" title="Copy text">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         Copy
@@ -872,7 +1121,1074 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '<div class="meta">' + todayString() + ' · ' + escapeHtml(user) + '</div>' +
       editor.innerHTML +
       '<div class="foot"><span>Refertium · report generated on ' + todayString() + '</span><span>' + escapeHtml(user) + '</span></div>' +
-      '</body></html>';
+      '
+<!-- ─── Checklist module ─── -->
+<div id="clBackdrop" class="cl-backdrop"></div>
+<aside id="clDrawer" class="cl-drawer" aria-label="Checklist strutturata">
+  <header class="cl-header">
+    <div class="cl-title-row">
+      <span class="cl-title">Checklist<span class="accent">.</span></span>
+      <button id="clCloseBtn" class="cl-close" type="button" title="Chiudi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <select id="clTemplateSelect" class="cl-template-select" aria-label="Seleziona esame">
+      <option value="">— Seleziona esame —</option>
+    </select>
+    <div class="cl-meta-bar">
+      <span id="clProgress" class="progress"></span>
+      <span id="clModality" class="modality" style="display:none"></span>
+    </div>
+  </header>
+  <div id="clBody" class="cl-body">
+    <div class="cl-empty">
+      Seleziona un esame dall'elenco qui sopra.<br><br>
+      Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
+      oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
+    </div>
+  </div>
+  <footer class="cl-footer">
+    <button id="clResetBtn" class="cl-btn cl-btn-ghost" type="button">Azzera</button>
+    <button id="clGenerateBtn" class="cl-btn cl-btn-primary" type="button" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l1.9 4.7L18 9.5l-4.1 1.8L12 16l-1.9-4.7L6 9.5l4.1-1.8z"/>
+      </svg>
+      Genera referto
+    </button>
+  </footer>
+</aside>
+
+<script>
+/* ============================================================
+   CHECKLIST DATA — 49 template di esami radiologici
+   Estratti dal legacy v52, vocabolario radiologico italiano.
+   ============================================================ */
+window.CHECKLIST_TEMPLATES = {
+  "tc-encefalo": {
+    label: "TC Encefalo",
+    modalita: "TC",
+    distretto_key: "encefalo",
+    specialties: ["neuro", "urgenza"],
+    voci: [
+      { id: "parenchima", nome: "Parenchima cerebrale", normale: "Parenchima cerebrale di morfo-densitometria conservata, in assenza di alterazioni focali a densita’ patologica." },
+      { id: "sostanza-bianca", nome: "Sostanza bianca", normale: "Sostanza bianca sottocorticale e periventricolare di normale rappresentazione." },
+      { id: "ventricoli", nome: "Sistema ventricolare", normale: "Sistema ventricolare in asse e di normali dimensioni." },
+      { id: "cisterne", nome: "Cisterne basali", normale: "Cisterne della base libere; spazi subaracnoidei della convessita’ di normale ampiezza." },
+      { id: "linea-mediana", nome: "Linea mediana", normale: "Strutture della linea mediana in asse." },
+      { id: "fossa-cranica", nome: "Fossa cranica posteriore", normale: "Fossa cranica posteriore indenne; tronco encefalo e cervelletto regolari." },
+      { id: "sella", nome: "Sella turcica", normale: "Sella turcica e regione pineale nei limiti." },
+      { id: "seni-paranasali", nome: "Seni paranasali", normale: "Seni paranasali e celle mastoidee normoespansi e aerati." },
+      { id: "orbite", nome: "Orbite", normale: "Strutture orbitarie regolari." },
+      { id: "teca-cranica", nome: "Teca cranica", normale: "Strutture ossee della teca cranica integre." },
+    ]
+  },
+  "rm-encefalo": {
+    label: "RM Encefalo",
+    modalita: "RM",
+    distretto_key: "encefalo",
+    specialties: ["neuro"],
+    voci: [
+      { id: "parenchima", nome: "Parenchima cerebrale", normale: "Parenchima cerebrale di morfologia e segnale conservati, in assenza di alterazioni focali." },
+      { id: "sostanza-bianca", nome: "Sostanza bianca", normale: "Sostanza bianca sottocorticale e periventricolare di normale segnale, senza alterazioni focali in T2/FLAIR." },
+      { id: "dwi", nome: "Diffusione (DWI/ADC)", normale: "Assenza di restrizioni in DWI con corrispondenze in mappa ADC." },
+      { id: "ventricoli", nome: "Sistema ventricolare", normale: "Sistema ventricolare in asse e di normali dimensioni." },
+      { id: "giunzione", nome: "Giunzione cranio-cervicale", normale: "Giunzione cranio-cervicale regolare." },
+      { id: "tronco-cervelletto", nome: "Tronco e cervelletto", normale: "Tronco encefalico e cervelletto di morfologia e segnale conservati." },
+      { id: "sella", nome: "Regione sellare", normale: "Sella turcica e ghiandola ipofisaria nei limiti." },
+      { id: "orbite", nome: "Orbite", normale: "Strutture orbitarie regolari, bulbi oculari e nervi ottici nei limiti." },
+      { id: "seni-paranasali", nome: "Seni paranasali", normale: "Seni paranasali e celle mastoidee aerati." },
+      { id: "vasi", nome: "Vasi intracranici (eventuale angio)", normale: "Per quanto valutabile, vasi intracranici di morfologia regolare, senza significative alterazioni di flusso o calibro." },
+    ]
+  },
+  "rm-rachide-cervicale": {
+    label: "RM Rachide cervicale",
+    modalita: "RM",
+    distretto_key: "rachide_cervicale",
+    specialties: ["neuro", "msk"],
+    voci: [
+      { id: "allineamento", nome: "Allineamento e curva", normale: "Rachide cervicale in asse, normale lordosi." },
+      { id: "corpi-vertebrali", nome: "Corpi vertebrali", normale: "Corpi vertebrali di morfologia e segnale conservati, senza alterazioni focali." },
+      { id: "dischi-globale", nome: "Dischi intervertebrali (panoramica)", normale: "Dischi intervertebrali di altezza e segnale conservati a tutti i livelli." },
+      { id: "spazio-c2c3", nome: "Spazio C2-C3", normale: "A livello C2-C3 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-c3c4", nome: "Spazio C3-C4", normale: "A livello C3-C4 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-c4c5", nome: "Spazio C4-C5", normale: "A livello C4-C5 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-c5c6", nome: "Spazio C5-C6", normale: "A livello C5-C6 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-c6c7", nome: "Spazio C6-C7", normale: "A livello C6-C7 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-c7d1", nome: "Spazio C7-D1", normale: "A livello C7-D1 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "canale", nome: "Canale vertebrale (panoramica)", normale: "Canale vertebrale di ampiezza regolare a tutti i livelli." },
+      { id: "forami", nome: "Forami di coniugazione (panoramica)", normale: "Forami di coniugazione pervi bilateralmente a tutti i livelli." },
+      { id: "midollo", nome: "Midollo cervicale", normale: "Midollo cervicale di morfologia e segnale regolari." },
+      { id: "faccette", nome: "Articolazioni faccettali", normale: "Articolazioni interapofisarie nei limiti." },
+      { id: "paravertebrali", nome: "Tessuti paravertebrali", normale: "Tessuti molli paravertebrali nei limiti." },
+    ]
+  },
+  "rm-rachide-dorsale": {
+    label: "RM Rachide dorsale",
+    modalita: "RM",
+    distretto_key: "rachide_dorsale",
+    specialties: ["neuro", "msk"],
+    voci: [
+      { id: "allineamento", nome: "Allineamento e curva", normale: "Rachide dorsale in asse, normale cifosi." },
+      { id: "corpi-vertebrali", nome: "Corpi vertebrali", normale: "Corpi vertebrali di morfologia e segnale conservati." },
+      { id: "dischi", nome: "Dischi intervertebrali", normale: "Dischi intervertebrali di altezza e segnale conservati." },
+      { id: "canale", nome: "Canale vertebrale", normale: "Canale vertebrale di ampiezza regolare." },
+      { id: "midollo", nome: "Midollo dorsale", normale: "Midollo dorsale di morfologia e segnale regolari." },
+      { id: "forami", nome: "Forami di coniugazione", normale: "Forami di coniugazione pervi." },
+      { id: "paravertebrali", nome: "Tessuti paravertebrali", normale: "Tessuti molli paravertebrali nei limiti." },
+    ]
+  },
+  "rm-rachide-lombare": {
+    label: "RM Rachide lombare",
+    modalita: "RM",
+    distretto_key: "rachide_lombare",
+    specialties: ["neuro", "msk"],
+    voci: [
+      { id: "allineamento", nome: "Allineamento e curva", normale: "Rachide lombare in asse, normale lordosi." },
+      { id: "corpi-vertebrali", nome: "Corpi vertebrali", normale: "Corpi vertebrali di morfologia e segnale conservati, senza alterazioni focali." },
+      { id: "dischi-globale", nome: "Dischi intervertebrali (panoramica)", normale: "Dischi intervertebrali di altezza e segnale conservati a tutti i livelli." },
+      { id: "spazio-d12l1", nome: "Spazio D12-L1", normale: "A livello D12-L1 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-l1l2", nome: "Spazio L1-L2", normale: "A livello L1-L2 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-l2l3", nome: "Spazio L2-L3", normale: "A livello L2-L3 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-l3l4", nome: "Spazio L3-L4", normale: "A livello L3-L4 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-l4l5", nome: "Spazio L4-L5", normale: "A livello L4-L5 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "spazio-l5s1", nome: "Spazio L5-S1", normale: "A livello L5-S1 disco intervertebrale di altezza e segnale conservati, canale vertebrale e forami di coniugazione di ampiezza regolare." },
+      { id: "canale", nome: "Canale vertebrale (panoramica)", normale: "Canale vertebrale di ampiezza regolare a tutti i livelli." },
+      { id: "forami", nome: "Forami di coniugazione (panoramica)", normale: "Forami di coniugazione pervi bilateralmente a tutti i livelli." },
+      { id: "cono-cauda", nome: "Cono midollare e cauda", normale: "Cono midollare in sede, di segnale regolare; radici della cauda equina di disposizione regolare." },
+      { id: "faccette", nome: "Articolazioni faccettali", normale: "Articolazioni interapofisarie nei limiti." },
+      { id: "paravertebrali", nome: "Tessuti paravertebrali", normale: "Tessuti molli paravertebrali nei limiti." },
+      { id: "sacro-iliache", nome: "Articolazioni sacro-iliache", normale: "Articolazioni sacro-iliache nei limiti." },
+    ]
+  },
+  "rm-collo": {
+    label: "RM Collo",
+    modalita: "RM",
+    distretto_key: "collo",
+    specialties: ["neuro", "body"],
+    voci: [
+      { id: "parotidi", nome: "Ghiandole parotidi", normale: "Ghiandole parotidi di morfologia e segnale conservati." },
+      { id: "sottomandibolari", nome: "Ghiandole sottomandibolari", normale: "Ghiandole sottomandibolari nei limiti." },
+      { id: "tiroide", nome: "Tiroide", normale: "Tiroide di morfologia e segnale regolari, senza lesioni focali apprezzabili." },
+      { id: "linfonodi", nome: "Linfonodi", normale: "Stazioni linfonodali del collo libere da linfoadenomegalie significative." },
+      { id: "vie-aero-digestive", nome: "Vie aero-digestive", normale: "Vie aero-digestive superiori di morfologia regolare." },
+      { id: "vasi-collo", nome: "Vasi del collo", normale: "Tronchi sovraortici di morfologia regolare, per quanto valutabile." },
+      { id: "parti-molli", nome: "Tessuti molli del collo", normale: "Tessuti molli del collo nei limiti." },
+    ]
+  },
+  "tc-torace": {
+    label: "TC Torace",
+    modalita: "TC",
+    distretto_key: "torace",
+    specialties: ["toracica", "body", "urgenza"],
+    voci: [
+      { id: "parenchima", nome: "Parenchima polmonare", normale: "Parenchima polmonare normoespanso e normotrasparente, senza addensamenti, noduli o lesioni focali." },
+      { id: "vie-aeree", nome: "Vie aeree", normale: "Trachea e bronchi principali pervi." },
+      { id: "cavi-pleurici", nome: "Cavi pleurici", normale: "Cavi pleurici liberi." },
+      { id: "mediastino", nome: "Mediastino", normale: "Strutture mediastiniche di morfologia regolare; assenza di linfoadenomegalie significative." },
+      { id: "cuore", nome: "Cuore e pericardio", normale: "Cuore di normali dimensioni; pericardio indenne." },
+      { id: "grandi-vasi", nome: "Grandi vasi", normale: "Aorta toracica di calibro regolare; tronchi sovraortici pervi." },
+      { id: "ili", nome: "Ili polmonari", normale: "Ili polmonari di morfologia conservata." },
+      { id: "parete-toracica", nome: "Parete toracica", normale: "Strutture muscolari e ossee della parete toracica nei limiti." },
+      { id: "addome-superiore", nome: "Addome superiore (parziale)", normale: "Per quanto valutabile, organi addominali superiori nei limiti." },
+    ]
+  },
+  "tc-hrct": {
+    label: "TC torace HRCT",
+    modalita: "TC",
+    distretto_key: "polmoni_hrct",
+    specialties: ["toracica"],
+    voci: [
+      { id: "parenchima", nome: "Parenchima polmonare", normale: "Parenchima polmonare normoespanso e normotrasparente." },
+      { id: "disegno-bp", nome: "Disegno bronco-vascolare", normale: "Disegno bronco-vascolare regolare." },
+      { id: "reticolo", nome: "Reticolo interstiziale", normale: "Assenza di accentuazione del reticolo interstiziale." },
+      { id: "honeycomb", nome: "Honeycomb / fibrosi", normale: "Assenza di aspetti a nido d’ape o di fibrosi polmonare." },
+      { id: "ground-glass", nome: "Aree a vetro smerigliato", normale: "Assenza di aree a vetro smerigliato significative." },
+      { id: "noduli", nome: "Noduli", normale: "Assenza di noduli polmonari significativi." },
+      { id: "vie-aeree", nome: "Bronchi", normale: "Bronchi di calibro regolare; assenza di bronchiectasie significative." },
+      { id: "mediastino", nome: "Mediastino", normale: "Mediastino nei limiti." },
+      { id: "pleure", nome: "Pleure", normale: "Cavi pleurici liberi." },
+    ]
+  },
+  "tc-cuore": {
+    label: "TC Cuore (calcium score / coronarica)",
+    modalita: "TC",
+    distretto_key: "cuore",
+    specialties: ["toracica", "body", "urgenza"],
+    voci: [
+      { id: "camere", nome: "Camere cardiache", normale: "Camere cardiache di normali dimensioni." },
+      { id: "coronarie", nome: "Coronarie", normale: "Albero coronarico di morfologia regolare, senza significative stenosi visibili." },
+      { id: "calcium-score", nome: "Calcium score", normale: "Calcium score nei limiti per fascia di età." },
+      { id: "aorta", nome: "Aorta toracica", normale: "Aorta toracica di calibro regolare." },
+      { id: "pericardio", nome: "Pericardio", normale: "Pericardio indenne, assenza di versamento." },
+      { id: "valvole", nome: "Valvole", normale: "Apparato valvolare per quanto valutabile nei limiti." },
+    ]
+  },
+  "tc-angio-polmonare": {
+    label: "TC Angio-polmonare (embolia)",
+    modalita: "TC",
+    distretto_key: "embolia_polmonare",
+    specialties: ["toracica", "urgenza", "body"],
+    voci: [
+      { id: "arterie-polmonari", nome: "Arterie polmonari", normale: "Arterie polmonari principali, lobari e segmentarie pervie, in assenza di difetti di riempimento endoluminali." },
+      { id: "parenchima", nome: "Parenchima polmonare", normale: "Parenchima polmonare normoespanso, in assenza di aree di consolidamento o infarto." },
+      { id: "cuore-dx", nome: "Sezioni destre del cuore", normale: "Sezioni destre del cuore di normali dimensioni; rapporto VD/VS conservato." },
+      { id: "aorta", nome: "Aorta toracica", normale: "Aorta toracica di calibro regolare." },
+      { id: "pleure", nome: "Cavi pleurici", normale: "Cavi pleurici liberi." },
+      { id: "mediastino", nome: "Mediastino", normale: "Mediastino nei limiti." },
+    ]
+  },
+  "tc-aorta-toracica": {
+    label: "TC Angio-aorta toracica",
+    modalita: "TC",
+    distretto_key: "aorta_toracica",
+    specialties: ["toracica", "body", "urgenza"],
+    voci: [
+      { id: "aorta-ascendente", nome: "Aorta ascendente", normale: "Aorta ascendente di calibro regolare." },
+      { id: "arco-aortico", nome: "Arco aortico", normale: "Arco aortico di morfologia regolare." },
+      { id: "aorta-discendente", nome: "Aorta discendente", normale: "Aorta discendente toracica di calibro regolare." },
+      { id: "tsa", nome: "Tronchi sovraortici", normale: "Origine dei tronchi sovraortici pervia." },
+      { id: "parete", nome: "Parete vasale", normale: "Pareti aortiche di spessore regolare, senza segni di dissezione o ematoma intramurale." },
+      { id: "parenchima", nome: "Parenchima polmonare", normale: "Parenchima polmonare nei limiti." },
+      { id: "mediastino", nome: "Mediastino", normale: "Mediastino di morfologia regolare." },
+    ]
+  },
+  "rx-torace": {
+    label: "RX Torace",
+    modalita: "RX",
+    distretto_key: "torace",
+    specialties: ["toracica", "body", "urgenza"],
+    voci: [
+      { id: "parenchima", nome: "Parenchima polmonare", normale: "Parenchima polmonare normoespanso e normotrasparente, senza addensamenti." },
+      { id: "ili", nome: "Ili polmonari", normale: "Ili polmonari di morfologia regolare." },
+      { id: "cuore", nome: "Ombra cardiaca", normale: "Ombra cardiaca di dimensioni nei limiti." },
+      { id: "mediastino", nome: "Mediastino", normale: "Mediastino in asse, di morfologia regolare." },
+      { id: "seni-cf", nome: "Seni costofrenici", normale: "Seni costofrenici liberi." },
+      { id: "cupole", nome: "Cupole diaframmatiche", normale: "Cupole diaframmatiche di morfologia regolare." },
+      { id: "parete", nome: "Parete toracica", normale: "Strutture ossee toraciche e parti molli nei limiti." },
+    ]
+  },
+  "tc-addome-completo": {
+    label: "TC Addome completo",
+    modalita: "TC",
+    distretto_key: "addome_completo",
+    specialties: ["body", "urgenza"],
+    voci: [
+      { id: "fegato", nome: "Fegato", normale: "Fegato di morfo-volumetria conservata, parenchima omogeneo, senza lesioni focali." },
+      { id: "colecisti", nome: "Colecisti e vie biliari", normale: "Colecisti alitiasica; vie biliari intra ed extraepatiche di calibro regolare." },
+      { id: "pancreas", nome: "Pancreas", normale: "Pancreas di morfo-densita' conservata; dotto pancreatico principale di calibro regolare." },
+      { id: "milza", nome: "Milza", normale: "Milza di morfo-volumetria nei limiti, parenchima omogeneo." },
+      { id: "reni", nome: "Reni e surreni", normale: "Reni in sede, di morfo-volumetria e densita’ nei limiti; vie escretrici non dilatate; surreni di morfologia regolare." },
+      { id: "stomaco-anse", nome: "Stomaco e anse intestinali", normale: "Stomaco e anse intestinali di calibro regolare, senza segni di occlusione." },
+      { id: "vescica", nome: "Vescica", normale: "Vescica a pareti regolari." },
+      { id: "utero-prostata", nome: "Pelvi (utero/prostata)", normale: "Strutture pelviche nei limiti." },
+      { id: "aorta", nome: "Aorta addominale", normale: "Aorta addominale di calibro regolare." },
+      { id: "linfonodi", nome: "Linfonodi", normale: "Assenza di linfoadenomegalie significative." },
+      { id: "falde-fluide", nome: "Falde fluide", normale: "Assenza di falde fluide libere endoperitoneali." },
+      { id: "strutture-ossee", nome: "Strutture ossee", normale: "Strutture ossee del distretto esaminato integre." },
+    ]
+  },
+  "tc-addome-superiore": {
+    label: "TC Addome superiore",
+    modalita: "TC",
+    distretto_key: "addome_superiore",
+    specialties: ["body"],
+    voci: [
+      { id: "fegato", nome: "Fegato", normale: "Fegato di morfo-volumetria conservata, in assenza di lesioni focali." },
+      { id: "colecisti", nome: "Colecisti e vie biliari", normale: "Colecisti alitiasica; vie biliari nei limiti." },
+      { id: "pancreas", nome: "Pancreas", normale: "Pancreas di morfologia regolare." },
+      { id: "milza", nome: "Milza", normale: "Milza nei limiti." },
+      { id: "reni-surreni", nome: "Reni e surreni", normale: "Reni e surreni di morfologia regolare." },
+      { id: "linfonodi", nome: "Linfonodi", normale: "Assenza di linfoadenomegalie." },
+      { id: "aorta", nome: "Aorta addominale", normale: "Aorta addominale di calibro regolare." },
+    ]
+  },
+  "tc-pelvi": {
+    label: "TC Pelvi",
+    modalita: "TC",
+    distretto_key: "pelvi",
+    specialties: ["body", "senologia", "urgenza"],
+    voci: [
+      { id: "vescica", nome: "Vescica", normale: "Vescica a pareti regolari, normoespansa." },
+      { id: "utero", nome: "Utero (sesso F)", normale: "Utero di morfologia regolare." },
+      { id: "annessi", nome: "Annessi (sesso F)", normale: "Annessi nei limiti." },
+      { id: "prostata", nome: "Prostata (sesso M)", normale: "Prostata di morfologia e dimensioni nei limiti." },
+      { id: "retto", nome: "Retto", normale: "Retto a pareti regolari." },
+      { id: "anse", nome: "Anse intestinali pelviche", normale: "Anse intestinali pelviche di calibro regolare." },
+      { id: "linfonodi", nome: "Linfonodi pelvici", normale: "Assenza di linfoadenomegalie pelviche." },
+      { id: "strutture-ossee", nome: "Strutture ossee del bacino", normale: "Strutture ossee del bacino integre." },
+      { id: "falde-fluide", nome: "Falde fluide pelviche", normale: "Assenza di falde fluide libere pelviche." },
+    ]
+  },
+  "tc-uro": {
+    label: "TC Uro-TC",
+    modalita: "TC",
+    distretto_key: "uro",
+    specialties: ["body"],
+    voci: [
+      { id: "reni", nome: "Reni", normale: "Reni in sede, di morfologia e dimensioni nei limiti, parenchima di spessore regolare." },
+      { id: "vie-escretrici", nome: "Vie escretrici", normale: "Calici, pelvi e ureteri di calibro regolare bilateralmente, senza segni di idro-uretero-nefrosi." },
+      { id: "vescica", nome: "Vescica", normale: "Vescica a pareti regolari, normoespansa." },
+      { id: "surreni", nome: "Surreni", normale: "Surreni di morfologia regolare." },
+      { id: "aorta", nome: "Aorta addominale", normale: "Aorta addominale di calibro regolare." },
+      { id: "linfonodi", nome: "Linfonodi", normale: "Assenza di linfoadenomegalie." },
+      { id: "calcoli", nome: "Calcoli", normale: "Assenza di formazioni litiasiche evidenti lungo le vie escretrici." },
+    ]
+  },
+  "tc-aorta-addominale": {
+    label: "TC Angio-aorta addominale",
+    modalita: "TC",
+    distretto_key: "aorta_addominale",
+    specialties: ["body", "urgenza"],
+    voci: [
+      { id: "aorta-sotto", nome: "Aorta addominale sotto-renale", normale: "Aorta addominale sotto-renale di calibro regolare." },
+      { id: "aorta-sopra", nome: "Aorta addominale sovra-renale", normale: "Aorta sovra-renale di calibro regolare." },
+      { id: "parete", nome: "Pareti aortiche", normale: "Pareti aortiche di spessore regolare, senza segni di dissezione o ematoma." },
+      { id: "rami-viscerali", nome: "Rami viscerali", normale: "Tripode celiaco, mesenterica superiore e arterie renali pervie all’origine." },
+      { id: "iliache", nome: "Arterie iliache", normale: "Arterie iliache comuni e ipogastriche pervie." },
+      { id: "organi", nome: "Organi addominali", normale: "Organi addominali per quanto valutabile nei limiti." },
+    ]
+  },
+  "rm-spalla": {
+    label: "RM Spalla",
+    modalita: "RM",
+    distretto_key: "spalla",
+    specialties: ["msk"],
+    voci: [
+      { id: "cuffia", nome: "Cuffia dei rotatori", normale: "Cuffia dei rotatori in continuita’, segnale e morfologia conservati." },
+      { id: "sovraspinato", nome: "Sovraspinato", normale: "Tendine sovraspinato di segnale e morfologia regolari." },
+      { id: "sottospinato", nome: "Sottospinato", normale: "Tendine sottospinato di segnale e morfologia regolari." },
+      { id: "sottoscapolare", nome: "Sottoscapolare", normale: "Tendine sottoscapolare di segnale e morfologia regolari." },
+      { id: "cibl", nome: "Capo lungo bicipite", normale: "Capo lungo del bicipite in sede, di segnale regolare." },
+      { id: "labbro", nome: "Labbro glenoideo", normale: "Labbro glenoideo di morfologia conservata, senza lesioni." },
+      { id: "osso", nome: "Strutture ossee", normale: "Omero, glenoide e acromion di segnale regolare." },
+      { id: "articolazione-ac", nome: "Articolazione acromion-claveare", normale: "Articolazione acromion-claveare nei limiti." },
+      { id: "versamento", nome: "Versamento articolare", normale: "Assenza di versamento articolare significativo." },
+    ]
+  },
+  "rm-gomito": {
+    label: "RM Gomito",
+    modalita: "RM",
+    distretto_key: "gomito",
+    specialties: ["msk"],
+    voci: [
+      { id: "epicondilo", nome: "Tendini epicondiloidei", normale: "Tendini epicondiloidei laterali e mediali di morfologia e segnale regolari." },
+      { id: "legamenti", nome: "Legamenti collaterali", normale: "Legamenti collaterali ulnare e radiale in continuita’." },
+      { id: "cartilagine", nome: "Cartilagine", normale: "Cartilagine articolare nei limiti." },
+      { id: "osso", nome: "Strutture ossee", normale: "Capitello radiale, epitroclea ed olecrano di segnale regolare." },
+      { id: "versamento", nome: "Versamento articolare", normale: "Assenza di versamento articolare." },
+      { id: "nervo-ulnare", nome: "Nervo ulnare", normale: "Nervo ulnare nel canale cubitale di morfologia regolare." },
+    ]
+  },
+  "rm-polso": {
+    label: "RM Polso",
+    modalita: "RM",
+    distretto_key: "polso",
+    specialties: ["msk"],
+    voci: [
+      { id: "ossa-carpali", nome: "Ossa del carpo", normale: "Ossa del carpo di morfologia e segnale regolari, senza alterazioni edemigene." },
+      { id: "scafoide", nome: "Scafoide", normale: "Scafoide di segnale regolare." },
+      { id: "legamenti", nome: "Legamenti scafo-lunato e luno-piramidale", normale: "Legamenti intercarpali di morfologia e segnale conservati." },
+      { id: "tfcc", nome: "TFCC", normale: "Complesso fibrocartilagineo triangolare di morfologia regolare." },
+      { id: "tendini-flessori", nome: "Tendini flessori", normale: "Tendini flessori di morfologia e segnale regolari." },
+      { id: "tendini-estensori", nome: "Tendini estensori", normale: "Tendini estensori di morfologia e segnale regolari." },
+      { id: "canale-carpale", nome: "Canale carpale", normale: "Canale carpale di ampiezza regolare, nervo mediano nei limiti." },
+    ]
+  },
+  "rm-mano": {
+    label: "RM Mano",
+    modalita: "RM",
+    distretto_key: "mano",
+    specialties: ["msk"],
+    voci: [
+      { id: "ossa-metacarpali", nome: "Metacarpi e falangi", normale: "Metacarpi e falangi di morfologia e segnale regolari." },
+      { id: "articolazioni", nome: "Articolazioni metacarpo-falangee e interfalangee", normale: "Articolazioni MCF e IF nei limiti." },
+      { id: "tendini-flessori", nome: "Tendini flessori", normale: "Tendini flessori in continuita’." },
+      { id: "tendini-estensori", nome: "Tendini estensori", normale: "Tendini estensori in continuita’." },
+      { id: "legamenti-collaterali", nome: "Legamenti collaterali", normale: "Legamenti collaterali di morfologia regolare." },
+      { id: "parti-molli", nome: "Tessuti molli", normale: "Tessuti molli nei limiti." },
+    ]
+  },
+  "rm-bacino": {
+    label: "RM Bacino / Anche",
+    modalita: "RM",
+    distretto_key: "bacino_anche",
+    specialties: ["msk"],
+    voci: [
+      { id: "teste-femorali", nome: "Teste femorali", normale: "Teste femorali di morfologia e segnale conservati, senza alterazioni edemigene." },
+      { id: "cotili", nome: "Cotili acetabolari", normale: "Cotili acetabolari di morfologia regolare." },
+      { id: "cartilagine", nome: "Cartilagine articolare", normale: "Cartilagine articolare di spessore conservato." },
+      { id: "labbro", nome: "Labbro acetabolare", normale: "Labbro acetabolare di morfologia regolare." },
+      { id: "muscoli", nome: "Muscoli pelvici e adduttori", normale: "Muscoli pelvici e adduttori di trofismo e segnale regolari." },
+      { id: "ossa", nome: "Strutture ossee del bacino", normale: "Strutture ossee del bacino di segnale regolare." },
+      { id: "sacro-iliache", nome: "Articolazioni sacro-iliache", normale: "Articolazioni sacro-iliache nei limiti." },
+    ]
+  },
+  "rm-ginocchio": {
+    label: "RM Ginocchio",
+    modalita: "RM",
+    distretto_key: "ginocchio",
+    specialties: ["msk"],
+    voci: [
+      { id: "menisco-mediale", nome: "Menisco mediale", normale: "Menisco mediale di morfologia e segnale regolari." },
+      { id: "menisco-laterale", nome: "Menisco laterale", normale: "Menisco laterale di morfologia e segnale regolari." },
+      { id: "lca", nome: "LCA", normale: "LCA di morfologia e segnale conservati, in continuita’." },
+      { id: "lcp", nome: "LCP", normale: "LCP di morfologia e segnale conservati." },
+      { id: "lcm", nome: "LCM", normale: "LCM di morfologia regolare, in continuita’." },
+      { id: "lcl", nome: "LCL", normale: "LCL di morfologia regolare, in continuita’." },
+      { id: "cartilagine", nome: "Cartilagine articolare", normale: "Cartilagine articolare di spessore e segnale conservati." },
+      { id: "osso-subcondrale", nome: "Osso subcondrale", normale: "Osso subcondrale e spongiosa di segnale regolare." },
+      { id: "apparato-estensore", nome: "Apparato estensore", normale: "Tendine quadricipitale e rotuleo di morfologia e segnale regolari." },
+      { id: "cavo-popliteo", nome: "Cavo popliteo", normale: "Cavo popliteo libero, senza versamento o cisti." },
+      { id: "versamento", nome: "Versamento articolare", normale: "Assenza di versamento articolare significativo." },
+    ]
+  },
+  "rm-caviglia": {
+    label: "RM Caviglia",
+    modalita: "RM",
+    distretto_key: "caviglia",
+    specialties: ["msk"],
+    voci: [
+      { id: "achille", nome: "Tendine d’Achille", normale: "Tendine d’Achille di morfologia e segnale regolari, in continuita’." },
+      { id: "peronieri", nome: "Tendini peronieri", normale: "Tendini peronieri di morfologia e segnale regolari." },
+      { id: "tibiale-post", nome: "Tibiale posteriore", normale: "Tendine tibiale posteriore in continuita’." },
+      { id: "legamenti-laterali", nome: "Legamenti laterali", normale: "Legamenti peroneo-astragalico anteriore e calcaneo-fibulare di morfologia regolare." },
+      { id: "legamento-deltoideo", nome: "Legamento deltoideo", normale: "Legamento deltoideo in continuita’." },
+      { id: "cartilagine", nome: "Cartilagine tibio-tarsica", normale: "Cartilagine articolare tibio-tarsica di spessore conservato." },
+      { id: "osso", nome: "Ossa tarsali", normale: "Ossa tarsali di segnale regolare." },
+      { id: "versamento", nome: "Versamento articolare", normale: "Assenza di versamento articolare." },
+    ]
+  },
+  "rm-piede": {
+    label: "RM Piede",
+    modalita: "RM",
+    distretto_key: "piede",
+    specialties: ["msk"],
+    voci: [
+      { id: "avampiede", nome: "Avampiede", normale: "Strutture dell’avampiede di morfologia e segnale regolari." },
+      { id: "mesopiede", nome: "Mesopiede", normale: "Strutture del mesopiede nei limiti." },
+      { id: "retropiede", nome: "Retropiede", normale: "Strutture del retropiede nei limiti." },
+      { id: "articolazioni", nome: "Articolazioni mtt-falangee", normale: "Articolazioni metatarso-falangee nei limiti." },
+      { id: "plantare", nome: "Fascia plantare", normale: "Fascia plantare di morfologia e segnale regolari." },
+      { id: "parti-molli", nome: "Tessuti molli", normale: "Tessuti molli nei limiti." },
+    ]
+  },
+  "eco-addome": {
+    label: "Ecografia addome completo",
+    modalita: "US",
+    distretto_key: "addome_completo",
+    specialties: ["eco"],
+    voci: [
+      { id: "fegato", nome: "Fegato", normale: "Fegato di dimensioni e morfologia nei limiti, ecostruttura omogenea, senza lesioni focali." },
+      { id: "vie-biliari", nome: "Vie biliari", normale: "Vie biliari intra ed extraepatiche di calibro regolare." },
+      { id: "colecisti", nome: "Colecisti", normale: "Colecisti alitiasica, a pareti sottili." },
+      { id: "pancreas", nome: "Pancreas", normale: "Pancreas di ecostruttura omogenea, per quanto valutabile." },
+      { id: "milza", nome: "Milza", normale: "Milza di dimensioni nei limiti, ecostruttura omogenea." },
+      { id: "rene-dx", nome: "Rene destro", normale: "Rene destro in sede, di dimensioni e morfologia nei limiti, senza dilatazione delle vie escretrici." },
+      { id: "rene-sn", nome: "Rene sinistro", normale: "Rene sinistro in sede, di dimensioni e morfologia nei limiti, senza dilatazione delle vie escretrici." },
+      { id: "aorta", nome: "Aorta addominale", normale: "Aorta addominale di calibro regolare." },
+      { id: "vescica", nome: "Vescica", normale: "Vescica a pareti sottili e regolari." },
+      { id: "liquido-libero", nome: "Liquido libero", normale: "Assenza di falde fluide libere significative." },
+    ]
+  },
+  "eco-tiroide": {
+    label: "Ecografia tiroide",
+    modalita: "US",
+    distretto_key: "tiroide",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "lobo-dx", nome: "Lobo destro", normale: "Lobo tiroideo destro di dimensioni nei limiti, ecostruttura omogenea, senza lesioni focali." },
+      { id: "lobo-sn", nome: "Lobo sinistro", normale: "Lobo tiroideo sinistro di dimensioni nei limiti, ecostruttura omogenea, senza lesioni focali." },
+      { id: "istmo", nome: "Istmo", normale: "Istmo di spessore regolare." },
+      { id: "vascolarizzazione", nome: "Vascolarizzazione", normale: "Vascolarizzazione tiroidea regolare al color-Doppler." },
+      { id: "linfonodi", nome: "Linfonodi del collo", normale: "Linfonodi laterocervicali di morfologia regolare." },
+    ]
+  },
+  "eco-tsa": {
+    label: "Ecocolordoppler TSA",
+    modalita: "US",
+    distretto_key: "tsa",
+    specialties: ["eco", "neuro"],
+    voci: [
+      { id: "cca-dx", nome: "Carotide comune destra", normale: "Carotide comune destra di calibro regolare, flusso laminare." },
+      { id: "cca-sn", nome: "Carotide comune sinistra", normale: "Carotide comune sinistra di calibro regolare, flusso laminare." },
+      { id: "biforcazione-dx", nome: "Biforcazione carotidea destra", normale: "Biforcazione carotidea destra senza placche significative." },
+      { id: "biforcazione-sn", nome: "Biforcazione carotidea sinistra", normale: "Biforcazione carotidea sinistra senza placche significative." },
+      { id: "cint-dx", nome: "Carotide interna destra", normale: "Carotide interna destra pervia, picco sistolico nei limiti." },
+      { id: "cint-sn", nome: "Carotide interna sinistra", normale: "Carotide interna sinistra pervia, picco sistolico nei limiti." },
+      { id: "vertebrali", nome: "Arterie vertebrali", normale: "Arterie vertebrali di flusso anterogrado, simmetrico." },
+      { id: "imt", nome: "IMT (intima-media)", normale: "IMT nei limiti per fascia di età." },
+    ]
+  },
+  "eco-mammella": {
+    label: "Ecografia mammaria",
+    modalita: "US",
+    distretto_key: "mammella",
+    specialties: ["eco", "senologia"],
+    voci: [
+      { id: "tessuto-dx", nome: "Mammella destra", normale: "Tessuto fibroghiandolare di ecostruttura conservata, senza lesioni focali a destra." },
+      { id: "tessuto-sn", nome: "Mammella sinistra", normale: "Tessuto fibroghiandolare di ecostruttura conservata, senza lesioni focali a sinistra." },
+      { id: "cute", nome: "Cute e sottocute", normale: "Cute di spessore regolare; sottocute libero." },
+      { id: "capezzolo", nome: "Capezzolo", normale: "Regione retro-areolare di ecostruttura conservata bilateralmente." },
+      { id: "cavi-ascellari", nome: "Cavi ascellari", normale: "Cavi ascellari liberi da linfoadenomegalie significative." },
+    ]
+  },
+  "eco-ginocchio": {
+    label: "Ecografia ginocchio",
+    modalita: "US",
+    distretto_key: "ginocchio",
+    specialties: ["eco", "msk"],
+    voci: [
+      { id: "apparato-estensore", nome: "Apparato estensore", normale: "Tendine quadricipitale e rotuleo di ecostruttura regolare." },
+      { id: "versamento", nome: "Versamento articolare", normale: "Assenza di versamento articolare significativo." },
+      { id: "cavo-popliteo", nome: "Cavo popliteo", normale: "Cavo popliteo libero, senza cisti di Baker." },
+      { id: "legamenti-collaterali", nome: "Legamenti collaterali", normale: "Legamenti collaterali superficiali nei limiti." },
+    ]
+  },
+  "eco-spalla": {
+    label: "Ecografia spalla",
+    modalita: "US",
+    distretto_key: "spalla",
+    specialties: ["eco", "msk"],
+    voci: [
+      { id: "cibl", nome: "Capo lungo bicipite", normale: "Capo lungo del bicipite in sede, ecostruttura regolare." },
+      { id: "sottoscapolare", nome: "Sottoscapolare", normale: "Tendine sottoscapolare in continuita’." },
+      { id: "sovraspinato", nome: "Sovraspinato", normale: "Tendine sovraspinato in continuita’." },
+      { id: "sottospinato", nome: "Sottospinato", normale: "Tendine sottospinato in continuita’." },
+      { id: "borsa", nome: "Borsa subacromion-deltoidea", normale: "Borsa subacromion-deltoidea di spessore regolare." },
+      { id: "articolazione-ac", nome: "Articolazione acromion-claveare", normale: "Articolazione acromion-claveare nei limiti." },
+    ]
+  },
+  "eco-arti-arteriosi": {
+    label: "Ecocolordoppler arti inferiori arterioso",
+    modalita: "US",
+    distretto_key: "arti_inf_arteriosi",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "femorali", nome: "Arterie femorali", normale: "Arterie femorali comuni e superficiali pervie bilateralmente, flusso trifasico." },
+      { id: "poplitee", nome: "Arterie poplitee", normale: "Arterie poplitee pervie bilateralmente." },
+      { id: "tibiali-post", nome: "Tibiali posteriori", normale: "Arterie tibiali posteriori pervie bilateralmente." },
+      { id: "tibiali-ant", nome: "Tibiali anteriori", normale: "Arterie tibiali anteriori pervie bilateralmente." },
+      { id: "placche", nome: "Placche aterosclerotiche", normale: "Assenza di placche aterosclerotiche significative." },
+    ]
+  },
+  "eco-arti-venosi": {
+    label: "Ecocolordoppler arti inferiori venoso",
+    modalita: "US",
+    distretto_key: "arti_inf_venosi",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "femorale-comune", nome: "Femorale comune", normale: "Vena femorale comune comprimibile bilateralmente, flusso fasico." },
+      { id: "femorale-sup", nome: "Femorale superficiale", normale: "Vena femorale superficiale comprimibile bilateralmente." },
+      { id: "poplitea", nome: "Vena poplitea", normale: "Vena poplitea comprimibile bilateralmente." },
+      { id: "gemellari", nome: "Vene gemellari", normale: "Vene gemellari pervie bilateralmente." },
+      { id: "safena-grande", nome: "Safena grande", normale: "Safena grande di calibro regolare bilateralmente." },
+      { id: "trombosi", nome: "Trombosi venose", normale: "Assenza di segni di trombosi venosa profonda." },
+    ]
+  },
+  "eco-addome-superiore": {
+    label: "Ecografia addome superiore",
+    modalita: "US",
+    distretto_key: "addome_superiore",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "fegato", nome: "Fegato", normale: "Fegato di dimensioni e morfologia nei limiti, ecostruttura omogenea, senza lesioni focali." },
+      { id: "vie-biliari", nome: "Vie biliari", normale: "Vie biliari intra ed extraepatiche di calibro regolare." },
+      { id: "colecisti", nome: "Colecisti", normale: "Colecisti alitiasica, a pareti sottili." },
+      { id: "pancreas", nome: "Pancreas", normale: "Pancreas di ecostruttura omogenea, per quanto valutabile." },
+      { id: "milza", nome: "Milza", normale: "Milza di dimensioni nei limiti, ecostruttura omogenea." },
+      { id: "aorta", nome: "Aorta addominale", normale: "Aorta addominale di calibro regolare." },
+      { id: "linfonodi", nome: "Linfonodi addominali", normale: "Assenza di linfoadenomegalie significative." },
+    ]
+  },
+  "eco-reni-vescica": {
+    label: "Ecografia reni e vescica",
+    modalita: "US",
+    distretto_key: "reni_surreni",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "rene-dx", nome: "Rene destro", normale: "Rene destro in sede, di dimensioni e morfologia nei limiti, parenchima di spessore conservato, vie escretrici non dilatate." },
+      { id: "rene-sn", nome: "Rene sinistro", normale: "Rene sinistro in sede, di dimensioni e morfologia nei limiti, parenchima di spessore conservato, vie escretrici non dilatate." },
+      { id: "surreni", nome: "Logge surrenali", normale: "Logge surrenali libere, per quanto valutabile." },
+      { id: "vescica", nome: "Vescica", normale: "Vescica a pareti sottili e regolari, contenuto anecogeno." },
+      { id: "calcoli", nome: "Calcoli", normale: "Assenza di formazioni litiasiche apprezzabili." },
+      { id: "residuo-post-minzionale", nome: "Residuo post-minzionale", normale: "Residuo post-minzionale nei limiti." },
+    ]
+  },
+  "eco-vescico-prostatica": {
+    label: "Ecografia vescico-prostatica (sovrapubica)",
+    modalita: "US",
+    distretto_key: "prostata",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "vescica", nome: "Vescica", normale: "Vescica a pareti sottili e regolari, contenuto anecogeno." },
+      { id: "prostata-volume", nome: "Volume prostatico", normale: "Prostata di volume nei limiti per fascia di età." },
+      { id: "prostata-eco", nome: "Ecostruttura prostatica", normale: "Ecostruttura prostatica omogenea, senza lesioni focali apprezzabili." },
+      { id: "lobi", nome: "Lobi prostatici", normale: "Simmetria dei lobi prostatici conservata." },
+      { id: "vescicole-seminali", nome: "Vescicole seminali", normale: "Vescicole seminali simmetriche, di morfologia regolare." },
+      { id: "residuo", nome: "Residuo post-minzionale", normale: "Residuo post-minzionale nei limiti." },
+    ]
+  },
+  "eco-testicoli": {
+    label: "Ecografia testicolare (scrotale)",
+    modalita: "US",
+    distretto_key: "altro",
+    specialties: ["eco", "urgenza"],
+    voci: [
+      { id: "testicolo-dx", nome: "Testicolo destro", normale: "Testicolo destro in sede, di dimensioni e morfologia nei limiti, ecostruttura omogenea, senza lesioni focali." },
+      { id: "testicolo-sn", nome: "Testicolo sinistro", normale: "Testicolo sinistro in sede, di dimensioni e morfologia nei limiti, ecostruttura omogenea, senza lesioni focali." },
+      { id: "epididimo-dx", nome: "Epididimo destro", normale: "Epididimo destro di morfologia ed ecostruttura regolari." },
+      { id: "epididimo-sn", nome: "Epididimo sinistro", normale: "Epididimo sinistro di morfologia ed ecostruttura regolari." },
+      { id: "vascolarizzazione", nome: "Vascolarizzazione", normale: "Vascolarizzazione testicolare ed epididimaria simmetrica al color-Doppler." },
+      { id: "varicocele", nome: "Plesso pampiniforme", normale: "Plesso pampiniforme nei limiti bilateralmente, senza segni di varicocele." },
+      { id: "idrocele", nome: "Idrocele", normale: "Assenza di significativa raccolta liquida intra-vaginale." },
+      { id: "scrotale", nome: "Sacca scrotale e cute", normale: "Sacca scrotale e cute di spessore regolare." },
+    ]
+  },
+  "eco-tv": {
+    label: "Ecografia transvaginale",
+    modalita: "US",
+    distretto_key: "utero_annessi",
+    specialties: ["eco", "senologia"],
+    voci: [
+      { id: "utero", nome: "Utero", normale: "Utero in anteversoflessione, di dimensioni e morfologia nei limiti per età." },
+      { id: "endometrio", nome: "Endometrio", normale: "Rima endometriale di spessore conservato per fase del ciclo." },
+      { id: "miometrio", nome: "Miometrio", normale: "Miometrio di ecostruttura omogenea, senza lesioni focali." },
+      { id: "cervice", nome: "Cervice", normale: "Cervice uterina di morfologia regolare." },
+      { id: "ovaio-dx", nome: "Ovaio destro", normale: "Ovaio destro in sede, di dimensioni nei limiti, contenente strutture follicolari fisiologiche." },
+      { id: "ovaio-sn", nome: "Ovaio sinistro", normale: "Ovaio sinistro in sede, di dimensioni nei limiti, contenente strutture follicolari fisiologiche." },
+      { id: "douglas", nome: "Cavo del Douglas", normale: "Cavo del Douglas libero, senza falde fluide significative." },
+    ]
+  },
+  "eco-collo-linfonodi": {
+    label: "Ecografia linfonodi cervicali",
+    modalita: "US",
+    distretto_key: "collo",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "lat-cervicali-dx", nome: "Stazioni laterocervicali destre", normale: "Stazioni linfonodali laterocervicali destre libere da linfoadenomegalie significative." },
+      { id: "lat-cervicali-sn", nome: "Stazioni laterocervicali sinistre", normale: "Stazioni linfonodali laterocervicali sinistre libere da linfoadenomegalie significative." },
+      { id: "sottomandibolari", nome: "Stazioni sottomandibolari", normale: "Stazioni sottomandibolari nei limiti bilateralmente." },
+      { id: "sopraclaveari", nome: "Stazioni sopraclaveari", normale: "Stazioni sopraclaveari libere bilateralmente." },
+      { id: "morfologia", nome: "Morfologia linfonodale", normale: "Linfonodi reperiti, di morfologia ovalare con ilo iperecogeno conservato." },
+    ]
+  },
+  "eco-ghiandole-salivari": {
+    label: "Ecografia ghiandole salivari",
+    modalita: "US",
+    distretto_key: "ghiandole_salivari",
+    specialties: ["eco", "body"],
+    voci: [
+      { id: "parotide-dx", nome: "Parotide destra", normale: "Parotide destra di dimensioni e morfologia nei limiti, ecostruttura omogenea." },
+      { id: "parotide-sn", nome: "Parotide sinistra", normale: "Parotide sinistra di dimensioni e morfologia nei limiti, ecostruttura omogenea." },
+      { id: "sottomandibolare-dx", nome: "Sottomandibolare destra", normale: "Ghiandola sottomandibolare destra di morfologia regolare." },
+      { id: "sottomandibolare-sn", nome: "Sottomandibolare sinistra", normale: "Ghiandola sottomandibolare sinistra di morfologia regolare." },
+      { id: "dotti", nome: "Dotti escretori", normale: "Dotti escretori non dilatati." },
+      { id: "calcoli", nome: "Calcoli salivari", normale: "Assenza di calcoli salivari evidenti." },
+    ]
+  },
+  "eco-anche-pediatrica": {
+    label: "Ecografia anche pediatriche (DDH)",
+    modalita: "US",
+    distretto_key: "bacino_anche",
+    specialties: ["eco", "msk"],
+    voci: [
+      { id: "anca-dx-graf", nome: "Anca destra (Graf)", normale: "Anca destra di tipo Ia secondo Graf, con angolo alfa nei limiti." },
+      { id: "anca-sn-graf", nome: "Anca sinistra (Graf)", normale: "Anca sinistra di tipo Ia secondo Graf, con angolo alfa nei limiti." },
+      { id: "tetto-osseo-dx", nome: "Tetto osseo destro", normale: "Tetto osseo destro ben formato." },
+      { id: "tetto-osseo-sn", nome: "Tetto osseo sinistro", normale: "Tetto osseo sinistro ben formato." },
+      { id: "labbro-dx", nome: "Labbro cartilagineo destro", normale: "Labbro cartilagineo destro a copertura adeguata della testa femorale." },
+      { id: "labbro-sn", nome: "Labbro cartilagineo sinistro", normale: "Labbro cartilagineo sinistro a copertura adeguata della testa femorale." },
+    ]
+  },
+  "eco-tessuti-molli": {
+    label: "Ecografia tessuti molli (sede)",
+    modalita: "US",
+    distretto_key: "altro",
+    specialties: ["eco", "msk"],
+    voci: [
+      { id: "cute-sottocute", nome: "Cute e sottocute", normale: "Cute e tessuto sottocutaneo di spessore regolare." },
+      { id: "fascia", nome: "Fascia muscolare", normale: "Fascia muscolare di continuita\u2019 conservata." },
+      { id: "muscoli", nome: "Muscoli", normale: "Muscoli di trofismo ed ecostruttura regolari." },
+      { id: "raccolte", nome: "Raccolte fluide", normale: "Assenza di raccolte fluide o ascessuali." },
+      { id: "lesioni-focali", nome: "Lesioni focali", normale: "Assenza di lesioni focali apprezzabili nella sede esaminata." },
+      { id: "vascolarizzazione", nome: "Vascolarizzazione", normale: "Vascolarizzazione regolare al color-Doppler nelle strutture esaminate." },
+    ]
+  },
+  "rm-mammella": {
+    label: "RM Mammella",
+    modalita: "RM",
+    distretto_key: "mammella",
+    specialties: ["senologia"],
+    voci: [
+      { id: "mammella-dx", nome: "Mammella destra", normale: "Mammella destra di morfologia regolare, in assenza di lesioni focali con presa di contrasto significativa." },
+      { id: "mammella-sn", nome: "Mammella sinistra", normale: "Mammella sinistra di morfologia regolare, in assenza di lesioni focali con presa di contrasto significativa." },
+      { id: "cute", nome: "Cute e capezzolo", normale: "Cute e regione retro-areolare nei limiti bilateralmente." },
+      { id: "cavi-ascellari", nome: "Cavi ascellari", normale: "Cavi ascellari liberi da linfoadenomegalie significative." },
+      { id: "parete-toracica", nome: "Parete toracica", normale: "Parete toracica indenne." },
+      { id: "curve-presa", nome: "Curve di presa di contrasto", normale: "Curve di presa di contrasto di tipo 1 nei limiti." },
+    ]
+  },
+  "mx-mammografia": {
+    label: "Mammografia",
+    modalita: "MX",
+    distretto_key: "mammella",
+    specialties: ["senologia"],
+    voci: [
+      { id: "densita-dx", nome: "Densità mammaria destra", normale: "Mammella destra di densità ACR-B, regolare." },
+      { id: "densita-sn", nome: "Densità mammaria sinistra", normale: "Mammella sinistra di densità ACR-B, regolare." },
+      { id: "opacita", nome: "Opacità sospette", normale: "Assenza di opacità sospette bilateralmente." },
+      { id: "microcalcificazioni", nome: "Microcalcificazioni", normale: "Assenza di microcalcificazioni di significato sospetto." },
+      { id: "distorsioni", nome: "Distorsioni parenchimali", normale: "Assenza di distorsioni architetturali." },
+      { id: "cute-capezzolo", nome: "Cute e capezzolo", normale: "Cute e capezzoli nei limiti bilateralmente." },
+      { id: "cavi-ascellari", nome: "Cavi ascellari", normale: "Cavi ascellari liberi." },
+      { id: "birads", nome: "Categoria BI-RADS", normale: "Categoria BI-RADS 1 (negativo)." },
+    ]
+  },
+  "rx-bacino": {
+    label: "RX Bacino",
+    modalita: "RX",
+    distretto_key: "bacino_anche",
+    specialties: ["urgenza", "msk"],
+    voci: [
+      { id: "ossa", nome: "Strutture ossee del bacino", normale: "Strutture ossee del bacino integre, senza rime di frattura evidenti." },
+      { id: "teste-femorali", nome: "Teste femorali", normale: "Teste femorali in sede, di morfologia regolare." },
+      { id: "pubo", nome: "Sinfisi pubica", normale: "Sinfisi pubica nei limiti." },
+      { id: "sacro-iliache", nome: "Articolazioni sacro-iliache", normale: "Articolazioni sacro-iliache nei limiti." },
+      { id: "parti-molli", nome: "Parti molli", normale: "Tessuti molli nei limiti." },
+    ]
+  },
+  "rx-rachide-lombare": {
+    label: "RX Rachide lombare",
+    modalita: "RX",
+    distretto_key: "rachide_lombare",
+    specialties: ["urgenza", "msk"],
+    voci: [
+      { id: "allineamento", nome: "Allineamento e curva", normale: "Rachide lombare in asse, normale lordosi." },
+      { id: "corpi-vertebrali", nome: "Corpi vertebrali", normale: "Corpi vertebrali di altezza conservata." },
+      { id: "dischi", nome: "Spazi intersomatici", normale: "Spazi intersomatici nei limiti." },
+      { id: "peduncoli", nome: "Peduncoli e articolazioni faccettali", normale: "Peduncoli e articolazioni faccettali regolari." },
+      { id: "parti-molli", nome: "Parti molli paravertebrali", normale: "Parti molli paravertebrali nei limiti." },
+    ]
+  },
+  "rx-arto": {
+    label: "RX Arto (segmento)",
+    modalita: "RX",
+    distretto_key: "gamba",
+    specialties: ["urgenza", "msk"],
+    voci: [
+      { id: "ossa", nome: "Strutture ossee", normale: "Strutture ossee del segmento esaminato integre, senza rime di frattura evidenti." },
+      { id: "articolazioni", nome: "Articolazioni", normale: "Rapporti articolari conservati." },
+      { id: "parti-molli", nome: "Parti molli", normale: "Tessuti molli nei limiti, senza inoltrate strutture radio-opache." },
+    ]
+  },
+  "tc-collo": {
+    label: "TC Collo",
+    modalita: "TC",
+    distretto_key: "collo",
+    specialties: ["body", "urgenza", "neuro"],
+    voci: [
+      { id: "parotidi", nome: "Ghiandole parotidi", normale: "Ghiandole parotidi di morfologia e densita’ regolari." },
+      { id: "sottomandibolari", nome: "Ghiandole sottomandibolari", normale: "Ghiandole sottomandibolari nei limiti." },
+      { id: "tiroide", nome: "Tiroide", normale: "Tiroide di morfologia regolare." },
+      { id: "linfonodi", nome: "Linfonodi", normale: "Stazioni linfonodali del collo libere da linfoadenomegalie significative." },
+      { id: "vie-aeree", nome: "Vie aeree e digestive", normale: "Trachea, ipofaringe ed esofago cervicale di calibro regolare." },
+      { id: "vasi", nome: "Vasi del collo", normale: "Tronchi sovraortici di calibro regolare." },
+      { id: "rachide-cervicale", nome: "Rachide cervicale", normale: "Rachide cervicale per quanto valutabile nei limiti." },
+    ]
+  },
+  "altro": {
+    label: "Generale (template generico)",
+    modalita: "OTHER",
+    distretto_key: "altro",
+    specialties: ["neuro", "body", "msk", "senologia", "toracica", "eco", "urgenza"],
+    voci: [
+      { id: "reperti-principali", nome: "Reperti principali", normale: "Reperti principali nei limiti." },
+      { id: "reperti-secondari", nome: "Reperti secondari", normale: "Reperti secondari nei limiti." },
+      { id: "strutture-adiacenti", nome: "Strutture adiacenti", normale: "Strutture adiacenti nei limiti." },
+    ]
+  }
+};
+
+/* ============================================================
+   CHECKLIST WIRE — drawer logic
+   ============================================================ */
+(function wireChecklist() {
+  'use strict';
+  const STATE_KEY = 'refertium_checklist_state_v2';
+
+  let cstate = { templateId: null, voci: {} };
+
+  function $(id) { return document.getElementById(id); }
+  const toggleBtn  = $('clToggle');
+  const drawer     = $('clDrawer');
+  const backdrop   = $('clBackdrop');
+  const closeBtn   = $('clCloseBtn');
+  const select     = $('clTemplateSelect');
+  const body       = $('clBody');
+  const progress   = $('clProgress');
+  const modality   = $('clModality');
+  const resetBtn   = $('clResetBtn');
+  const generateBtn= $('clGenerateBtn');
+
+  if (!toggleBtn || !drawer) return; // markup non inserito
+
+  // ─── Persistence ─────────────────────────────────────────
+  try {
+    const raw = sessionStorage.getItem(STATE_KEY);
+    if (raw) cstate = JSON.parse(raw);
+  } catch { cstate = { templateId: null, voci: {} }; }
+  if (!cstate.voci) cstate.voci = {};
+
+  function saveState() {
+    try { sessionStorage.setItem(STATE_KEY, JSON.stringify(cstate)); } catch {}
+  }
+
+  // ─── Build dropdown options ──────────────────────────────
+  const templates = window.CHECKLIST_TEMPLATES || {};
+  Object.keys(templates).forEach((id) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = templates[id].label || id;
+    select.appendChild(opt);
+  });
+
+  // ─── Open / close drawer ─────────────────────────────────
+  function openDrawer() {
+    drawer.classList.add('open');
+    backdrop.classList.add('open');
+    toggleBtn.classList.add('active');
+    if (cstate.templateId) {
+      select.value = cstate.templateId;
+      renderTemplate(cstate.templateId);
+    }
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    backdrop.classList.remove('open');
+    toggleBtn.classList.remove('active');
+  }
+  toggleBtn.addEventListener('click', () => {
+    if (drawer.classList.contains('open')) closeDrawer();
+    else openDrawer();
+  });
+  closeBtn.addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+
+  // ─── Template selection ──────────────────────────────────
+  select.addEventListener('change', () => {
+    const id = select.value;
+    if (id && (!cstate.templateId || cstate.templateId !== id)) {
+      cstate = { templateId: id, voci: {} };
+      saveState();
+    } else if (!id) {
+      cstate = { templateId: null, voci: {} };
+      saveState();
+    }
+    renderTemplate(id);
+  });
+
+  // ─── Render ──────────────────────────────────────────────
+  function renderTemplate(id) {
+    if (!id) {
+      body.innerHTML = `
+        <div class="cl-empty">
+          Seleziona un esame dall'elenco qui sopra.<br><br>
+          Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
+          oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
+        </div>`;
+      progress.textContent = '';
+      modality.style.display = 'none';
+      generateBtn.disabled = true;
+      return;
+    }
+    const tpl = templates[id];
+    if (!tpl) return;
+    modality.textContent = tpl.modalita || '';
+    modality.style.display = tpl.modalita ? 'inline-flex' : 'none';
+    body.innerHTML = '';
+    tpl.voci.forEach((voce) => {
+      body.appendChild(renderVoce(voce));
+    });
+    updateProgress();
+  }
+
+  function renderVoce(voce) {
+    const v = cstate.voci[voce.id] || { state: null, text: '' };
+    const item = document.createElement('div');
+    item.className = 'cl-item' + (v.state === 'normal' ? ' is-normal' : v.state === 'prompt' ? ' is-prompt' : '');
+
+    const head = document.createElement('div');
+    head.className = 'cl-item-head';
+
+    const name = document.createElement('span');
+    name.className = 'cl-item-name';
+    name.textContent = voce.nome;
+    head.appendChild(name);
+
+    const btnNormal = document.createElement('button');
+    btnNormal.className = 'cl-state-btn' + (v.state === 'normal' ? ' active normal' : '');
+    btnNormal.type = 'button';
+    btnNormal.textContent = 'Normale';
+    btnNormal.addEventListener('click', () => {
+      cstate.voci[voce.id] = { state: v.state === 'normal' ? null : 'normal', text: '' };
+      saveState();
+      // re-render full item per stato visivo
+      const next = renderVoce(voce);
+      item.replaceWith(next);
+      updateProgress();
+    });
+    head.appendChild(btnNormal);
+
+    const btnPrompt = document.createElement('button');
+    btnPrompt.className = 'cl-state-btn' + (v.state === 'prompt' ? ' active prompt' : '');
+    btnPrompt.type = 'button';
+    btnPrompt.textContent = 'Nota';
+    btnPrompt.addEventListener('click', () => {
+      cstate.voci[voce.id] = { state: v.state === 'prompt' ? null : 'prompt', text: v.text || '' };
+      saveState();
+      const next = renderVoce(voce);
+      item.replaceWith(next);
+      updateProgress();
+    });
+    head.appendChild(btnPrompt);
+
+    item.appendChild(head);
+
+    if (v.state === 'normal') {
+      const text = document.createElement('div');
+      text.className = 'cl-item-text';
+      text.textContent = voce.normale;
+      item.appendChild(text);
+    } else if (v.state === 'prompt') {
+      const ta = document.createElement('textarea');
+      ta.className = 'cl-item-note';
+      ta.placeholder = 'Descrivi il reperto (es. lesione focale di 12 mm in sede…)';
+      ta.value = v.text || '';
+      ta.addEventListener('input', () => {
+        cstate.voci[voce.id] = { state: 'prompt', text: ta.value };
+        saveState();
+        updateProgress();
+      });
+      item.appendChild(ta);
+    }
+    return item;
+  }
+
+  function updateProgress() {
+    const tpl = cstate.templateId && templates[cstate.templateId];
+    if (!tpl) { progress.textContent = ''; generateBtn.disabled = true; return; }
+    const total = tpl.voci.length;
+    const compiled = tpl.voci.filter((v) => {
+      const s = cstate.voci[v.id];
+      return s && (s.state === 'normal' || (s.state === 'prompt' && s.text && s.text.trim()));
+    }).length;
+    progress.textContent = compiled + ' / ' + total + ' voci';
+    generateBtn.disabled = compiled === 0;
+  }
+
+  // ─── Reset ───────────────────────────────────────────────
+  resetBtn.addEventListener('click', () => {
+    cstate = { templateId: cstate.templateId, voci: {} };
+    saveState();
+    if (cstate.templateId) renderTemplate(cstate.templateId);
+  });
+
+  // ─── Generate report via AI ──────────────────────────────
+  generateBtn.addEventListener('click', async () => {
+    const tpl = cstate.templateId && templates[cstate.templateId];
+    if (!tpl) return;
+    const voci = tpl.voci.map((v) => {
+      const s = cstate.voci[v.id];
+      if (!s || !s.state) return null;
+      if (s.state === 'normal') return { nome: v.nome, normale: v.normale };
+      if (s.state === 'prompt' && s.text && s.text.trim()) {
+        return { nome: v.nome, nota: s.text.trim() };
+      }
+      return null;
+    }).filter(Boolean);
+    if (!voci.length) return;
+
+    generateBtn.disabled = true;
+    const oldLabel = generateBtn.innerHTML;
+    generateBtn.innerHTML = '⏳ Genero…';
+
+    try {
+      const draft = await generateReportFromChecklist(tpl, voci);
+      // Inserisci nel editor — usa la funzione del template host se disponibile
+      if (typeof window.refertiumInsertChecklistDraft === 'function') {
+        window.refertiumInsertChecklistDraft(draft);
+      } else {
+        const editor = document.getElementById('editor');
+        if (editor) {
+          editor.innerHTML = '';
+          draft.split(/\n{2,}/).forEach((para) => {
+            const p = document.createElement('p');
+            const lines = para.split('\n');
+            lines.forEach((line, idx) => {
+              if (idx > 0) p.appendChild(document.createElement('br'));
+              p.appendChild(document.createTextNode(line));
+            });
+            editor.appendChild(p);
+          });
+        }
+      }
+      closeDrawer();
+    } catch (err) {
+      console.error('checklist generate failed:', err);
+      alert('Errore generazione: ' + (err.message || 'sconosciuto'));
+    } finally {
+      generateBtn.innerHTML = oldLabel;
+      updateProgress();
+    }
+  });
+
+  // Riempie il riepilogo voci e chiama l'AI per ricomporre un referto continuo.
+  async function generateReportFromChecklist(tpl, voci) {
+    if (typeof window.streamChatCompletion !== 'function') {
+      throw new Error('streamChatCompletion non disponibile');
+    }
+    const lines = voci.map((v) => {
+      if (v.normale) return '- ' + v.nome + ': [NORMALE] ' + v.normale;
+      return '- ' + v.nome + ': [REPERTO] ' + v.nota;
+    }).join('\n');
+
+    const system = [
+      'Sei un radiologo esperto. Hai una lista di voci di una checklist strutturata',
+      'per l\'esame "' + tpl.label + '" (modalità ' + (tpl.modalita || 'radiologica') + ').',
+      'Per ciascuna voce ho indicato se è NORMALE (con la frase standard già pronta) o',
+      'se ho aggiunto un REPERTO patologico (descritto in modo informale).',
+      'Componi un referto radiologico continuo in italiano, ben strutturato, con:',
+      '- una sezione REPERTI che integra le voci nell\'ordine dato, riformulando',
+      '  in prosa medica corretta (mantieni i contenuti, non inventare nulla);',
+      '- una sezione CONCLUSIONI sintetica, coerente con i reperti.',
+      'Mantieni i numeri, le misure e i termini medici esatti. Per le voci NORMALI usa',
+      'la frase standard fornita (eventualmente accorciata). Per i REPERTI espandi in',
+      'linguaggio radiologico professionale.',
+      'Output: SOLO il referto, niente commenti.',
+    ].join(' ');
+
+    let buffer = '';
+    await window.streamChatCompletion({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: lines },
+      ],
+      temperature: 0.3,
+    }, (delta) => { buffer += delta; });
+    return buffer.trim();
+  }
+
+  // Esci col tasto Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
+  });
+
+})();
+
+</script>
+
+</body></html>';
     const w = window.open('', '_blank');
     if (!w) { showToast('Popup blocked — allow popups to download PDF', 'err'); return; }
     w.document.open();
@@ -896,6 +2212,14 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   });
   editor.addEventListener('mouseup', () => saveSelection());
   editor.addEventListener('keyup', () => saveSelection());
+  // Esposta per la checklist module:
+  window.streamChatCompletion = streamChatCompletion;
+  window.refertiumInsertChecklistDraft = function(text) {
+    if (!editor) return;
+    editor.innerHTML = '';
+    insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+  };
+  
 
 })();
 </script>
