@@ -770,16 +770,25 @@
   // modello su terminologia tecnica fuori dal vocabolario quotidiano.
   const WHISPER_BASES = {
     it: [
-      'Refertazione radiologica.',
-      'parenchima, ecostruttura, ecogenicità, iperecogeno, ipoecogeno,',
-      'mezzo di contrasto, mdc, ev, fegato, colecisti, alitiasica,',
-      'pericolecistica, coledoco, vie biliari intraepatiche, pancreas,',
-      'milza, surrene, prostata, vena porta, aorta addominale,',
-      'parenchima polmonare, mediastino, pleura, ground glass, atelettasia,',
-      'embolia polmonare, encefalo, falce cerebrale, ventricoli laterali,',
-      'corpo calloso, talami, cervelletto, sostanza bianca, leucoencefalopatia,',
-      'cuffia dei rotatori, sovraspinato, menisco, condropatia,',
-      'non si apprezzano alterazioni focali di rilievo, quadro nei limiti.',
+      'Refertazione radiologica dettata da medico radiologo italiano.',
+      'TC, RM, RX, ecografia, ev, mezzo di contrasto, mdc, contrasto iodato,',
+      'fase arteriosa, venosa, tardiva, scansioni assiali, sequenze T1, T2, FLAIR, DWI, ADC.',
+      'parenchima, ecostruttura, ecogenicità, iperecogeno, ipoecogeno, isoecogeno, anecogeno,',
+      'iperdenso, ipodenso, iperintenso, ipointenso, falda fluida, lesione focale, enhancement.',
+      'fegato, parenchima epatico, colecisti, alitiasica, pericolecistica, coledoco,',
+      'vie biliari intraepatiche, vie biliari extraepatiche, pancreas, milza, surrene,',
+      'reni, calici, bacinetto, ureteri, prostata, vena porta, aorta addominale, ascite.',
+      'parenchima polmonare, mediastino, ilo polmonare, ili polmonari, pleura, versamento pleurico,',
+      'atelettasia, addensamento, ground glass, nodulo polmonare, embolia polmonare, aorta toracica.',
+      'encefalo, falce cerebrale, tentorio, ventricoli laterali, corpo calloso, nuclei della base,',
+      'talami, cervelletto, vermis, sostanza bianca, leucoencefalopatia, atrofia corticale,',
+      'gliosi, edema, ischemia, ictus, ipofisi, sella turcica.',
+      'cuffia dei rotatori, sovraspinato, sottospinato, sottoscapolare, labbro glenoideo,',
+      'menisco mediale, menisco laterale, cartilagine articolare, condropatia, edema midollare,',
+      'frattura, tendinopatia, legamento crociato anteriore, crociato posteriore.',
+      'C1, C7, D1, D12, L1, L5, S1, rachide cervicale, rachide dorsale, rachide lombare.',
+      'non si apprezzano alterazioni focali di rilievo, quadro nei limiti per l\'età,',
+      'controllo clinico, consigliata correlazione clinica, follow-up.',
     ].join(' '),
     pt: [
       'Laudo radiológico.',
@@ -1451,7 +1460,7 @@
   // ─── Whisper transcribe with per-language prompt ──────────
   function buildWhisperPrompt(lang) {
     const base = WHISPER_BASES[lang] || WHISPER_BASES.it;
-    return base.slice(0, 900);
+    return base.slice(0, 1800);
   }
 
   async function transcribeBlobDirect(blob) {

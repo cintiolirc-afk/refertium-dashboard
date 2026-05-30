@@ -764,31 +764,41 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   // recognise technical terms it would mishear in isolation
   // (e.g. "gallbladder" misheard as "gull bladder").
   const WHISPER_BASE_EN = [
-    'Radiology reporting dictation.',
-    // General
+    'Radiology reporting dictation by an English-speaking radiologist.',
+    // ─── Modality & technique
+    'CT, MRI, MR, US, ultrasound, X-ray, mammography, CTA, MRA, IV contrast,',
+    'iodinated contrast, gadolinium, arterial phase, venous phase, delayed phase,',
+    'axial, coronal, sagittal, T1-weighted, T2-weighted, FLAIR, DWI, ADC, MIP, MPR,',
+    'mediastinal window, lung window, bone window, Hounsfield units, HU.',
+    // ─── General
     'parenchyma, echotexture, echogenicity, hyperechoic, hypoechoic, isoechoic, anechoic,',
-    'contrast medium, IV contrast, fluid collection, focal lesion, signal alteration,',
-    'enhancement, hyperintense, hypointense, isointense.',
-    // Abdomen
-    'liver, hepatic, gallbladder, stone-free, pericholecystic, common bile duct,',
-    'intrahepatic bile ducts, extrahepatic bile ducts, pancreas, spleen, splenic, adrenal,',
-    'kidneys, parenchymal, bladder, prostate, ureter, calyx, renal pelvis, portal vein,',
-    'abdominal aorta, IVC, mesentery, peritoneum.',
-    // Chest
-    'lung parenchyma, mediastinum, hilum, pleura, pleural effusion, atelectasis,',
-    'consolidation, ground glass, opacity, pulmonary nodule, bronchiectasis,',
-    'pulmonary embolism, PE.',
-    // Neuro
-    'brain, falx cerebri, tentorium, lateral ventricles, choroid plexus, corpus callosum,',
-    'basal ganglia, thalami, spinal cord, cerebellum, vermis, white matter, grey matter,',
-    'leukoencephalopathy, cortical atrophy, gliosis, edema, hemorrhage, ischemia, stroke.',
-    // MSK
-    'joint, capsule, synovial, meniscus, articular cartilage, chondropathy,',
-    'subchondral bone, bone marrow edema, fracture, ligament injury, tendon,',
-    'rotator cuff, supraspinatus, infraspinatus, subscapularis, teres minor, glenoid labrum.',
-    // Recurring formulas
-    'no focal abnormalities of note, within normal limits for age, clinical follow-up,',
-    'further evaluation recommended.',
+    'hyperdense, hypodense, isodense, hyperintense, hypointense, isointense,',
+    'fluid collection, focal lesion, enhancement, contrast uptake, calcification.',
+    // ─── Abdomen
+    'liver, hepatic parenchyma, gallbladder, stone-free, pericholecystic, common bile duct,',
+    'intrahepatic bile ducts, extrahepatic bile ducts, pancreas, pancreatic duct,',
+    'spleen, adrenal gland, kidneys, calyces, renal pelvis, ureters, bladder, prostate,',
+    'portal vein, IVC, abdominal aorta, mesentery, ascites, hydronephrosis.',
+    // ─── Chest
+    'lung parenchyma, pulmonary lobes, mediastinum, hilum, hila, pleura, pleural effusion,',
+    'atelectasis, consolidation, ground glass, opacity, pulmonary nodule, micronodule,',
+    'bronchiectasis, pulmonary embolism, thoracic aorta.',
+    // ─── Neuro
+    'brain, falx cerebri, tentorium, lateral ventricles, third ventricle, corpus callosum,',
+    'basal ganglia, thalami, cerebellum, vermis, white matter, grey matter,',
+    'leukoencephalopathy, cortical atrophy, gliosis, vasogenic edema,',
+    'hemorrhage, ischemia, stroke, pituitary, sella turcica.',
+    // ─── MSK + spine
+    'rotator cuff, supraspinatus, infraspinatus, subscapularis, glenoid labrum,',
+    'medial meniscus, lateral meniscus, articular cartilage, chondropathy,',
+    'bone marrow edema, fracture, tendinopathy, anterior cruciate ligament, ACL, PCL,',
+    'C1, C2, C5, C7, T1, T12, L1, L4, L5, S1, cervical spine, lumbar spine.',
+    // ─── Common pathology
+    'lesion, hematoma, infarct, calculi, cyst, polyp, nodule, neoplasm, mass,',
+    'lymphadenopathy, lymph nodes, nephrolithiasis.',
+    // ─── Recurring formulas
+    'no focal abnormalities of note, within normal limits for age, stable findings,',
+    'clinical correlation recommended, follow-up imaging recommended.',
   ].join(' ');
 
   function buildWhisperPrompt() {
@@ -798,7 +808,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     const combined = userKeywords
       ? (WHISPER_BASE_EN + ' Doctor recurring terms: ' + userKeywords + '.')
       : WHISPER_BASE_EN;
-    return combined.slice(0, 900);
+    return combined.slice(0, 1800);
   }
 
   async function transcribeBlobDirect(blob) {
@@ -862,6 +872,45 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       [/\bro?tator\s+cuff\b/gi, 'rotator cuff'],
       // IV contrast
       [/\b(?:i\.?v\.?|intra\s*venous)\s+contrast\b/gi, 'IV contrast'],
+      // ─── Modality acronyms
+      [/\bcat\s+scan\b/gi, 'CT'],
+      [/\bmagnetic\s+resonance(\s+imaging)?\b/gi, 'MRI'],
+      [/\bex[\s-]ray\b/gi, 'X-ray'],
+      // ─── Vertebrae (spoken → code)
+      [/\bcee\s+(one|two|three|four|five|six|seven)\b/gi,
+        (_, n) => 'C' + ({one:'1',two:'2',three:'3',four:'4',five:'5',six:'6',seven:'7'}[n.toLowerCase()])],
+      [/\btee\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/gi,
+        (_, n) => 'T' + ({one:'1',two:'2',three:'3',four:'4',five:'5',six:'6',seven:'7',eight:'8',nine:'9',ten:'10',eleven:'11',twelve:'12'}[n.toLowerCase()])],
+      [/\bell\s+(one|two|three|four|five)\b/gi,
+        (_, n) => 'L' + ({one:'1',two:'2',three:'3',four:'4',five:'5'}[n.toLowerCase()])],
+      [/\bess\s+one\b/gi, 'S1'],
+      // ─── Density / intensity
+      [/\bhyper[\s-]*dens[ei]\b/gi, 'hyperdense'],
+      [/\bhypo[\s-]*dens[ei]\b/gi, 'hypodense'],
+      [/\biso[\s-]*dens[ei]\b/gi, 'isodense'],
+      [/\bhyper[\s-]*intens[ei]\b/gi, 'hyperintense'],
+      [/\bhypo[\s-]*intens[ei]\b/gi, 'hypointense'],
+      // ─── Measurement words
+      [/\bmillimet(?:er|re)s?\b/gi, 'mm'],
+      [/\bcentimet(?:er|re)s?\b/gi, 'cm'],
+      [/\bmillilit(?:er|re)s?\b/gi, 'ml'],
+      [/\bhounsfield\s+units?\b/gi, 'HU'],
+      // ─── Right / left after anatomy
+      [/\b(kidney|lung|lobe|hemisphere|knee|shoulder|hip|foot|hand|leg|arm|ovary|adrenal|breast)\s+right\b/gi,
+        (_, w) => w + ' (R)'],
+      [/\b(kidney|lung|lobe|hemisphere|knee|shoulder|hip|foot|hand|leg|arm|ovary|adrenal|breast)\s+left\b/gi,
+        (_, w) => w + ' (L)'],
+      // ─── Common split / truncated
+      [/\bleuko?[\s-]*encepha?lo[\s-]*pathy\b/gi, 'leukoencephalopathy'],
+      [/\bsupra[\s-]*spinatus\b/gi, 'supraspinatus'],
+      [/\binfra[\s-]*spinatus\b/gi, 'infraspinatus'],
+      [/\bsub[\s-]*scapularis\b/gi, 'subscapularis'],
+      [/\banterior\s+cruciate(\s+ligament)?\b/gi, 'anterior cruciate ligament (ACL)'],
+      [/\bposterior\s+cruciate(\s+ligament)?\b/gi, 'posterior cruciate ligament (PCL)'],
+      // ─── Recurring phrases
+      [/\bno\s+focal\s+abnormalit(?:y|ies)\s+of\s+note\b/gi, 'no focal abnormalities of note'],
+      [/\bwithin\s+normal\s+limits\s+for\s+age\b/gi, 'within normal limits for age'],
+      [/\bclinical\s+correlation\s+recommended\b/gi, 'clinical correlation recommended'],
     ];
     for (const r of rules) {
       t = t.replace(r[0], r[1]);

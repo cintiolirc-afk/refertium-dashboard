@@ -1164,6 +1164,57 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       // mdc / ev / e.v.
       [/\bmezzo\s+di\s+contrasto\b/gi, 'mezzo di contrasto'],
       [/\b(?:e[\s.]*v[\s.]?|endo[\s-]?venoso)\b/gi, 'ev'],
+      // ─── Acronimi parlati
+      [/\bti\s+ci\b/gi, 'TC'],
+      [/\bTAC\b/g, 'TC'],
+      [/\berre\s+emme\b/gi, 'RM'],
+      [/\brisonanza(\s+magnetica)?\b/gi, 'RM'],
+      [/\berre\s+ics\b/gi, 'RX'],
+      [/\bemme\s+di\s+ci\b/gi, 'mdc'],
+      [/\bm\.?d\.?c\.?\b/gi, 'mdc'],
+      [/\bunit[aà]\s+hounsfield\b/gi, 'HU'],
+      // ─── Vertebre cervicali / dorsali / lombari (esplicite per affidabilità)
+      [/\belle\s+uno\b/gi, 'L1'], [/\belle\s+due\b/gi, 'L2'], [/\belle\s+tre\b/gi, 'L3'],
+      [/\belle\s+quattro\b/gi, 'L4'], [/\belle\s+cinque\b/gi, 'L5'],
+      [/\besse\s+uno\b/gi, 'S1'], [/\besse\s+due\b/gi, 'S2'],
+      [/\bci\s+uno\b/gi, 'C1'], [/\bci\s+due\b/gi, 'C2'], [/\bci\s+tre\b/gi, 'C3'],
+      [/\bci\s+quattro\b/gi, 'C4'], [/\bci\s+cinque\b/gi, 'C5'],
+      [/\bci\s+sei\b/gi, 'C6'], [/\bci\s+sette\b/gi, 'C7'],
+      [/\bdi\s+uno\b/gi, 'D1'], [/\bdi\s+due\b/gi, 'D2'], [/\bdi\s+tre\b/gi, 'D3'],
+      [/\bdi\s+(quattro|cinque|sei|sette|otto|nove|dieci|undici|dodici)\b/gi,
+        (_, n) => 'D' + ({quattro:'4',cinque:'5',sei:'6',sette:'7',otto:'8',nove:'9',dieci:'10',undici:'11',dodici:'12'}[n.toLowerCase()])],
+      // ─── Misure (parola intera → abbreviazione)
+      [/\bmillimetr[oi]\b/gi, 'mm'],
+      [/\bcentimetr[oi]\b/gi, 'cm'],
+      [/\bmillilitr[oi]\b/gi, 'ml'],
+      // ─── Dx / Sn dopo anatomia
+      [/\b(rene|polmone|lobo|emisfero|ginocchio|spalla|anca|piede|mano|gamba|braccio|ovaio|tubo|surrene|testicolo|seno|emicampo)\s+destr[oa]\b/gi,
+        (_, w) => w + ' dx'],
+      [/\b(rene|polmone|lobo|emisfero|ginocchio|spalla|anca|piede|mano|gamba|braccio|ovaio|tubo|surrene|testicolo|seno|emicampo)\s+sinistr[oa]\b/gi,
+        (_, w) => w + ' sn'],
+      // ─── Densità / intensità / segnale
+      [/\biper[\s-]*dens[oai]\b/gi, 'iperdenso'],
+      [/\bipo[\s-]*dens[oai]\b/gi, 'ipodenso'],
+      [/\biso[\s-]*dens[oai]\b/gi, 'isodenso'],
+      [/\biper[\s-]*intens[oai]\b/gi, 'iperintenso'],
+      [/\bipo[\s-]*intens[oai]\b/gi, 'ipointenso'],
+      [/\biso[\s-]*intens[oai]\b/gi, 'isointenso'],
+      // ─── Errori split tipici
+      [/\bil\s+i\s+polmonari\b/gi, 'ili polmonari'],
+      [/\bili\s+polmonare\b/gi, 'ili polmonari'],
+      // ─── Termini composti spesso troncati
+      [/\bleuco[\s-]*encefalo[\s-]*patia\b/gi, 'leucoencefalopatia'],
+      [/\bsovra[\s-]*spinato\b/gi, 'sovraspinato'],
+      [/\bsotto[\s-]*spinato\b/gi, 'sottospinato'],
+      [/\bsotto[\s-]*scapolare\b/gi, 'sottoscapolare'],
+      [/\bcrociato\s+anter(?:iore)?\b/gi, 'crociato anteriore'],
+      [/\bcrociato\s+poster(?:iore)?\b/gi, 'crociato posteriore'],
+      [/\bbroncho[\s-]*ectas/gi, 'bronchiectas'],
+      // ─── Frasi standard
+      [/\bnon\s+si\s+apprezzano?\s+alterazioni?\s+focali?\s+di\s+rili?evo\b/gi,
+        'non si apprezzano alterazioni focali di rilievo'],
+      [/\bnei\s+limiti\s+per\s+l[ae']?\s+et[aà]\b/gi, "nei limiti per l'età"],
+      [/\bcorrelazione\s+clinic[ao]\b/gi, 'correlazione clinica'],
     ];
     for (const r of rules) {
       t = t.replace(r[0], r[1]);
@@ -1205,29 +1256,42 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   // termini tecnici che da soli — fuori contesto — Whisper sbaglia.
   // Es: "colecisti" senza prompt diventa "le cisti", "coledoco" diventa "co e doco".
   const WHISPER_BASE_IT = [
-    'Refertazione radiologica.',
-    // Generale
+    'Refertazione radiologica dettata da medico radiologo italiano.',
+    // ─── Modalità e tecnica
+    'TC, RM, RX, ecografia, mammografia, angio-TC, angio-RM, ev, intravenoso,',
+    'mezzo di contrasto, mdc, contrasto iodato, contrasto paramagnetico,',
+    'fase arteriosa, fase venosa, fase tardiva, scansioni assiali, scansioni coronali,',
+    'sequenze T1, T2, FLAIR, DWI, ADC, MIP, MPR, finestra mediastinica, finestra ossea.',
+    // ─── Generale
     'parenchima, ecostruttura, ecogenicità, iperecogeno, ipoecogeno, isoecogeno, anecogeno,',
-    'mezzo di contrasto, mdc, intravenoso, ev, falda fluida, raccolta liquida, lesione focale,',
-    'alterazione del segnale, captazione, hyperintensa, ipointensa, isointensa, restringimento.',
-    // Addome
-    'fegato, epatico, colecisti, alitiasica, pericolecistica, coledoco, vie biliari intraepatiche,',
-    'vie biliari extraepatiche, pancreas, milza, splenico, surrene, reni, parenchimale, vescica,',
-    'prostata, uretere, calice, bacinetto, vena porta, aorta addominale, vena cava, mesentere.',
-    // Torace
-    'parenchima polmonare, mediastino, ilo polmonare, pleura, versamento pleurico, atelettasia,',
-    'addensamento, ground glass, opacità, nodulo polmonare, bronchiectasie, embolia polmonare.',
-    // Neuro
-    'encefalo, falce cerebrale, tentorio, ventricoli laterali, plesso coroideo, corpo calloso,',
-    'nuclei della base, talami, midollo, cervelletto, vermis, sostanza bianca, sostanza grigia,',
-    'leucoencefalopatia, atrofia corticale, gliosi, edema, emorragia, ischemia, ictus.',
-    // MSK
-    'articolazione, capsula, sinoviale, menisco, cartilagine articolare, condropatia,',
-    'osso subcondrale, edema midollare, frattura, lesione legamentosa, tendine, cuffia dei rotatori,',
-    'sovraspinato, sottospinato, sottoscapolare, piccolo rotondo, labbro glenoideo.',
-    // Formule ricorrenti
-    'non si apprezzano alterazioni focali di rilievo, in assenza di, in presenza di,',
-    'quadro nei limiti per l’età, controllo clinico, consigliato approfondimento.',
+    'iperdenso, ipodenso, isodenso, iperintenso, ipointenso, isointenso,',
+    'falda fluida, raccolta liquida, lesione focale, enhancement, captazione, calcificazione.',
+    // ─── Addome
+    'fegato, parenchima epatico, colecisti, alitiasica, pericolecistica, coledoco,',
+    'vie biliari intraepatiche, vie biliari extraepatiche, pancreas, dotto pancreatico,',
+    'milza, surrene, reni, calici, bacinetto renale, ureteri, vescica, prostata,',
+    'vena porta, vena cava inferiore, aorta addominale, mesentere, ascite, idronefrosi.',
+    // ─── Torace
+    'parenchima polmonare, lobi polmonari, mediastino, ilo polmonare, ili polmonari,',
+    'pleura, versamento pleurico, atelettasia, addensamento, ground glass, opacità,',
+    'nodulo polmonare, micronodulo, bronchiectasie, embolia polmonare, aorta toracica.',
+    // ─── Neuro
+    'encefalo, falce cerebrale, tentorio, ventricoli laterali, terzo ventricolo,',
+    'corpo calloso, nuclei della base, talami, cervelletto, vermis,',
+    'sostanza bianca, sostanza grigia, leucoencefalopatia, atrofia corticale,',
+    'gliosi, edema vasogenico, emorragia, ischemia, ictus, ipofisi, sella turcica.',
+    // ─── MSK + rachide
+    'cuffia dei rotatori, sovraspinato, sottospinato, sottoscapolare, labbro glenoideo,',
+    'menisco mediale, menisco laterale, cartilagine articolare, condropatia,',
+    'edema midollare, frattura, tendinopatia, legamento crociato anteriore, crociato posteriore,',
+    'C1, C2, C5, C7, D1, D12, L1, L4, L5, S1, rachide cervicale, rachide lombare.',
+    // ─── Patologia comune
+    'lesione, ematoma, infarto, calcoli, cisti, polipo, nodulo, neoformazione, massa,',
+    'linfoadenomegalia, linfonodale, linfonodi, calcolosi, idroureterite.',
+    // ─── Frasi tipiche
+    'non si apprezzano alterazioni focali di rilievo, in assenza di alterazioni significative,',
+    'quadro nei limiti per l\'età, quadro stazionario, controllo clinico,',
+    'consigliata correlazione clinica, follow-up.',
   ].join(' ');
 
   function buildWhisperPrompt() {
@@ -1238,7 +1302,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     const combined = userKeywords
       ? (WHISPER_BASE_IT + ' Termini ricorrenti del medico: ' + userKeywords + '.')
       : WHISPER_BASE_IT;
-    return combined.slice(0, 900); // soglia generosa, Whisper tronca da solo
+    // Whisper API tronca a ~224 token (~1500-1800 char) — passiamo tutto,
+    // l'API farà lei il truncate se serve.
+    return combined.slice(0, 1800);
   }
 
   async function transcribeBlobDirect(blob) {
