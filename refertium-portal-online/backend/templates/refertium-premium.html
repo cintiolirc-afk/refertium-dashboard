@@ -763,10 +763,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         Copia
       </button>
-      <button id="btnPdf" class="tbtn" title="Scarica PDF">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        PDF
-      </button>
       <button id="btnReset" class="tbtn danger" title="Svuota completamente l'editor (Reset)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         Reset
@@ -948,10 +944,6 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     toastEl._t = setTimeout(() => toastEl.classList.remove('visible'), 2400);
   }
 
-  function todayString() {
-    return new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
-  }
-
   function getEditorText() {
     let raw = '';
     editor.childNodes.forEach((node) => {
@@ -1094,8 +1086,6 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     try { await navigator.clipboard.writeText(text); showToast('Testo copiato negli appunti'); }
     catch (e) { showToast('Copia non riuscita', 'err'); }
   });
-
-  $('btnPdf').addEventListener('click', () => downloadPdf());
 
   // ─── Reset completo dell'editor ───────────────────────────
   $('btnReset').addEventListener('click', () => {
@@ -1880,39 +1870,6 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   rewriteModal.addEventListener('click', (e) => {
     if (e.target === rewriteModal) rewriteModal.classList.remove('visible');
   });
-
-  // ─── PDF download (via window.print) ──────────────────────
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-  }
-
-  function downloadPdf() {
-    const text = getEditorText();
-    if (!text.trim()) { showToast('Editor vuoto', 'err'); return; }
-    const user = (window.__REFERTIUM_USER__ && window.__REFERTIUM_USER__.name) || 'Medico refertante';
-    const html = '<!doctype html><html><head><meta charset="utf-8"><title>Refertium — Referto</title>' +
-      '<style>' +
-      '@page { size: A4; margin: 24mm 22mm; }' +
-      'body { font-family: "EB Garamond", Georgia, serif; color:#0b1220; font-size:13pt; line-height:1.55; }' +
-      'h1 { font-size:18pt; font-weight:600; margin:0 0 4pt; }' +
-      '.meta { color:#475569; font-size:10.5pt; padding-bottom:6pt; border-bottom:1px solid #cbd5e1; margin-bottom:14pt; }' +
-      'h2 { font-family: "Inter", Arial, sans-serif; font-size:10pt; color:#0b6e58; letter-spacing:.04em; text-transform:uppercase; margin: 16pt 0 4pt; }' +
-      'p { margin: 0 0 8pt; text-align: justify; }' +
-      '.foot { margin-top: 28pt; padding-top: 8pt; border-top: 1px solid #cbd5e1; font-size: 9.5pt; color:#64748b; display:flex; justify-content: space-between; }' +
-      '</style></head><body>' +
-      '<h1>Refertium</h1>' +
-      '<div class="meta">' + todayString() + ' · ' + escapeHtml(user) + '</div>' +
-      editor.innerHTML +
-      '<div class="foot"><span>Refertium · referto generato il ' + todayString() + '</span><span>' + escapeHtml(user) + '</span></div>' +
-      '<\/body><\/html>';
-    const w = window.open('', '_blank');
-    if (!w) { showToast('Pop-up bloccato — abilita popup per scaricare il PDF', 'err'); return; }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch {} }, 400);
-  }
 
   // ─── Init ─────────────────────────────────────────────────
 

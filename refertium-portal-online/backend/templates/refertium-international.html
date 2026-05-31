@@ -736,9 +736,6 @@
       <button id="btnCopy" class="tbtn" data-i18n-title="btnCopyTitle" title="Copia testo">
         <span data-i18n="btnCopy">Copia</span>
       </button>
-      <button id="btnPdf" class="tbtn" data-i18n-title="btnPdfTitle" title="Scarica PDF">
-        <span data-i18n="btnPdf">PDF</span>
-      </button>
     </div>
   </nav>
 
@@ -997,7 +994,7 @@
       btnConclusions: 'Conclusioni AI', btnConclusionsTitle: 'Genera le conclusioni dal corpo',
       btnRewrite: 'Modifica con AI', btnRewriteTitle: 'Modifica la selezione con AI',
       btnExport: 'Esporta in lingua', btnExportTitle: 'Esporta il referto in un\'altra lingua',
-      btnCopy: 'Copia', btnCopyTitle: 'Copia testo', btnPdf: 'PDF', btnPdfTitle: 'Scarica PDF',
+      btnCopy: 'Copia', btnCopyTitle: 'Copia testo',
       aiInsert: '✓ Inserisci', aiDiscard: '× Scarta', aiPreviewKindDefault: 'Proposta AI',
       aiPreviewMagic: 'Magic — bozza referto', aiPreviewConclusions: 'Conclusioni AI',
       aiPreviewRewrite: 'Modifica con AI', aiPreviewExport: 'Riscrittura nativa in',
@@ -1031,7 +1028,7 @@
       btnConclusions: 'Impressão IA', btnConclusionsTitle: 'Gerar impressão a partir do corpo',
       btnRewrite: 'Editar com IA', btnRewriteTitle: 'Editar a seleção com IA',
       btnExport: 'Exportar em outro idioma', btnExportTitle: 'Exportar o laudo em outro idioma',
-      btnCopy: 'Copiar', btnCopyTitle: 'Copiar texto', btnPdf: 'PDF', btnPdfTitle: 'Baixar PDF',
+      btnCopy: 'Copiar', btnCopyTitle: 'Copiar texto',
       aiInsert: '✓ Inserir', aiDiscard: '× Descartar', aiPreviewKindDefault: 'Proposta IA',
       aiPreviewMagic: 'Magic — rascunho do laudo', aiPreviewConclusions: 'Impressão IA',
       aiPreviewRewrite: 'Editar com IA', aiPreviewExport: 'Reescrita nativa em',
@@ -1065,7 +1062,7 @@
       btnConclusions: 'Impresión IA', btnConclusionsTitle: 'Generar impresión desde el cuerpo',
       btnRewrite: 'Editar con IA', btnRewriteTitle: 'Editar la selección con IA',
       btnExport: 'Exportar a otro idioma', btnExportTitle: 'Exportar el informe a otro idioma',
-      btnCopy: 'Copiar', btnCopyTitle: 'Copiar texto', btnPdf: 'PDF', btnPdfTitle: 'Descargar PDF',
+      btnCopy: 'Copiar', btnCopyTitle: 'Copiar texto',
       aiInsert: '✓ Insertar', aiDiscard: '× Descartar', aiPreviewKindDefault: 'Propuesta IA',
       aiPreviewMagic: 'Magic — borrador del informe', aiPreviewConclusions: 'Impresión IA',
       aiPreviewRewrite: 'Editar con IA', aiPreviewExport: 'Reescritura nativa en',
@@ -1099,7 +1096,7 @@
       btnConclusions: 'AI Impression', btnConclusionsTitle: 'Generate Impression from body',
       btnRewrite: 'Edit with AI', btnRewriteTitle: 'Edit selection with AI',
       btnExport: 'Export in language', btnExportTitle: 'Export the report in another language',
-      btnCopy: 'Copy', btnCopyTitle: 'Copy text', btnPdf: 'PDF', btnPdfTitle: 'Download PDF',
+      btnCopy: 'Copy', btnCopyTitle: 'Copy text',
       aiInsert: '✓ Insert', aiDiscard: '× Discard', aiPreviewKindDefault: 'AI proposal',
       aiPreviewMagic: 'Magic — draft report', aiPreviewConclusions: 'AI Impression',
       aiPreviewRewrite: 'Edit with AI', aiPreviewExport: 'Native rewrite in',
@@ -1133,7 +1130,7 @@
       btnConclusions: 'Conclusion IA', btnConclusionsTitle: 'Générer la conclusion à partir du corps',
       btnRewrite: 'Modifier avec IA', btnRewriteTitle: 'Modifier la sélection avec IA',
       btnExport: 'Exporter en langue', btnExportTitle: 'Exporter le compte-rendu dans une autre langue',
-      btnCopy: 'Copier', btnCopyTitle: 'Copier le texte', btnPdf: 'PDF', btnPdfTitle: 'Télécharger le PDF',
+      btnCopy: 'Copier', btnCopyTitle: 'Copier le texte',
       aiInsert: '✓ Insérer', aiDiscard: '× Annuler', aiPreviewKindDefault: 'Proposition IA',
       aiPreviewMagic: 'Magic — brouillon du compte-rendu', aiPreviewConclusions: 'Conclusion IA',
       aiPreviewRewrite: 'Modifier avec IA', aiPreviewExport: 'Réécriture native en',
@@ -1167,7 +1164,7 @@
       btnConclusions: 'KI-Beurteilung', btnConclusionsTitle: 'Beurteilung aus dem Befund generieren',
       btnRewrite: 'Mit KI bearbeiten', btnRewriteTitle: 'Auswahl mit KI bearbeiten',
       btnExport: 'In Sprache exportieren', btnExportTitle: 'Befund in einer anderen Sprache exportieren',
-      btnCopy: 'Kopieren', btnCopyTitle: 'Text kopieren', btnPdf: 'PDF', btnPdfTitle: 'PDF herunterladen',
+      btnCopy: 'Kopieren', btnCopyTitle: 'Text kopieren',
       aiInsert: '✓ Einfügen', aiDiscard: '× Verwerfen', aiPreviewKindDefault: 'KI-Vorschlag',
       aiPreviewMagic: 'Magic — Befundentwurf', aiPreviewConclusions: 'KI-Beurteilung',
       aiPreviewRewrite: 'Mit KI bearbeiten', aiPreviewExport: 'Native Neuschrift in',
@@ -1253,10 +1250,6 @@
     toastEl.classList.add('visible');
     clearTimeout(toastEl._t);
     toastEl._t = setTimeout(() => toastEl.classList.remove('visible'), 2400);
-  }
-  function todayString() {
-    const locale = (arguments[0] || langInput) || 'it';
-    return new Date().toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   }
   function getEditorText() {
     let raw = '';
@@ -1413,8 +1406,6 @@
     try { await navigator.clipboard.writeText(getEditorText()); showToast(L().toastCopyOk); }
     catch { showToast(L().toastCopyFail, 'err'); }
   });
-  $('btnPdf').addEventListener('click', () => downloadPdf(getEditorText(), langInput));
-
   // ─── Dictation (Whisper) ──────────────────────────────────
   const recState = {
     recorder: null, chunks: [], mimeType: '',
@@ -1992,9 +1983,6 @@
       lastPreviewText = buffer.trim();
       aiPreviewBody.textContent = lastPreviewText;
 
-      // Aggiungo bottone "Scarica PDF in lingua" all'header del preview
-      injectExtraPreviewAction(targetLang);
-
       setStatus(L().statusReady, 'ok');
       setTimeout(() => setStatus(''), 1200);
     } catch (err) {
@@ -2003,66 +1991,6 @@
       setTimeout(() => setStatus(''), 2500);
       closePreview();
     }
-  }
-
-  // Aggiunge dinamicamente un bottone "Scarica PDF" nel preview che,
-  // al click, apre il PDF con il referto riscritto nella lingua target.
-  function injectExtraPreviewAction(targetLang) {
-    const actions = aiPreview.querySelector('.ai-preview-actions');
-    const old = actions.querySelector('.btn-export-pdf');
-    if (old) old.remove();
-    const btn = document.createElement('button');
-    btn.className = 'tbtn btn-export-pdf';
-    btn.style.color = 'var(--accent)';
-    btn.style.border = '1px solid var(--accent)';
-    btn.textContent = '↓ PDF ' + targetLang.toUpperCase();
-    btn.addEventListener('click', () => {
-      const text = (lastPreviewText || aiPreviewBody.textContent).trim();
-      if (!text) return;
-      downloadPdf(text, targetLang);
-    });
-    actions.insertBefore(btn, actions.firstChild);
-  }
-
-  // ─── PDF download (window.print scoped to a clean doc) ────
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-  }
-  function paragraphsHtml(text) {
-    return text.split(/\n{2,}/).map((para) => {
-      const lines = para.split('\n').map(escapeHtml).join('<br/>');
-      return '<p>' + lines + '</p>';
-    }).join('\n');
-  }
-
-  function downloadPdf(text, lang) {
-    if (!text.trim()) { showToast(L().toastEditorEmpty, 'err'); return; }
-    const html = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>Refertium — Report (${lang.toUpperCase()})</title>
-<style>
-@page { size: A4; margin: 24mm 22mm; }
-body { font-family: "EB Garamond", Georgia, serif; color:#0b1220; font-size:13pt; line-height:1.6; }
-h1 { font-size:18pt; font-weight:600; margin:0 0 4pt; }
-.meta { color:#475569; font-size:10.5pt; padding-bottom:6pt; border-bottom:1px solid #cbd5e1; margin-bottom:14pt; display:flex; gap:10pt; }
-.tag { background:#e6f7f0; color:#0b6e58; padding:2pt 8pt; border-radius:99px; font-family:Inter,Arial,sans-serif; font-size:8pt; letter-spacing:.08em; text-transform:uppercase; font-weight:700; }
-p { margin: 0 0 8pt; text-align: justify; }
-.foot { margin-top: 28pt; padding-top: 8pt; border-top: 1px solid #cbd5e1; font-size: 9.5pt; color:#64748b; display:flex; justify-content: space-between; }
-.brand { font-weight: 600; }
-.brand .accent { color: #0b6e58; }
-.brand .suite { font-style: italic; color: #0b6e58; font-weight: 500; }
-</style></head><body>
-<h1>Refertium</h1>
-<div class="meta"><span>${escapeHtml(todayString(lang))}</span><span class="tag">${escapeHtml(lang.toUpperCase())}</span></div>
-${paragraphsHtml(text)}
-<div class="foot"><span class="brand">Refertium<span class="accent">.</span> <span class="suite">International</span></span><span>${escapeHtml(lang.toUpperCase())}</span></div>
-
-<\/body><\/html>`;
-    const w = window.open('', '_blank');
-    if (!w) { showToast(L().toastPopupBlocked, 'err'); return; }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch {} }, 400);
   }
 
   // ─── Init ─────────────────────────────────────────────────
