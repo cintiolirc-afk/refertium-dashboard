@@ -1655,13 +1655,15 @@
       `Every finding mentioned in the indication MUST appear inside the findings section. If a finding is missing from findings, it does not exist.`,
       `The user input is ALWAYS shorthand, NEVER a finished report — expand it.`,
       `DO NOT invent unlikely findings; use neutral ${lname} phrasing when missing.`,
+      `SPINE EXAMS (MRI/CT/X-ray): you MUST describe EVERY intervertebral disc level in the examined region one by one, even if normal. Lumbar spine → T12-L1, L1-L2, L2-L3, L3-L4, L4-L5, L5-S1. Cervical spine → C2-C3, C3-C4, C4-C5, C5-C6, C6-C7, C7-T1. Thoracic spine → all T1-T2 … T11-T12 levels. For each level describe: disc hydration and height, any protrusion/herniation with direction, nerve-root impingement, lateral recesses and neural foramina. For normal levels use ${lname} phrasing equivalent to "disc of regular height and hydration, no protrusion, lateral recesses and foramina patent". Always also describe vertebral bodies, spinal cord (for MRI), epidural space and — for lumbar — conus medullaris and cauda equina.`,
       `Output: ONLY the report (technique + findings) in ${lname}, no impression, no commentary.`,
     ].join(' ');
     await streamChatCompletion({
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: input || 'General radiology exam.' }],
       temperature: 0.4,
-      max_tokens: 800,
+      // 1200 gives headroom for level-by-level spine reports.
+      max_tokens: 1200,
       top_p: 0.9,
     }, onDelta);
   }

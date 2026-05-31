@@ -1122,6 +1122,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '- You MUST always generate both sections TECHNIQUE + FINDINGS. Never just one.',
       '- The user input is ALWAYS a shorthand command, NEVER a finished report. Expand it, do not integrate.',
       '- Do NOT invent pathological findings that are not indicated. Use "no focal abnormalities of note", "within normal limits for age" for normal districts.',
+      '- SPINE EXAMS (MRI/CT/X-ray): MANDATORY level-by-level description of ALL intervertebral discs in the examined region, even if normal. Lumbar spine → T12-L1, L1-L2, L2-L3, L3-L4, L4-L5, L5-S1. Cervical spine → C2-C3, C3-C4, C4-C5, C5-C6, C6-C7, C7-T1. Thoracic spine → all levels T1-T2 … T11-T12. For each level: disc hydration and height, any protrusion/herniation with direction, nerve-root impingement, lateral recesses and neural foramina. For normal levels use phrasing like "disc of regular height and hydration, no disc protrusion, lateral recesses and neural foramina patent". Always include vertebral bodies, spinal cord (for MRI), epidural space and — for lumbar — conus medullaris and cauda equina.',
       '- Impeccable punctuation, terminology, spelling.',
       '- ' + styleHint,
     ];
@@ -1152,6 +1153,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       'Input "thyroid US chronic thyroiditis" → TECHNIQUE: thyroid ultrasound with high-frequency linear probe. FINDINGS: thyroid in situ, normal volume; HETEROGENEOUS echotexture consistent with chronic thyroiditis, with mild diffuse increase of intraparenchymal color-Doppler signal. Right and left lobes, isthmus without focal lesions. Neck nodal stations free. (END — no impression)',
       'Input "brain CT chronic small-vessel disease trauma negative" → TECHNIQUE: brain CT without contrast in emergency setting. FINDINGS: no hyperdense hemorrhage nor post-traumatic parenchymal alteration. Periventricular and centrum semiovale hypodense areas bilaterally, compatible with chronic small-vessel disease. Ventricular system in axis, normal in size. No skull fractures. (END — no impression)',
       'Input "complete abdominal US" → TECHNIQUE + FINDINGS for all abdominal districts (liver, biliary, pancreas, spleen, kidneys, bladder, aorta). No thyroid. No impression.',
+      'Input "lumbar spine MRI negative" → TECHNIQUE: MRI of the lumbar spine with sag T1, sag T2, sag STIR, ax T2 sequences. FINDINGS: vertebral bodies of preserved morphology and signal, no focal bone lesions. Conus medullaris in situ at L1 level, of regular morphology and signal. Cauda equina regularly arranged. Epidural space free. Disc T12-L1: of regular height and hydration, no protrusion, recesses and foramina patent. Disc L1-L2: regular. Disc L2-L3: regular. Disc L3-L4: regular. Disc L4-L5: regular. Disc L5-S1: regular. Facet joints within normal limits. Symmetric paravertebral musculature. (END — no impression)',
       '',
       'Output: ONLY TECHNIQUE + FINDINGS, no IMPRESSION, no commentary, no preamble.',
     );
@@ -1161,7 +1163,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: input || 'Generic radiologic examination.' }],
       temperature: 0.3,
-      max_tokens: 800,
+      // 1200 gives headroom for level-by-level spine reports (6 lumbar
+      // discs + vertebral bodies + cord + cauda) without overshoot.
+      max_tokens: 1200,
       top_p: 0.9,
     }, onDelta);
   }

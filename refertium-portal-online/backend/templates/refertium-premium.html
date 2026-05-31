@@ -1598,6 +1598,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '- DEVI generare SEMPRE entrambe le sezioni TECNICA + REPERTI. Mai una sola.',
       '- L\'input dell\'utente è SEMPRE un comando abbreviato, MAI un referto già fatto. Espandilo, non integrarlo.',
       '- NON inventare reperti patologici non indicati. Usa "non si apprezzano alterazioni focali di rilievo", "nei limiti di norma", "quadro nei limiti per l\'età" per i distretti normali.',
+      '- ESAMI DEL RACHIDE (RM/TC/RX): descrivi OBBLIGATORIAMENTE livello per livello TUTTI i dischi intervertebrali della regione esaminata, anche se normali. Rachide lombare → D12-L1, L1-L2, L2-L3, L3-L4, L4-L5, L5-S1. Rachide cervicale → C2-C3, C3-C4, C4-C5, C5-C6, C6-C7, C7-D1. Rachide dorsale → tutti i livelli D1-D2 … D11-D12. Per ogni livello: idratazione e altezza del disco, eventuale protrusione/ernia con direzione, conflitto radicolare, recessi laterali e forami di coniugazione. Per i livelli normali frase tipo "disco di regolare altezza e idratazione, non protrusioni discali, recessi laterali e forami di coniugazione pervi". Aggiungi sempre stato dei corpi vertebrali, midollo (per RM), spazi epidurali e — per lombare — cono midollare e cauda equina.',
       '- Punteggiatura, terminologia e ortografia impeccabili.',
       '- ' + styleHint,
     ];
@@ -1628,6 +1629,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       'Input "eco tiroide tiroidite cronica" → TECNICA: ecografia tiroidea con sonda lineare ad alta frequenza. REPERTI: tiroide in sede, di volume nei limiti; ecostruttura DISOMOGENEA per quadro di tiroidite cronica, con lieve incremento del segnale color-Doppler intraparenchimale. Lobi destro e sinistro, istmo non lesionati. Stazioni linfonodali del collo libere. (FINE — niente conclusioni)',
       'Input "TC encefalo vasculopatia cronica trauma negativo" → TECNICA: TC encefalo basale e con mdc ev in regime di urgenza. REPERTI: non iperdensità emorragiche né alterazioni parenchimali post-traumatiche acute. Aree ipodense periventricolari e nella sostanza bianca dei centri semiovali bilateralmente, compatibili con vasculopatia cronica di piccolo vaso. Sistema ventricolare in asse, di normale ampiezza. Non fratture della teca cranica. (FINE — niente conclusioni)',
       'Input "eco addome completo" → TECNICA + REPERTI di tutti i distretti addominali (fegato, vie biliari, colecisti, pancreas, milza, reni, vescica, aorta). Niente tiroide. Niente conclusioni.',
+      'Input "RM rachide lombare negativo" → TECNICA: RM del rachide lombare con sequenze sag T1, sag T2, sag STIR, ax T2. REPERTI: corpi vertebrali di morfologia e segnale conservati, non lesioni focali ossee. Cono midollare in sede a livello di L1, di morfologia e segnale regolari. Cauda equina regolarmente disposta. Spazio epidurale libero. Disco D12-L1: di regolare altezza e idratazione, non protrusioni, recessi e forami pervi. Disco L1-L2: regolare. Disco L2-L3: regolare. Disco L3-L4: regolare. Disco L4-L5: regolare. Disco L5-S1: regolare. Articolazioni interapofisarie nei limiti. Muscolatura paravertebrale simmetrica. (FINE — niente conclusioni)',
       '',
       'Output: SOLO TECNICA + REPERTI, niente CONCLUSIONI, niente commenti, niente preamboli.',
     );
@@ -1640,7 +1642,9 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
         { role: 'user', content: input || 'Esame radiologico generico.' },
       ],
       temperature: 0.3,
-    max_tokens: 800,
+      // 1200 dà respiro ai referti di rachide level-by-level (6 dischi
+      // lombari + corpi vertebrali + cono + cauda) senza esagerare.
+      max_tokens: 1200,
       top_p: 0.9,
     }, onDelta);
   }
