@@ -1780,8 +1780,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '<div class="meta">' + todayString() + ' · ' + escapeHtml(user) + '</div>' +
       editor.innerHTML +
       '<div class="foot"><span>Refertium · referto generato il ' + todayString() + '</span><span>' + escapeHtml(user) + '</span></div>' +
-      '
-</body></html>';
+      '<\/body><\/html>';
     const w = window.open('', '_blank');
     if (!w) { showToast('Pop-up bloccato — abilita popup per scaricare il PDF', 'err'); return; }
     w.document.open();

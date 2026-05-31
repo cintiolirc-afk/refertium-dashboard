@@ -1264,8 +1264,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '<div class="meta">' + todayString() + ' · ' + escapeHtml(user) + '</div>' +
       editor.innerHTML +
       '<div class="foot"><span>Refertium · report generated on ' + todayString() + '</span><span>' + escapeHtml(user) + '</span></div>' +
-      '
-</body></html>';
+      '<\/body><\/html>';
     const w = window.open('', '_blank');
     if (!w) { showToast('Popup blocked — allow popups to download PDF', 'err'); return; }
     w.document.open();
