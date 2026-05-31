@@ -1171,6 +1171,42 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       editor.innerHTML +
       '<div class="foot"><span>Refertium · report generated on ' + todayString() + '</span><span>' + escapeHtml(user) + '</span></div>' +
       '
+</body></html>';
+    const w = window.open('', '_blank');
+    if (!w) { showToast('Popup blocked — allow popups to download PDF', 'err'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch {} }, 400);
+  }
+
+  $('metaDate').textContent = todayString();
+  const u = window.__REFERTIUM_USER__;
+  if (u && u.name) $('metaUser').textContent = u.name;
+  if (typeof INCLUDE_DICTATION !== 'undefined' && !INCLUDE_DICTATION) btnRec.style.display = 'none';
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (rewriteModal.classList.contains('visible')) rewriteModal.classList.remove('visible');
+      else if (aiPreview.classList.contains('visible')) closePreview();
+    }
+    if (e.target === editor) setTimeout(saveSelection, 0);
+  });
+  editor.addEventListener('mouseup', () => saveSelection());
+  editor.addEventListener('keyup', () => saveSelection());
+  // Esposta per la checklist module:
+  window.streamChatCompletion = streamChatCompletion;
+  window.refertiumInsertChecklistDraft = function(text) {
+    if (!editor) return;
+    editor.innerHTML = '';
+    insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+  };
+  
+
+})();
+</script>
+
 <!-- ─── Checklist module ─── -->
 <div id="clBackdrop" class="cl-backdrop"></div>
 <aside id="clDrawer" class="cl-drawer" aria-label="Checklist strutturata">
@@ -2237,40 +2273,5 @@ window.CHECKLIST_TEMPLATES = {
 
 </script>
 
-</body></html>';
-    const w = window.open('', '_blank');
-    if (!w) { showToast('Popup blocked — allow popups to download PDF', 'err'); return; }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch {} }, 400);
-  }
-
-  $('metaDate').textContent = todayString();
-  const u = window.__REFERTIUM_USER__;
-  if (u && u.name) $('metaUser').textContent = u.name;
-  if (typeof INCLUDE_DICTATION !== 'undefined' && !INCLUDE_DICTATION) btnRec.style.display = 'none';
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (rewriteModal.classList.contains('visible')) rewriteModal.classList.remove('visible');
-      else if (aiPreview.classList.contains('visible')) closePreview();
-    }
-    if (e.target === editor) setTimeout(saveSelection, 0);
-  });
-  editor.addEventListener('mouseup', () => saveSelection());
-  editor.addEventListener('keyup', () => saveSelection());
-  // Esposta per la checklist module:
-  window.streamChatCompletion = streamChatCompletion;
-  window.refertiumInsertChecklistDraft = function(text) {
-    if (!editor) return;
-    editor.innerHTML = '';
-    insertIntoEditor(text, { replaceSelection: false, asBlock: true });
-  };
-  
-
-})();
-</script>
 </body>
 </html>

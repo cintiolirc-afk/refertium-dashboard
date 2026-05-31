@@ -1923,6 +1923,44 @@ p { margin: 0 0 8pt; text-align: justify; }
 ${paragraphsHtml(text)}
 <div class="foot"><span class="brand">Refertium<span class="accent">.</span> <span class="suite">International</span></span><span>${escapeHtml(lang.toUpperCase())}</span></div>
 
+<\/body><\/html>`;
+    const w = window.open('', '_blank');
+    if (!w) { showToast(L().toastPopupBlocked, 'err'); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch {} }, 400);
+  }
+
+  // ─── Init ─────────────────────────────────────────────────
+  buildLangMenus();
+  applyUILang();
+
+  // Esc chiude modali / preview
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (rewriteModal.classList.contains('visible')) rewriteModal.classList.remove('visible');
+      else if (aiPreview.classList.contains('visible')) closePreview();
+      $('langInputMenu').classList.remove('open');
+      $('exportLangMenu').classList.remove('open');
+    }
+    if (e.target === editor) setTimeout(saveSelection, 0);
+  });
+  editor.addEventListener('mouseup', () => saveSelection());
+  editor.addEventListener('keyup', () => saveSelection());
+  // Esposta per la checklist module:
+  window.streamChatCompletion = streamChatCompletion;
+  window.refertiumInsertChecklistDraft = function(text) {
+    if (!editor) return;
+    editor.innerHTML = '';
+    insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+  };
+  
+
+})();
+</script>
+
 <!-- ─── Checklist module ─── -->
 <div id="clBackdrop" class="cl-backdrop"></div>
 <aside id="clDrawer" class="cl-drawer" aria-label="Checklist strutturata">
@@ -2989,42 +3027,5 @@ window.CHECKLIST_TEMPLATES = {
 
 </script>
 
-</body></html>`;
-    const w = window.open('', '_blank');
-    if (!w) { showToast(L().toastPopupBlocked, 'err'); return; }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch {} }, 400);
-  }
-
-  // ─── Init ─────────────────────────────────────────────────
-  buildLangMenus();
-  applyUILang();
-
-  // Esc chiude modali / preview
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (rewriteModal.classList.contains('visible')) rewriteModal.classList.remove('visible');
-      else if (aiPreview.classList.contains('visible')) closePreview();
-      $('langInputMenu').classList.remove('open');
-      $('exportLangMenu').classList.remove('open');
-    }
-    if (e.target === editor) setTimeout(saveSelection, 0);
-  });
-  editor.addEventListener('mouseup', () => saveSelection());
-  editor.addEventListener('keyup', () => saveSelection());
-  // Esposta per la checklist module:
-  window.streamChatCompletion = streamChatCompletion;
-  window.refertiumInsertChecklistDraft = function(text) {
-    if (!editor) return;
-    editor.innerHTML = '';
-    insertIntoEditor(text, { replaceSelection: false, asBlock: true });
-  };
-  
-
-})();
-</script>
 </body>
 </html>
