@@ -432,6 +432,10 @@
       <button id="btnStyleProse" class="tbtn active" data-style="prose" title="Prose style">Prose</button>
       <button id="btnStyleSynth" class="tbtn" data-style="synth" title="Synthetic/list style">Concise</button>
     </div>
+    <div class="tool-group" role="radiogroup" aria-label="Patient sex">
+      <button id="btnSexM" class="tbtn" data-sex="M" title="Male patient" aria-pressed="false">♂ M</button>
+      <button id="btnSexF" class="tbtn" data-sex="F" title="Female patient" aria-pressed="false">♀ F</button>
+    </div>
     <div class="sep"></div>
     <div class="tool-group">
       <button id="btnMagic" class="tbtn" title="Magic: expand/improve the report">
@@ -593,6 +597,8 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   const aiPreviewKind = $('aiPreviewKind');
 
   let writingStyle = 'prose';
+  let patientSex = null;
+  try { const s = sessionStorage.getItem('refertium_patient_sex'); if (s === 'M' || s === 'F') patientSex = s; } catch {}
   let baseFontSize = 17;
   let savedSelectionRange = null;
 
@@ -707,6 +713,18 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   $('btnFontDown').addEventListener('click', () => { baseFontSize = Math.max(13, baseFontSize - 1); editor.style.fontSize = baseFontSize + 'px'; });
   $('btnStyleProse').addEventListener('click', () => { writingStyle = 'prose'; $('btnStyleProse').classList.add('active'); $('btnStyleSynth').classList.remove('active'); });
   $('btnStyleSynth').addEventListener('click', () => { writingStyle = 'synth'; $('btnStyleSynth').classList.add('active'); $('btnStyleProse').classList.remove('active'); });
+  // Patient sex toggle (M / F / none)
+  function applyPatientSexUI() {
+    const m = $('btnSexM'), f = $('btnSexF'); if (!m || !f) return;
+    m.classList.toggle('active', patientSex === 'M');
+    f.classList.toggle('active', patientSex === 'F');
+    m.setAttribute('aria-pressed', patientSex === 'M' ? 'true' : 'false');
+    f.setAttribute('aria-pressed', patientSex === 'F' ? 'true' : 'false');
+    try { if (patientSex) sessionStorage.setItem('refertium_patient_sex', patientSex); else sessionStorage.removeItem('refertium_patient_sex'); } catch {}
+  }
+  $('btnSexM').addEventListener('click', () => { patientSex = patientSex === 'M' ? null : 'M'; applyPatientSexUI(); });
+  $('btnSexF').addEventListener('click', () => { patientSex = patientSex === 'F' ? null : 'F'; applyPatientSexUI(); });
+  applyPatientSexUI();
   $('btnCopy').addEventListener('click', async () => {
     const text = getEditorText();
     try { await navigator.clipboard.writeText(text); showToast('Text copied to clipboard'); }
@@ -1083,6 +1101,10 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     const focusLine = focus
       ? `EXAM FOCUS: ${focus.modality || '(modality not specified)'} — ${focus.district || '(district not specified)'}. The report will describe ONLY this exam on this district. NEVER describe other districts (e.g. if district = "thyroid", do NOT mention liver/abdomen/kidneys/other). If the distillate contains templates of other regions, IGNORE them completely.`
       : `Deduce modality and district from the indication, and describe ONLY that district/modality.`;
+    const sexLine =
+      patientSex === 'M' ? 'PATIENT SEX: Male. Use "the patient" with male grammar. Include prostate and seminal vesicles when pertinent. NEVER describe uterus, ovaries, female breast, obstetric parameters.' :
+      patientSex === 'F' ? 'PATIENT SEX: Female. Use "the patient" with female references. Include uterus, adnexa and female breast when pertinent. NEVER describe prostate or seminal vesicles.' :
+      'PATIENT SEX: not specified. Use neutral forms. Do not describe sex-specific organs (prostate, uterus, ovaries) unless explicitly named in the indication.';
     // Always include the doctor's distillate (MAGIC_PDF_TEXT) in the system
     // prompt as a binding style/template reference, regardless of what is in
     // the editor. That way Magic stays "personal" to the radiologist instead
@@ -1092,6 +1114,8 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       'You are a radiologist writing in English. The user provides ALWAYS a brief INDICATION (e.g. "Brain CT negative", "Thyroid US negative", "Chest X-ray with right basal pneumonia"). It is NEVER a finished report — it is just a shorthand command. You MUST expand it into a complete radiology report.',
       '',
       focusLine,
+      '',
+      sexLine,
       '',
       'MANDATORY STRUCTURE — ONLY 2 SECTIONS, IN THIS ORDER, EACH ON ITS OWN LINE, UPPERCASE TITLE:',
       '',

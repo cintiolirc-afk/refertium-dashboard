@@ -735,6 +735,11 @@
       <button id="btnStyleSynth" class="tbtn" data-style="synth" title="Stile sintetico/elenco">Sintetico</button>
     </div>
 
+    <div class="tool-group" role="radiogroup" aria-label="Sesso paziente">
+      <button id="btnSexM" class="tbtn" data-sex="M" title="Paziente uomo" aria-pressed="false">♂ M</button>
+      <button id="btnSexF" class="tbtn" data-sex="F" title="Paziente donna" aria-pressed="false">♀ F</button>
+    </div>
+
     <div class="sep"></div>
 
     <div class="tool-group">
@@ -911,6 +916,14 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   const aiPreviewKind = $('aiPreviewKind');
 
   let writingStyle = 'prose'; // 'prose' | 'synth'
+  // Sesso paziente (persistente su sessionStorage). Si aggancia al prompt
+  // Magic per adattare descrizioni anatomiche (es. niente prostata per F,
+  // niente utero/ovaie per M, "il paziente"/"la paziente").
+  let patientSex = null; // 'M' | 'F' | null
+  try {
+    const saved = sessionStorage.getItem('refertium_patient_sex');
+    if (saved === 'M' || saved === 'F') patientSex = saved;
+  } catch {}
   let baseFontSize = 17;
   let savedSelectionRange = null;
 
@@ -1052,6 +1065,29 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     $('btnStyleSynth').classList.add('active');
     $('btnStyleProse').classList.remove('active');
   });
+
+  // ─── Toggle sesso paziente (M / F / nessuno) ───
+  function applyPatientSexUI() {
+    const m = $('btnSexM'), f = $('btnSexF');
+    if (!m || !f) return;
+    m.classList.toggle('active', patientSex === 'M');
+    f.classList.toggle('active', patientSex === 'F');
+    m.setAttribute('aria-pressed', patientSex === 'M' ? 'true' : 'false');
+    f.setAttribute('aria-pressed', patientSex === 'F' ? 'true' : 'false');
+    try {
+      if (patientSex) sessionStorage.setItem('refertium_patient_sex', patientSex);
+      else sessionStorage.removeItem('refertium_patient_sex');
+    } catch {}
+  }
+  $('btnSexM').addEventListener('click', () => {
+    patientSex = patientSex === 'M' ? null : 'M';
+    applyPatientSexUI();
+  });
+  $('btnSexF').addEventListener('click', () => {
+    patientSex = patientSex === 'F' ? null : 'F';
+    applyPatientSexUI();
+  });
+  applyPatientSexUI(); // ripristina UI da sessionStorage
 
   $('btnCopy').addEventListener('click', async () => {
     const text = getEditorText();
@@ -1544,11 +1580,19 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       ? `FOCUS DELL'ESAME: ${focus.modality || '(modalità non specificata)'} — ${focus.district || '(distretto non specificato)'}. Il referto descriverà SOLO questo esame su questo distretto. NON descrivere altri distretti (es. se distretto = "tiroide", NON menzionare fegato/addome/reni/altro). Se nel distillato esistono template di altre regioni, IGNORALI completamente.`
       : `Deduci modalità e distretto dall'indicazione, e descrivi SOLO quel distretto/quella metodica.`;
 
+    // Sesso paziente — passato a Magic per coerenza anatomica.
+    const sexLine =
+      patientSex === 'M' ? 'SESSO PAZIENTE: Maschio. Usa "il paziente" / "del paziente". Includi prostata e vescicole seminali quando pertinenti al distretto. NON descrivere mai utero, ovaie, mammella femminile, parametri ostetrici.' :
+      patientSex === 'F' ? 'SESSO PAZIENTE: Femmina. Usa "la paziente" / "della paziente". Includi utero, annessi e mammelle femminili quando pertinenti al distretto. NON descrivere mai prostata o vescicole seminali.' :
+      'SESSO PAZIENTE: non specificato. Usa forme neutre ("il/la paziente"). Non descrivere organi sesso-specifici (prostata, utero, ovaie) salvo che l\'indicazione li nomini esplicitamente.';
+
     const distillate = (typeof MAGIC_PDF_TEXT === 'string' ? MAGIC_PDF_TEXT : '').trim();
     const systemLines = [
       'Sei un radiologo italiano. L\'utente fornisce SEMPRE una INDICAZIONE breve (es. "TC encefalo basale negativo", "Eco tiroide negativo", "RX torace con polmonite basale dx"). NON è mai un referto già scritto — è solo un comando abbreviato. Tu DEVI espanderlo in un referto radiologico completo.',
       '',
       focusLine,
+      '',
+      sexLine,
       '',
       'STRUTTURA OBBLIGATORIA — SOLO 2 SEZIONI, IN QUEST\'ORDINE, SU RIGHE PROPRIE, TITOLO MAIUSCOLO:',
       '',
