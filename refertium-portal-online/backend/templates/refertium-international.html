@@ -1617,6 +1617,7 @@
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: rawText }],
       temperature: 0,
+      max_tokens: Math.min(2000, Math.max(200, Math.ceil(rawText.length / 2))),
     }, onDelta);
   }
 
@@ -1633,6 +1634,8 @@
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: input || 'General radiology exam.' }],
       temperature: 0.4,
+      max_tokens: 800,
+      top_p: 0.9,
     }, onDelta);
   }
 
@@ -1648,6 +1651,8 @@
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: bodyText }],
       temperature: 0.3,
+      max_tokens: 250,
+      top_p: 0.9,
     }, onDelta);
   }
 
@@ -1662,6 +1667,7 @@
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: 'INSTRUCTION: ' + instruction + '\n\nTEXT:\n' + selectedText }],
       temperature: 0.3,
+      max_tokens: Math.min(1500, Math.max(200, Math.ceil(selectedText.length / 2))),
     }, onDelta);
   }
 
@@ -1689,6 +1695,8 @@
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: sourceText }],
       temperature: 0.3,
+      max_tokens: Math.min(2000, Math.max(400, Math.ceil(sourceText.length / 2))),
+      top_p: 0.9,
     }, onDelta);
   }
 
@@ -1809,7 +1817,7 @@
       await aiGenerateMagicDraft(input, langInput, (delta) => {
         buffer += delta;
         const now = Date.now();
-        if (now - lastRender > 80) {
+        if (now - lastRender > 16) {
           aiPreviewBody.textContent = buffer;
           aiPreviewBody.appendChild(makeCursor());
           aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;
@@ -1842,7 +1850,7 @@
       await aiGenerateConclusions(body, langInput, (delta) => {
         buffer += delta;
         const now = Date.now();
-        if (now - lastRender > 80) {
+        if (now - lastRender > 16) {
           aiPreviewBody.textContent = buffer;
           aiPreviewBody.appendChild(makeCursor());
           lastRender = now;
@@ -1890,7 +1898,7 @@
       await aiRewriteSelection(selectedText, instruction, langInput, (delta) => {
         buffer += delta;
         const now = Date.now();
-        if (now - lastRender > 80) {
+        if (now - lastRender > 16) {
           aiPreviewBody.textContent = buffer;
           aiPreviewBody.appendChild(makeCursor());
           lastRender = now;
@@ -1926,7 +1934,7 @@
         (delta) => {
           buffer += delta;
           const now = Date.now();
-          if (now - lastRender > 80) {
+          if (now - lastRender > 16) {
             aiPreviewBody.textContent = buffer;
             aiPreviewBody.appendChild(makeCursor());
             aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight;

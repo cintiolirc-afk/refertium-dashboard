@@ -1037,6 +1037,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: rawText }],
       temperature: 0,
+      max_tokens: Math.min(2000, Math.max(200, Math.ceil(rawText.length / 2))),
     }, onDelta);
   }
 
@@ -1081,6 +1082,8 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: input || 'Generic radiologic examination.' }],
       temperature: 0.3,
+      max_tokens: 800,
+      top_p: 0.9,
     }, onDelta);
   }
 
@@ -1094,6 +1097,8 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: bodyText }],
       temperature: 0.3,
+      max_tokens: 250,
+      top_p: 0.9,
     }, onDelta);
   }
 
@@ -1107,6 +1112,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       model: 'gpt-4o-mini',
       messages: [{ role: 'system', content: system }, { role: 'user', content: 'INSTRUCTION: ' + instruction + '\n\nTEXT:\n' + selectedText }],
       temperature: 0.3,
+      max_tokens: Math.min(1500, Math.max(200, Math.ceil(selectedText.length / 2))),
     }, onDelta);
   }
 
@@ -1173,7 +1179,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       await aiGenerateMagicDraft(input, (delta) => {
         buffer += delta;
         const now = Date.now();
-        if (now - lastRender > 80) { aiPreviewBody.textContent = buffer; aiPreviewBody.appendChild(makeCursor()); aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight; lastRender = now; }
+        if (now - lastRender > 16) { aiPreviewBody.textContent = buffer; aiPreviewBody.appendChild(makeCursor()); aiPreviewBody.scrollTop = aiPreviewBody.scrollHeight; lastRender = now; }
       });
       aiPreviewBody.textContent = buffer.trim();
       setStatus('Draft ready', 'ok');
@@ -1194,7 +1200,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       await aiGenerateConclusions(body, (delta) => {
         buffer += delta;
         const now = Date.now();
-        if (now - lastRender > 80) { aiPreviewBody.textContent = buffer; aiPreviewBody.appendChild(makeCursor()); lastRender = now; }
+        if (now - lastRender > 16) { aiPreviewBody.textContent = buffer; aiPreviewBody.appendChild(makeCursor()); lastRender = now; }
       });
       aiPreviewBody.textContent = buffer.trim();
       setStatus('Impression ready', 'ok');
@@ -1229,7 +1235,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       await aiRewriteSelection(selectedText, instruction, (delta) => {
         buffer += delta;
         const now = Date.now();
-        if (now - lastRender > 80) { aiPreviewBody.textContent = buffer; aiPreviewBody.appendChild(makeCursor()); lastRender = now; }
+        if (now - lastRender > 16) { aiPreviewBody.textContent = buffer; aiPreviewBody.appendChild(makeCursor()); lastRender = now; }
       });
       aiPreviewBody.textContent = buffer.trim();
       setStatus('Ready', 'ok');
