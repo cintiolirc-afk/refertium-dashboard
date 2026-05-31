@@ -859,26 +859,42 @@
   // neuro + MSK + formule ricorrenti. Servono come "ancoraggio" del
   // modello su terminologia tecnica fuori dal vocabolario quotidiano.
   const WHISPER_BASES = {
+    // Whisper preserva solo gli ULTIMI ~224 token: i blocchi più tipici
+    // (torace, addome) vanno alla FINE per stare sempre nella finestra.
     it: [
       'Refertazione radiologica dettata da medico radiologo italiano.',
       'TC, RM, RX, ecografia, ev, mezzo di contrasto, mdc, contrasto iodato,',
-      'fase arteriosa, venosa, tardiva, scansioni assiali, sequenze T1, T2, FLAIR, DWI, ADC.',
+      'fase arteriosa, venosa, tardiva, scansioni assiali, ricostruzioni multiplanari,',
+      'sequenze T1, T2, FLAIR, DWI, ADC, finestra mediastinica, finestra parenchimale.',
       'parenchima, ecostruttura, ecogenicità, iperecogeno, ipoecogeno, isoecogeno, anecogeno,',
       'iperdenso, ipodenso, iperintenso, ipointenso, falda fluida, lesione focale, enhancement.',
-      'fegato, parenchima epatico, colecisti, alitiasica, pericolecistica, coledoco,',
-      'vie biliari intraepatiche, vie biliari extraepatiche, pancreas, milza, surrene,',
-      'reni, calici, bacinetto, ureteri, prostata, vena porta, aorta addominale, ascite.',
-      'parenchima polmonare, mediastino, ilo polmonare, ili polmonari, pleura, versamento pleurico,',
-      'atelettasia, addensamento, ground glass, nodulo polmonare, embolia polmonare, aorta toracica.',
-      'encefalo, falce cerebrale, tentorio, ventricoli laterali, corpo calloso, nuclei della base,',
-      'talami, cervelletto, vermis, sostanza bianca, leucoencefalopatia, atrofia corticale,',
-      'gliosi, edema, ischemia, ictus, ipofisi, sella turcica.',
       'cuffia dei rotatori, sovraspinato, sottospinato, sottoscapolare, labbro glenoideo,',
       'menisco mediale, menisco laterale, cartilagine articolare, condropatia, edema midollare,',
       'frattura, tendinopatia, legamento crociato anteriore, crociato posteriore.',
       'C1, C7, D1, D12, L1, L5, S1, rachide cervicale, rachide dorsale, rachide lombare.',
+      'encefalo, falce cerebrale, tentorio, ventricoli laterali, corpo calloso, nuclei della base,',
+      'talami, cervelletto, vermis, sostanza bianca, leucoencefalopatia, atrofia corticale,',
+      'gliosi, edema, ischemia, ictus, ipofisi, sella turcica.',
       'non si apprezzano alterazioni focali di rilievo, quadro nei limiti per l\'età,',
       'controllo clinico, consigliata correlazione clinica, follow-up.',
+      // Addome
+      'fegato, parenchima epatico, colecisti, alitiasica, pericolecistica, coledoco,',
+      'vie biliari intraepatiche, vie biliari extraepatiche, pancreas, milza, surrene,',
+      'reni, calici, bacinetto, ureteri, prostata, vena porta, aorta addominale, ascite.',
+      // Torace — forme ESATTE che Whisper deve produrre (in fondo alla
+      // finestra dei 224 token così non vengono mai troncate)
+      'parenchima polmonare, lobo superiore destro, lobo medio, lobo inferiore destro,',
+      'lobo superiore sinistro, lingula, lobo inferiore sinistro,',
+      'mediastino, ilo polmonare, ili polmonari, ilo-polmonare, ilo-polmonari, ilare, ilari,',
+      'pleura, versamento pleurico, falda di versamento, atelettasia, collasso passivo,',
+      'addensamento, consolidazione, consolidazioni parenchimali, broncogramma aereo,',
+      'ground-glass, opacità ground-glass, opacità nodulari, opacità centrolobulari,',
+      'centrolobulare, centrolobulari, peribroncovascolare, perilesionali,',
+      'nodulo polmonare, micronoduli, bronchiectasie, embolia polmonare,',
+      'rami arteriosi polmonari, rami lobari, aorta toracica, vena cava superiore,',
+      'linfonodi mediastinici, linfonodi ilari, linfonodi paratracheali, linfonodi sottocarenali,',
+      'verosimile natura reattiva, di natura reattiva, trachea, bronchi principali, pervi,',
+      'cuore, camere cardiache, versamento pericardico, pericardio nei limiti dimensionali.',
     ].join(' '),
     pt: [
       'Laudo radiológico.',
@@ -1603,6 +1619,18 @@
 
   async function cleanupDictationAI(rawText, lang, onDelta) {
     const lname = langName(lang);
+    // IT-specific Whisper-error corrections (dettatura radiologica italiana
+    // veloce produce in modo ricorrente questi pattern sbagliati)
+    const itCorrections = lang === 'it' ? [
+      'ERRORI WHISPER NOTI in italiano — correggi SEMPRE:',
+      '- "ilopormonari" / "ilo pormonari" / "ili pormonari" → "ilo-polmonari" / "ili polmonari"',
+      '- "il i polmonari" → "ili polmonari"',
+      '- "centrovolubolari" / "centrovolu bolari" → "centrolobulari"',
+      '- "plurimopacità" / "plurim opacità" → "plurime opacità"',
+      '- "arenatura reattiva" → "a natura reattiva" / "di natura reattiva"',
+      '- "iper denso" → "iperdenso"; "para mediana" → "paramediana"; "sotto carenale" → "sottocarenale"',
+      '- "broncogramma a ereo" / "bronco gramma" → "broncogramma aereo"',
+    ].join(' ') : '';
     const system = [
       `You are a spelling/punctuation corrector for radiology dictation in ${lname}.`,
       `Return the doctor's text EXACTLY AS IS in ${lname}, with ONLY these minimal corrections:`,
@@ -1612,15 +1640,18 @@
       '4) capital letter at start of sentence;',
       '5) accidental word repetitions.',
       `MEDICAL TERMINOLOGY in ${lname}: keep specialised radiology terms LITERAL — do not replace them with non-medical synonyms or with English equivalents.`,
+      itCorrections,
+      `WRONGLY JOINED WORDS: if you find two ${lname} words wrongly fused into a non-medical compound, split or recompose into the correct radiology lexicon.`,
+      `ANATOMIC HALLUCINATIONS: if a body part appears that is clearly OUTSIDE the exam context (e.g. head/brain in a chest CT; thyroid in an abdominal US; prostate in a head CT) → it is a Whisper hallucination, REMOVE it silently. Do not confuse hallucinations with real findings on adjacent districts.`,
       'ABSOLUTE RULES — never break them:',
       `- Output language MUST be ${lname}. Do NOT translate to any other language.`,
-      `- DO NOT add words, sentences, sections or titles the doctor did not say.`,
+      `- DO NOT add words, sentences, sections or titles the doctor did not say (besides the corrections above).`,
       `- DO NOT insert headings (TECHNIQUE / FINDINGS / IMPRESSION) unless explicitly spoken.`,
       `- DO NOT change the order of sentences.`,
       `- DO NOT summarise, shorten, expand or paraphrase.`,
       `- DO NOT replace synonyms.`,
       `- Preserve the dictated style exactly.`,
-      'When in doubt whether to correct something, do NOT correct it.',
+      'When in doubt whether to correct something NOT listed above, do NOT correct it.',
       'Return ONLY the corrected text — no commentary, no notes.',
     ].join(' ');
     await streamChatCompletion({

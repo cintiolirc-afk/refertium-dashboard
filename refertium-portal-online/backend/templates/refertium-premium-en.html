@@ -856,42 +856,55 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   // the per-doctor WHISPER_PROMPT injected by the backend. Helps Whisper
   // recognise technical terms it would mishear in isolation
   // (e.g. "gallbladder" misheard as "gull bladder").
+  // Order matters: Whisper preserves only the LAST ~224 tokens of the prompt.
+  // Put the most exam-typical terms (chest, abdomen) at the END so they always
+  // stay inside the window. Generic terms (modality, density) go first — if
+  // truncated it hurts less.
   const WHISPER_BASE_EN = [
     'Radiology reporting dictation by an English-speaking radiologist.',
     // ─── Modality & technique
     'CT, MRI, MR, US, ultrasound, X-ray, mammography, CTA, MRA, IV contrast,',
     'iodinated contrast, gadolinium, arterial phase, venous phase, delayed phase,',
-    'axial, coronal, sagittal, T1-weighted, T2-weighted, FLAIR, DWI, ADC, MIP, MPR,',
+    'axial, coronal, sagittal, multiplanar reconstructions, T1-weighted, T2-weighted, FLAIR, DWI, ADC, MIP, MPR,',
     'mediastinal window, lung window, bone window, Hounsfield units, HU.',
     // ─── General
     'parenchyma, echotexture, echogenicity, hyperechoic, hypoechoic, isoechoic, anechoic,',
     'hyperdense, hypodense, isodense, hyperintense, hypointense, isointense,',
     'fluid collection, focal lesion, enhancement, contrast uptake, calcification.',
-    // ─── Abdomen
-    'liver, hepatic parenchyma, gallbladder, stone-free, pericholecystic, common bile duct,',
-    'intrahepatic bile ducts, extrahepatic bile ducts, pancreas, pancreatic duct,',
-    'spleen, adrenal gland, kidneys, calyces, renal pelvis, ureters, bladder, prostate,',
-    'portal vein, IVC, abdominal aorta, mesentery, ascites, hydronephrosis.',
-    // ─── Chest
-    'lung parenchyma, pulmonary lobes, mediastinum, hilum, hila, pleura, pleural effusion,',
-    'atelectasis, consolidation, ground glass, opacity, pulmonary nodule, micronodule,',
-    'bronchiectasis, pulmonary embolism, thoracic aorta.',
-    // ─── Neuro
-    'brain, falx cerebri, tentorium, lateral ventricles, third ventricle, corpus callosum,',
-    'basal ganglia, thalami, cerebellum, vermis, white matter, grey matter,',
-    'leukoencephalopathy, cortical atrophy, gliosis, vasogenic edema,',
-    'hemorrhage, ischemia, stroke, pituitary, sella turcica.',
     // ─── MSK + spine
     'rotator cuff, supraspinatus, infraspinatus, subscapularis, glenoid labrum,',
     'medial meniscus, lateral meniscus, articular cartilage, chondropathy,',
     'bone marrow edema, fracture, tendinopathy, anterior cruciate ligament, ACL, PCL,',
     'C1, C2, C5, C7, T1, T12, L1, L4, L5, S1, cervical spine, lumbar spine.',
-    // ─── Common pathology
+    // ─── Neuro
+    'brain, falx cerebri, tentorium, lateral ventricles, third ventricle, corpus callosum,',
+    'basal ganglia, thalami, cerebellum, vermis, white matter, grey matter,',
+    'leukoencephalopathy, cortical atrophy, gliosis, vasogenic edema,',
+    'hemorrhage, ischemia, stroke, pituitary, sella turcica.',
+    // ─── Common pathology + recurring formulas
     'lesion, hematoma, infarct, calculi, cyst, polyp, nodule, neoplasm, mass,',
     'lymphadenopathy, lymph nodes, nephrolithiasis.',
-    // ─── Recurring formulas
     'no focal abnormalities of note, within normal limits for age, stable findings,',
     'clinical correlation recommended, follow-up imaging recommended.',
+    // ─── Abdomen (near end — preserved)
+    'liver, hepatic parenchyma, gallbladder, stone-free, pericholecystic, common bile duct,',
+    'intrahepatic bile ducts, extrahepatic bile ducts, pancreas, pancreatic duct,',
+    'spleen, adrenal gland, kidneys, calyces, renal pelvis, ureters, bladder, prostate,',
+    'portal vein, IVC, abdominal aorta, mesentery, ascites, hydronephrosis.',
+    // ─── Chest (at the end — exact phrasings we want Whisper to produce)
+    'lung parenchyma, right upper lobe, right middle lobe, right lower lobe,',
+    'left upper lobe, lingula, left lower lobe, apical segment, basal segment,',
+    'mediastinum, hilum, hila, hilar, perihilar, pleura, pleural, pleural effusion,',
+    'atelectasis, passive collapse, consolidation, parenchymal consolidation, air bronchogram,',
+    'ground-glass, ground-glass opacity, nodular opacities, centrilobular opacities,',
+    'centrilobular, peribronchovascular, peribronchial, perilesional,',
+    'pulmonary nodule, micronodule, micronodules, bronchiectasis, bronchiolectasis,',
+    'pulmonary embolism, pulmonary arterial branches, lobar branches, segmental branches,',
+    'thoracic aorta, aortic arch, pulmonary trunk, superior vena cava,',
+    'mediastinal lymph nodes, hilar lymph nodes, paratracheal lymph nodes, subcarinal lymph nodes,',
+    'likely reactive in nature, reactive in appearance,',
+    'trachea, main bronchi, lobar bronchus, patent, preserved patency,',
+    'heart, cardiac chambers, pericardial effusion, pericardium within normal size.',
   ].join(' ');
 
   function buildWhisperPrompt() {
@@ -1017,15 +1030,24 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   async function cleanupDictationAI(rawText, onDelta) {
     const system = [
       'You are a spelling/punctuation corrector for medical radiology dictation.',
-      'Return the doctor’s text EXACTLY AS IS, with ONLY these minimal corrections:',
+      'Return the doctor\'s text EXACTLY AS IS, with ONLY these minimal corrections:',
       '1) missing or wrong punctuation (commas, periods, colons);',
       '2) obvious spelling typos;',
       '3) double or wrong spacing;',
       '4) capital letter at start of sentence and after period;',
       '5) accidental word repetitions ("the the", "of of", "not not").',
       'MEDICAL TERMINOLOGY: if the text contains correct radiology terms (gallbladder, common bile duct, pericholecystic, parenchyma, echotexture, ground glass, etc.), KEEP THEM LITERAL — do not replace them with non-medical synonyms.',
+      'KNOWN WHISPER ERRORS — always correct (same content the doctor said, just transcribed wrong):',
+      '- "centri lobular" / "centri-lobular" → "centrilobular"',
+      '- "para tracheal" → "paratracheal"; "sub carinal" → "subcarinal"; "peri lesional" → "perilesional"',
+      '- "hyper dense" / "hypo dense" → "hyperdense" / "hypodense" (same for intense, echoic)',
+      '- "bronch ectasis" → "bronchiectasis"',
+      '- "air broncho gram" / "bronchogram aerial" → "air bronchogram"',
+      '- "ground glass" should stay "ground-glass" when used as adjective ("ground-glass opacity")',
+      'WRONGLY JOINED/SPLIT WORDS: if two English words look fused or split in a non-medical way (e.g. "pulmnodule", "lymph node areas" vs "lymphadenopathy"), recompose them into proper radiology lexicon.',
+      'ANATOMIC HALLUCINATIONS: if a body part appears that is clearly OUTSIDE the exam context (e.g. "head" or "brain" in a chest CT; "thyroid" in an abdominal US; "prostate" in a head CT) → it is a Whisper hallucination, REMOVE it silently. Do not confuse hallucinations with real findings on adjacent districts.',
       'ABSOLUTE RULES — never break them:',
-      '- DO NOT add words, sentences, sections or titles the doctor did not dictate.',
+      '- DO NOT add words, sentences, sections or titles the doctor did not dictate (besides the corrections above).',
       '- DO NOT insert headings like "TECHNIQUE", "FINDINGS", "IMPRESSION", "INDICATION" if the doctor did not say them.',
       '- DO NOT change the order of sentences.',
       '- DO NOT summarise, shorten or condense anything.',
@@ -1035,7 +1057,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '- DO NOT convert lists to prose or prose to lists.',
       '- Preserve the dictated style exactly (prose or concise as given).',
       '- Keep informal connectives ("however", "so", "also") as dictated.',
-      'When in doubt whether to correct something, do NOT correct it.',
+      'When in doubt whether to correct something NOT listed above, do NOT correct it.',
       'Return ONLY the corrected text — no commentary, no headings, no notes.',
     ].join(' ');
     await streamChatCompletion({

@@ -1365,36 +1365,32 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   // distillato del singolo medico) per migliorare il riconoscimento dei
   // termini tecnici che da soli — fuori contesto — Whisper sbaglia.
   // Es: "colecisti" senza prompt diventa "le cisti", "coledoco" diventa "co e doco".
+  // ATTENZIONE all'ordine: Whisper preserva SOLO gli ULTIMI ~224 token del
+  // prompt. Quindi mettiamo i termini più tipici (torace, addome) ALLA FINE
+  // così sono sempre dentro la finestra. Le voci più generiche (modalità,
+  // densitometria) le mettiamo all'inizio: se vengono troncate è meno grave.
   const WHISPER_BASE_IT = [
     'Refertazione radiologica dettata da medico radiologo italiano.',
-    // ─── Modalità e tecnica
+    // ─── Modalità e tecnica (generica, può essere troncata)
     'TC, RM, RX, ecografia, mammografia, angio-TC, angio-RM, ev, intravenoso,',
     'mezzo di contrasto, mdc, contrasto iodato, contrasto paramagnetico,',
     'fase arteriosa, fase venosa, fase tardiva, scansioni assiali, scansioni coronali,',
-    'sequenze T1, T2, FLAIR, DWI, ADC, MIP, MPR, finestra mediastinica, finestra ossea.',
-    // ─── Generale
+    'ricostruzioni multiplanari, sequenze T1, T2, FLAIR, DWI, ADC, MIP, MPR,',
+    'finestra mediastinica, finestra ossea, finestra parenchimale.',
+    // ─── Densitometria
     'parenchima, ecostruttura, ecogenicità, iperecogeno, ipoecogeno, isoecogeno, anecogeno,',
     'iperdenso, ipodenso, isodenso, iperintenso, ipointenso, isointenso,',
     'falda fluida, raccolta liquida, lesione focale, enhancement, captazione, calcificazione.',
-    // ─── Addome
-    'fegato, parenchima epatico, colecisti, alitiasica, pericolecistica, coledoco,',
-    'vie biliari intraepatiche, vie biliari extraepatiche, pancreas, dotto pancreatico,',
-    'milza, surrene, reni, calici, bacinetto renale, ureteri, vescica, prostata,',
-    'vena porta, vena cava inferiore, aorta addominale, mesentere, ascite, idronefrosi.',
-    // ─── Torace
-    'parenchima polmonare, lobi polmonari, mediastino, ilo polmonare, ili polmonari,',
-    'pleura, versamento pleurico, atelettasia, addensamento, ground glass, opacità,',
-    'nodulo polmonare, micronodulo, bronchiectasie, embolia polmonare, aorta toracica.',
-    // ─── Neuro
-    'encefalo, falce cerebrale, tentorio, ventricoli laterali, terzo ventricolo,',
-    'corpo calloso, nuclei della base, talami, cervelletto, vermis,',
-    'sostanza bianca, sostanza grigia, leucoencefalopatia, atrofia corticale,',
-    'gliosi, edema vasogenico, emorragia, ischemia, ictus, ipofisi, sella turcica.',
     // ─── MSK + rachide
     'cuffia dei rotatori, sovraspinato, sottospinato, sottoscapolare, labbro glenoideo,',
     'menisco mediale, menisco laterale, cartilagine articolare, condropatia,',
     'edema midollare, frattura, tendinopatia, legamento crociato anteriore, crociato posteriore,',
     'C1, C2, C5, C7, D1, D12, L1, L4, L5, S1, rachide cervicale, rachide lombare.',
+    // ─── Neuro
+    'encefalo, falce cerebrale, tentorio, ventricoli laterali, terzo ventricolo,',
+    'corpo calloso, nuclei della base, talami, cervelletto, vermis,',
+    'sostanza bianca, sostanza grigia, leucoencefalopatia, atrofia corticale,',
+    'gliosi, edema vasogenico, emorragia, ischemia, ictus, ipofisi, sella turcica.',
     // ─── Patologia comune
     'lesione, ematoma, infarto, calcoli, cisti, polipo, nodulo, neoformazione, massa,',
     'linfoadenomegalia, linfonodale, linfonodi, calcolosi, idroureterite.',
@@ -1402,6 +1398,28 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     'non si apprezzano alterazioni focali di rilievo, in assenza di alterazioni significative,',
     'quadro nei limiti per l\'età, quadro stazionario, controllo clinico,',
     'consigliata correlazione clinica, follow-up.',
+    // ─── ADDOME (più vicino alla fine — preservato)
+    'fegato, parenchima epatico, colecisti, alitiasica, pericolecistica, coledoco,',
+    'vie biliari intraepatiche, vie biliari extraepatiche, pancreas, dotto pancreatico,',
+    'milza, surrene, reni, calici, bacinetto renale, ureteri, vescica, prostata,',
+    'vena porta, vena cava inferiore, aorta addominale, mesentere, ascite, idronefrosi.',
+    // ─── TORACE (DENTRO la finestra dei 224 token — termini-chiave + i più
+    // sbagliati da Whisper su dettatura veloce italiana, scritti nella forma
+    // ESATTA che vogliamo)
+    'parenchima polmonare, lobo superiore destro, lobo medio, lobo inferiore destro,',
+    'lobo superiore sinistro, lingula, lobo inferiore sinistro, segmento apicale, segmento basale,',
+    'mediastino, ilo polmonare, ili polmonari, ilo-polmonare, ilo-polmonari, ilare, ilari,',
+    'pleura, pleurico, versamento pleurico, falda di versamento, atelettasia, collasso passivo,',
+    'addensamento, addensamenti, consolidazione, consolidazioni parenchimali, broncogramma aereo,',
+    'ground-glass, opacità ground-glass, opacità nodulari, opacità centrolobulari,',
+    'centrolobulare, centrolobulari, peribroncovascolare, peribronchiale, perilesionali,',
+    'nodulo polmonare, micronodulo, micronoduli, bronchiectasie, bronchiolectasie,',
+    'embolia polmonare, rami arteriosi polmonari, rami lobari, rami segmentari,',
+    'aorta toracica, arco aortico, tronco polmonare, vena cava superiore,',
+    'linfonodi mediastinici, linfonodi ilari, linfonodi paratracheali, linfonodi sottocarenali,',
+    'verosimile natura reattiva, di natura reattiva, di aspetto reattivo,',
+    'trachea, bronchi principali, bronco lobare, pervi, pervietà conservata,',
+    'cuore, camere cardiache, versamento pericardico, pericardio nei limiti dimensionali.',
   ].join(' ');
 
   function buildWhisperPrompt() {
@@ -1465,18 +1483,32 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
   // aggiunta di sezioni, nessuna sostituzione di sinonimi.
   async function cleanupDictationAI(rawText, onDelta) {
     const system = [
-      'Sei un correttore ortografico per dettatura medica radiologica.',
-      'Restituisci il testo del medico ESATTAMENTE COM’È, con SOLO queste correzioni minime:',
+      'Sei un correttore ortografico per dettatura medica radiologica italiana.',
+      'Restituisci il testo del medico ESATTAMENTE COM\'È, con SOLO queste correzioni minime:',
       '1) punteggiatura mancante o errata (virgole, punti, due punti);',
       '2) refusi ortografici evidenti;',
       '3) spaziature doppie o errate;',
       '4) maiuscola a inizio frase e dopo il punto;',
       '5) ripetizioni accidentali della stessa parola ("il il", "di di", "non non").',
       'TERMINOLOGIA MEDICA: se il testo contiene parole tecniche radiologiche corrette (colecisti, coledoco, pericolecistica, alitiasica, parenchima, ecostruttura, ground glass, ecc.), MANTIENILE LETTERALI — non sostituirle con sinonimi non medici.',
+      'ERRORI WHISPER NOTI — correggili SEMPRE (è la stessa cosa che il medico ha detto, solo trascritta male):',
+      '- "ilopormonari" / "ilo pormonari" / "ili pormonari" → "ilo-polmonari" / "ili polmonari"',
+      '- "il i polmonari" → "ili polmonari"',
+      '- "centrovolubolari" / "centrovolu bolari" / "centro volu bolari" → "centrolobulari"',
+      '- "plurimopacità" / "plurim opacità" → "plurime opacità"',
+      '- "arenatura reattiva" / "a renatura" → "a natura reattiva" / "di natura reattiva"',
+      '- "iper denso" / "ipo denso" → "iperdenso" / "ipodenso" (idem per intenso, ecogeno)',
+      '- "para mediana" → "paramediana"',
+      '- "broncogramma a ereo" / "bronco gramma" → "broncogramma aereo"',
+      '- "ground glass" / "ground-glass" → mantieni nella forma "ground-glass" se è in mezzo a una frase clinica',
+      '- "sotto carenale" / "sotto carenali" → "sottocarenale" / "sottocarenali"',
+      '- "perilesionali" se diviso in "peri lesionali" → "perilesionali"',
+      'PAROLE FUSE PER ERRORE: se trovi due parole italiane fuse in modo non-medico (es. "plurimopacità", "ilopormonari"), separale o ricomponile nella forma corretta del lessico radiologico.',
+      'ALLUCINAZIONI ANATOMICHE: se compare un riferimento anatomico chiaramente ESTRANEO al contesto dell\'esame (es. "capo", "cranio", "encefalo" in una TC torace; "tiroide" in un\'eco addome; "prostata" in una TC encefalo) → è una allucinazione di Whisper, RIMUOVILA silenziosamente. NON contrabbandare però come "allucinazione" reperti realmente dettati.',
       'REGOLE ASSOLUTE — non infrangerle MAI:',
-      '- NON aggiungere parole, frasi, sezioni o titoli che il medico non ha dettato.',
+      '- NON aggiungere parole, frasi, sezioni o titoli che il medico non ha dettato (eccetto le correzioni sopra).',
       '- NON inserire titoli come "TECNICA", "REPERTI", "CONCLUSIONI", "INDICAZIONE" se il medico non li ha pronunciati.',
-      '- NON cambiare l’ordine delle frasi.',
+      '- NON cambiare l\'ordine delle frasi.',
       '- NON sintetizzare, riassumere o accorciare nulla.',
       '- NON espandere, parafrasare o "migliorare" il linguaggio.',
       '- NON sostituire sinonimi: se ha detto "mostra" mantieni "mostra", non "evidenzia"; se ha detto "si vede" mantieni "si vede".',
@@ -1484,7 +1516,7 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
       '- NON convertire elenchi in prosa, né prosa in elenchi.',
       '- Mantieni esattamente lo stile dettato (discorsivo o sintetico che sia).',
       '- Mantieni connettivi colloquiali ("però", "quindi", "inoltre", "comunque") così come detti.',
-      'Se sei in dubbio se correggere qualcosa, NON correggerlo.',
+      'Se sei in dubbio se correggere qualcosa di NON elencato sopra, NON correggerlo.',
       'Restituisci SOLO il testo corretto, niente commenti, niente intestazioni, niente note.',
     ].join(' ');
 
