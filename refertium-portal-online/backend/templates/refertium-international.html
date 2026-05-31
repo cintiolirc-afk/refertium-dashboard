@@ -384,32 +384,28 @@
   }
   .cl-toggle svg { width: 16px; height: 16px; }
 
-  /* ─── Backdrop scuro quando drawer aperto ─── */
-  .cl-backdrop {
-    position: fixed; inset: 0;
-    background: rgba(5,13,26,.55);
-    backdrop-filter: blur(2px);
-    z-index: 90;
-    opacity: 0; pointer-events: none;
-    transition: opacity 200ms cubic-bezier(.16,1,.3,1);
-  }
-  .cl-backdrop.open { opacity: 1; pointer-events: auto; }
+  /* ─── Backdrop (non più usato in modalità inline, mantenuto per retro-compat) ─── */
+  .cl-backdrop { display: none; }
 
-  /* ─── Drawer laterale destro ─── */
+  /* ─── Pannello checklist INLINE accanto all'editor ─────────
+     Non è più un drawer overlay: vive dentro al workspace flex,
+     occupa width 0 quando chiuso e una porzione fissa quando aperto.
+     L'editor a sinistra si rimpicciolisce automaticamente. */
   .cl-drawer {
-    position: fixed;
-    top: 0; right: 0; bottom: 0;
-    width: min(540px, 90vw);
-    background: var(--panel, #0a1628);
+    flex-shrink: 0;
+    width: 0;
+    overflow: hidden;
+    background: var(--panel-2, #112340);
     border-left: 1px solid var(--line-strong, #2c4a76);
-    box-shadow: -12px 0 32px rgba(0,0,0,.4);
-    z-index: 100;
-    transform: translateX(100%);
-    transition: transform 280ms cubic-bezier(.16,1,.3,1);
     display: flex; flex-direction: column;
     color: var(--text, #e8edf5);
+    transition: width 280ms cubic-bezier(.16,1,.3,1);
+    /* min-width interno: quando si apre, il contenuto è leggibile */
   }
-  .cl-drawer.open { transform: translateX(0); }
+  .cl-drawer.open { width: min(460px, 38vw); }
+  /* Contenuto interno mantiene una larghezza minima fissa per evitare
+     che le voci si "schiaccino" mentre il pannello si apre/chiude. */
+  .cl-drawer > * { min-width: min(460px, 38vw); }
 
   .cl-header {
     padding: 18px 22px 14px;
@@ -585,8 +581,23 @@
   .cl-btn:disabled { opacity: .5; cursor: not-allowed; }
   .cl-btn svg { width: 14px; height: 14px; }
 
-  @media (max-width: 720px) {
-    .cl-drawer { width: 100vw; }
+  @media (max-width: 900px) {
+    /* Su schermi stretti: torna a comportamento drawer overlay perché
+       lo split side-by-side non ha più senso. */
+    .cl-drawer {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: min(540px, 90vw);
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 280ms cubic-bezier(.16,1,.3,1);
+      box-shadow: -12px 0 32px rgba(0,0,0,.4);
+    }
+    .cl-drawer.open {
+      width: min(540px, 90vw);
+      transform: translateX(0);
+    }
+    .cl-drawer > * { min-width: 0; }
+    .cl-backdrop { display: block; }
   }
 
 </style>
@@ -719,7 +730,43 @@
         <div class="ai-preview-body" id="aiPreviewBody"></div>
       </section>
     </div>
-  </main>
+
+    <div id="clBackdrop" class="cl-backdrop"></div>
+    <!-- ─── Checklist pannello inline ─── -->
+    <aside id="clDrawer" class="cl-drawer" aria-label="Checklist strutturata">
+  <header class="cl-header">
+    <div class="cl-title-row">
+      <span class="cl-title">Checklist<span class="accent">.</span></span>
+      <button id="clCloseBtn" class="cl-close" type="button" title="Chiudi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <select id="clTemplateSelect" class="cl-template-select" aria-label="Seleziona esame">
+      <option value="">— Seleziona esame —</option>
+    </select>
+    <div class="cl-meta-bar">
+      <span id="clProgress" class="progress"></span>
+      <span id="clModality" class="modality" style="display:none"></span>
+    </div>
+  </header>
+  <div id="clBody" class="cl-body">
+    <div class="cl-empty">
+      Seleziona un esame dall'elenco qui sopra.<br><br>
+      Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
+      oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
+    </div>
+  </div>
+  <footer class="cl-footer">
+    <button id="clResetBtn" class="cl-btn cl-btn-ghost" type="button">Azzera</button>
+    <button id="clGenerateBtn" class="cl-btn cl-btn-primary" type="button" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l1.9 4.7L18 9.5l-4.1 1.8L12 16l-1.9-4.7L6 9.5l4.1-1.8z"/>
+      </svg>
+      Genera referto
+    </button>
+  </footer>
+</aside>
+    </main>
 </div>
 
 <!-- Modale Modifica con AI -->
@@ -1961,41 +2008,6 @@ ${paragraphsHtml(text)}
 })();
 </script>
 
-<!-- ─── Checklist module ─── -->
-<div id="clBackdrop" class="cl-backdrop"></div>
-<aside id="clDrawer" class="cl-drawer" aria-label="Checklist strutturata">
-  <header class="cl-header">
-    <div class="cl-title-row">
-      <span class="cl-title">Checklist<span class="accent">.</span></span>
-      <button id="clCloseBtn" class="cl-close" type="button" title="Chiudi">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <select id="clTemplateSelect" class="cl-template-select" aria-label="Seleziona esame">
-      <option value="">— Seleziona esame —</option>
-    </select>
-    <div class="cl-meta-bar">
-      <span id="clProgress" class="progress"></span>
-      <span id="clModality" class="modality" style="display:none"></span>
-    </div>
-  </header>
-  <div id="clBody" class="cl-body">
-    <div class="cl-empty">
-      Seleziona un esame dall'elenco qui sopra.<br><br>
-      Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
-      oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
-    </div>
-  </div>
-  <footer class="cl-footer">
-    <button id="clResetBtn" class="cl-btn cl-btn-ghost" type="button">Azzera</button>
-    <button id="clGenerateBtn" class="cl-btn cl-btn-primary" type="button" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 3l1.9 4.7L18 9.5l-4.1 1.8L12 16l-1.9-4.7L6 9.5l4.1-1.8z"/>
-      </svg>
-      Genera referto
-    </button>
-  </footer>
-</aside>
 
 <script>
 /* ============================================================
