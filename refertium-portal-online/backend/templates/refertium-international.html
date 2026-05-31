@@ -1624,23 +1624,23 @@
   async function aiGenerateMagicDraft(input, lang, onDelta) {
     const lname = langName(lang);
     const sectionLabels = ({
-      it: 'TECNICA / REPERTI / CONCLUSIONI',
-      pt: 'TÉCNICA / ACHADOS / IMPRESSÃO',
-      es: 'TÉCNICA / HALLAZGOS / IMPRESIÓN',
-      en: 'TECHNIQUE / FINDINGS / IMPRESSION',
-      fr: 'TECHNIQUE / RÉSULTATS / CONCLUSION',
-      de: 'TECHNIK / BEFUNDE / BEURTEILUNG',
-    })[lang] || 'TECNICA / REPERTI / CONCLUSIONI';
+      it: 'TECNICA / REPERTI',
+      pt: 'TÉCNICA / ACHADOS',
+      es: 'TÉCNICA / HALLAZGOS',
+      en: 'TECHNIQUE / FINDINGS',
+      fr: 'TECHNIQUE / RÉSULTATS',
+      de: 'TECHNIK / BEFUNDE',
+    })[lang] || 'TECNICA / REPERTI';
     const system = [
-      `You are a radiologist writing in ${lname}. The user provides ALWAYS a brief INDICATION (e.g. "Brain CT negative", "Thyroid US negative"). It is NEVER a finished report — just a shorthand command. You MUST expand it into a complete radiology report.`,
-      `MANDATORY STRUCTURE — 3 SECTIONS in this order, each on its own line, UPPERCASE titles in ${lname.toUpperCase()}: ${sectionLabels}.`,
+      `You are a radiologist writing in ${lname}. The user provides ALWAYS a brief INDICATION (e.g. "Brain CT negative", "Thyroid US chronic thyroiditis"). It is NEVER a finished report — just a shorthand command. You MUST expand it into a structured report body.`,
+      `MANDATORY STRUCTURE — ONLY 2 SECTIONS in this order, each on its own line, UPPERCASE titles in ${lname.toUpperCase()}: ${sectionLabels}.`,
       `Section 1: technical description (modality, region, contrast, sequences/phases).`,
-      `Section 2: systematic DETAILED description of findings for each pertinent district. "negative"/"normal" → describe each district as normal with standard ${lname} phrasing. If a pathological finding is named → describe it precisely + describe the other districts as normal.`,
-      `Section 3: 1-3 sentences of clinical impression.`,
-      `ABSOLUTE: always generate ALL THREE sections. NEVER only the impression. NEVER skip TECNICA/REPERTI.`,
+      `Section 2: systematic DETAILED description of findings for each pertinent district. "negative"/"normal" → describe each district as normal with standard ${lname} phrasing. If a pathological finding is named (also chronic ones) → DESCRIBE IT precisely INSIDE the findings section, NEVER in a conclusion. The other districts are described as normal.`,
+      `DO NOT add an IMPRESSION / CONCLUSIONS / SUMMARY section. Magic handles ONLY technique + findings. The impression is generated separately via the dedicated "AI Impression" button.`,
+      `Every finding mentioned in the indication MUST appear inside the findings section. If a finding is missing from findings, it does not exist.`,
       `The user input is ALWAYS shorthand, NEVER a finished report — expand it.`,
       `DO NOT invent unlikely findings; use neutral ${lname} phrasing when missing.`,
-      `Output: ONLY the report in ${lname}, no commentary.`,
+      `Output: ONLY the report (technique + findings) in ${lname}, no impression, no commentary.`,
     ].join(' ');
     await streamChatCompletion({
       model: 'gpt-4o-mini',
