@@ -472,10 +472,6 @@
   <main class="workspace">
     <div class="editor-wrap">
       <article class="paper">
-        <h1 class="paper-title">Refertium</h1>
-        <div class="paper-meta">
-          <span id="metaDate"></span> · <span id="metaUser">Reporting physician</span>
-        </div>
         <div
           id="editor"
           class="editor"
@@ -1343,9 +1339,6 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     setTimeout(() => { try { w.print(); } catch {} }, 400);
   }
 
-  $('metaDate').textContent = todayString();
-  const u = window.__REFERTIUM_USER__;
-  if (u && u.name) $('metaUser').textContent = u.name;
   if (typeof INCLUDE_DICTATION !== 'undefined' && !INCLUDE_DICTATION) btnRec.style.display = 'none';
 
   document.addEventListener('keydown', (e) => {
