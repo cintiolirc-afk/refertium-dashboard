@@ -2667,7 +2667,6 @@ window.CHECKLIST_TEMPLATES = {
     } else if (v.state === 'prompt') {
       const ta = document.createElement('textarea');
       ta.className = 'cl-item-note';
-      ta.placeholder = 'Descrivi il reperto (es. lesione focale di 12 mm in sede…)';
       ta.value = v.text || '';
       ta.addEventListener('input', () => {
         cstate.voci[voce.id] = { state: 'prompt', text: ta.value };
