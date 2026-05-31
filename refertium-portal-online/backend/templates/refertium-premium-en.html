@@ -157,10 +157,17 @@
     transition: width 280ms cubic-bezier(.16,1,.3,1);
     /* min-width interno: quando si apre, il contenuto è leggibile */
   }
-  .cl-drawer.open { width: min(460px, 38vw); }
-  /* Contenuto interno mantiene una larghezza minima fissa per evitare
-     che le voci si "schiaccino" mentre il pannello si apre/chiude. */
-  .cl-drawer > * { min-width: min(460px, 38vw); }
+  .cl-drawer.open { width: 50%; }
+  /* Min-width interno per evitare collasso del contenuto durante l'animazione,
+     ma più piccolo del 50% così su layout stretti il contenuto è leggibile. */
+  .cl-drawer > * { min-width: min(420px, 100%); }
+
+  /* Quando la checklist è aperta, il paper dell'editor si allarga a tutta
+     la larghezza disponibile (niente più 880px centered con spazio libero
+     ai lati) e i margini esterni del workspace si stringono. */
+  .workspace:has(.cl-drawer.open) .paper { max-width: 100%; }
+  .workspace:has(.cl-drawer.open) .editor-wrap { padding: 32px 22px 80px; }
+  .workspace:has(.cl-drawer.open) .paper { padding: 40px 44px; }
 
   .cl-header {
     padding: 18px 22px 14px;
