@@ -600,6 +600,40 @@
     box-shadow: 0 0 0 3px rgba(244,192,101,.18);
   }
 
+  /* Wrapper della textarea-nota con bottone mic in basso a destra */
+  .cl-note-wrap { position: relative; }
+  .cl-note-wrap .cl-item-note { padding-right: 44px !important; }
+  .cl-mic-btn {
+    position: absolute;
+    right: 6px; bottom: 6px;
+    height: 30px; min-width: 30px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--accent-soft, rgba(93,202,165,.12));
+    color: var(--accent, #5DCAA5);
+    border: 1px solid var(--line-strong, #2c4a76);
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    transition: background 150ms, border-color 150ms, color 150ms, width 150ms;
+    font: inherit; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .cl-mic-btn:hover {
+    background: rgba(93,202,165,.22);
+    border-color: var(--accent, #5DCAA5);
+  }
+  .cl-mic-btn svg { width: 14px; height: 14px; }
+  .cl-mic-btn.rec {
+    background: var(--danger, #e07070);
+    color: #fff;
+    border-color: var(--danger, #e07070);
+  }
+  .cl-mic-btn.rec .rec-dot-mic {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #fff;
+    animation: pulse 1.2s infinite;
+  }
+
   /* ─── Footer con bottoni azione ─── */
   .cl-footer {
     padding: 14px 22px 18px;
@@ -1769,6 +1803,63 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     editor.innerHTML = '';
     insertIntoEditor(text, { replaceSelection: false, asBlock: true, parseHeadings: true });
   };
+
+  /**
+   * window.refertiumStartDictation(opts) — riusato dalla checklist (e da chiunque
+   * voglia dettare in una textarea / input). Apre MediaRecorder, ritorna un
+   * controller con `stop()` che restituisce una Promise<string> col testo
+   * pulito (Whisper + correzioni mediche + cleanup AI).
+   *
+   * Uso:
+   *   const ctrl = await window.refertiumStartDictation();
+   *   // ...user parla...
+   *   const text = await ctrl.stop();
+   *   textarea.value += text;
+   */
+  window.refertiumStartDictation = async function() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Microfono non disponibile in questo browser');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const candidates = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
+    let mimeType = '';
+    for (const m of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) { mimeType = m; break; }
+    }
+    const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    const chunks = [];
+    const realMime = mr.mimeType || mimeType || 'audio/webm';
+    mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    mr.start(250);
+    let stopped = false;
+    return {
+      stop: () => new Promise((resolve, reject) => {
+        if (stopped) return resolve('');
+        stopped = true;
+        mr.onstop = async () => {
+          try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+          try {
+            const blob = new Blob(chunks, { type: realMime });
+            if (blob.size < 1000) return resolve('');
+            const raw = await transcribeBlobDirect(blob);
+            if (!raw) return resolve('');
+            const corrected = applyMedicalCorrections(raw);
+            const pre = preprocessDictation(corrected);
+            let buffer = '';
+            await cleanupDictationAI(pre, (delta) => { buffer += delta; });
+            resolve(buffer.trim());
+          } catch (err) { reject(err); }
+        };
+        try { mr.stop(); } catch (e) { reject(e); }
+      }),
+      cancel: () => {
+        if (stopped) return;
+        stopped = true;
+        try { mr.stop(); } catch {}
+        try { stream.getTracks().forEach((t) => t.stop()); } catch {}
+      },
+    };
+  };
   
 
 })();
@@ -2677,6 +2768,9 @@ window.CHECKLIST_TEMPLATES = {
       text.textContent = voce.normale;
       item.appendChild(text);
     } else if (v.state === 'prompt') {
+      const wrap = document.createElement('div');
+      wrap.className = 'cl-note-wrap';
+
       const ta = document.createElement('textarea');
       ta.className = 'cl-item-note';
       ta.value = v.text || '';
@@ -2685,7 +2779,63 @@ window.CHECKLIST_TEMPLATES = {
         saveState();
         updateProgress();
       });
-      item.appendChild(ta);
+      wrap.appendChild(ta);
+
+      // Bottone microfono dentro la textarea (riusa refertiumStartDictation)
+      const micBtn = document.createElement('button');
+      micBtn.type = 'button';
+      micBtn.className = 'cl-mic-btn';
+      micBtn.title = 'Detta nel campo';
+      const micSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+      micBtn.innerHTML = micSvg;
+      let dictCtrl = null;
+      let busy = false;
+      micBtn.addEventListener('click', async () => {
+        if (busy) return;
+        if (typeof window.refertiumStartDictation !== 'function') {
+          console.warn('refertiumStartDictation non esposta dal template');
+          return;
+        }
+        if (dictCtrl) {
+          // Stop registrazione + processa
+          busy = true;
+          micBtn.disabled = true;
+          micBtn.innerHTML = '<span style="font-size:10px">…</span>';
+          try {
+            const text = await dictCtrl.stop();
+            dictCtrl = null;
+            if (text) {
+              const cur = ta.value.trim();
+              ta.value = cur ? (cur + ' ' + text) : text;
+              cstate.voci[voce.id] = { state: 'prompt', text: ta.value };
+              saveState();
+              updateProgress();
+              ta.focus();
+            }
+          } catch (e) {
+            console.error('Dictation error:', e);
+            dictCtrl = null;
+          } finally {
+            busy = false;
+            micBtn.disabled = false;
+            micBtn.classList.remove('rec');
+            micBtn.innerHTML = micSvg;
+          }
+        } else {
+          // Avvia registrazione
+          try {
+            dictCtrl = await window.refertiumStartDictation();
+            micBtn.classList.add('rec');
+            micBtn.innerHTML = '<span class="rec-dot-mic"></span><span>STOP</span>';
+          } catch (e) {
+            console.error('Mic error:', e);
+            dictCtrl = null;
+          }
+        }
+      });
+      wrap.appendChild(micBtn);
+
+      item.appendChild(wrap);
     }
     return item;
   }
