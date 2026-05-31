@@ -1,0 +1,93 @@
+# Stile di refertazione TC italiano standard (default)
+# Distillato da un corpus di referti TC firmati. Usato come fallback
+# nel prompt Magic quando l'utente non ha caricato un proprio distillato
+# personalizzato via MAGIC_PDF_TEXT.
+#
+# Si può estendere/modificare liberamente: il testo viene iniettato
+# integralmente nel prompt di sistema, sezione "STILE E MODELLI DEL MEDICO".
+
+=== STILE DI REFERTAZIONE — TC ITALIANA STANDARD ===
+
+FORMULE TECNICA (incipit per modalità):
+- Base senza mdc: "Esame eseguito con tecnica volumetrica in condizioni di base."
+- Con mdc monofasico: "Esame eseguito prima e dopo somministrazione di mezzo di contrasto organo-iodato per via endovenosa (Iomeron 400, 70 ml)."
+- Con mdc multifasico: "Esame eseguito con tecnica volumetrica multifasica (Iomeron 350, 140 ml)."
+- Angio-TC: "Esame eseguito con tecnica Angio-TC (Iomeron 350, 60 ml)."
+- Urgenza: aggiungi "in regime d'urgenza" / "urgente".
+- Limiti tecnici quando presenti: "limitato dalla postura obbligata del paziente" / "immagini lievemente disturbate da artefatti da movimento".
+
+CONFRONTO (sempre se applicabile):
+- "Si prende visione di precedente TC eseguita in questa sede in data DD/MM/YYYY."
+- "Si confronta con precedente TC del DD.MM.YYYY."
+- "Si visiona precedente TC interna del DATE."
+- Se assente: "Non si dispone di precedenti indagini utili per confronto."
+
+CHIUSURE STANDARD (usa una):
+- "Restanti reperti invariati."
+- "I restanti reperti sono invariati."
+- "Invariati tutti i restanti reperti."
+
+────────────────────────────
+TC ENCEFALO — ORDINE: parenchima → sistema ventricolare → strutture mediane → spazi liquorali → teca cranica → seni paranasali (se rilevanti).
+Frasi standard:
+- "Non si osservano alterazioni parenchimali di significato patologico acuto in sede sovra e sottotentoriale."
+- "Non iperdensità emorragiche né alterazioni parenchimali di significato patologico attuale in sede sovra e sottotentoriale."
+- "Le strutture mediane sono in asse." / "Strutture mediane in asse."
+- "Normale rappresentazione del sistema ventricolare e dei solchi liquorali subaracnoidei e periencefalici."
+- "Non fratture della teca cranica." / "Non alterazioni osteostrutturali di rilievo alla teca cranica."
+- Vasculopatia cronica: "Lieve ipodensità della sostanza bianca profonda periventricolare, di significato vasculopatico cronico."
+- Esiti: "Noti esiti gliotico-malacici in sede frontale a sinistra, con ampliamento ex vacuo del corno frontale del ventricolo laterale omolaterale."
+
+TC TORACE — ORDINE: parenchima polmonare → vasi (se mdc/sospetta EP) → linfonodi → mediastino/cuore → pleura → osso → passaggio toraco-addominale.
+Frasi standard:
+- "Non comparsa di consolidazioni polmonari patologiche di significato attuale."
+- "Non versamento pleurico-pericardico. Non adenomegalie."
+- "Ben opacizzato il tronco e le principali arterie polmonari, senza segni di tromboembolia."
+- "Cuore nei limiti, senza versamento pericardico."
+- "Al passaggio toraco-addominale..." (per reperti extra-toracici incidentali)
+- Linfonodi: "Alcuni linfonodi ingranditi di aspetto reattivo, il più grande in sede sottocarenale di N mm."
+- Pattern strutturato opzionale per follow-up: usa headings "Polmone:", "Linfonodi:", "Mediastino:", "Pleura:", "Osso:", "Altro:".
+
+TC ADDOME COMPLETO — ORDINE OBBLIGATORIO: Fegato e vie biliari → Colecisti → Pancreas → Milza → Surreni → Reni e vie escretrici → Vescica → Prostata/Utero/annessi → Aorta e vasi splancnici → Mesentere e intestino → Linfonodi → Scheletro → Basi polmonari.
+Frasi standard per distretti normali:
+- Fegato: "Fegato di normali dimensioni e densità, non lesioni focali."
+- Vie biliari: "Non dilatate le vie biliari intra-extraepatiche."
+- Colecisti: "Colecisti alitiasica, a pareti sottili."
+- Pancreas: "Pancreas regolare per morfologia e densità, dotto pancreatico non dilatato."
+- Milza: "Milza nei limiti dimensionali."
+- Surreni: "Surreni nei limiti."
+- Reni con mdc: "Entrambi i reni presentano regolare effetto parenchimo-pielografico." / "Non dilatazione delle vie escretrici urinarie."
+- Vescica: "Vescica distesa, a pareti regolari."
+- Aorta: "Aorta addominale di regolare decorso e calibro."
+- Linfonodi: "Non linfoadenomegalie sospette."
+- Pattern strutturato opzionale: usa headings "Fegato, sistema biliare:", "Pancreas:", "Milza:", "Surreni:", "Reni, sistema escretore:", "Vescica:", "Vasi arteriosi e venosi:", "Intestino, peritoneo:", "Linfonodi:", "Scheletro:", "Basi polmonari:".
+
+TC RACHIDE (dorsale/lombare/cervicale) — frasi standard:
+- "Non cedimenti somatici."
+- "Regolare allineamento metamerico sagittale."
+- "Diffusa spondiloartrosi con appuntimenti osteofitosici a ponte margino-somatici anteriori."
+- "Non alterazioni osteostrutturali focali con caratteristiche di sospetto."
+- Descrivi i dischi livello per livello (per rachide lombare: D12-L1 fino a L5-S1).
+- Se patologia discale: "Disco intervertebrale degenerato e protruso posteriormente ad impegnare il pavimento del relativo neuroforame."
+
+TC COLLO — ORDINE: spazi cervicali (parafaringei, prevertebrali, laterocervicali) → vie aeree (faringe, laringe, trachea) → carotidi e giugulari → tiroide → ghiandole salivari → linfonodi → apici polmonari.
+Frasi standard:
+- "Pervie entrambe le arterie carotidi comuni e i rami principali."
+- "Colonna aerea conservata."
+- "Non linfoadenomegalie sospette, piccoli linfonodi laterocervicali inferiori al cm con caratteristiche reattive."
+- "Non lesioni negli apici polmonari inclusi in esame."
+
+────────────────────────────
+LESSICO RICORRENTE (preferisci queste forme):
+- "di significato patologico acuto/attuale" (non "patologico")
+- "di aspetto reattivo" / "di verosimile natura reattiva" (per linfonodi)
+- "in sede sovra e sottotentoriale" (encefalo)
+- "in prima ipotesi da riferire a..." (interpretazione cauta)
+- "da correlare al dato clinico" / "da correlare al dato anamnestico"
+- "da monitorare" / "da tenere a stretto monitoraggio" / "da ricontrollare"
+- "Si consiglia... [valutazione specialistica / approfondimento con RM dedicata / controllo a tempo]"
+- "Effetto parenchimo-pielografico conservato" (reni con mdc)
+- "Aspetto involutivo" (parenchima atrofico)
+- "Esiti gliotico-malacici" (post-ictali encefalo)
+- "Vie biliari intra-extraepatiche" (preferito a "intra ed extraepatiche")
+- Aborrire "il paziente presenta" / "si evidenzia" all'incipit dei reperti — preferire frase diretta sul reperto.
