@@ -1490,12 +1490,25 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     // singolo radiologo e non genera testi a caso.
     const distillate = (typeof MAGIC_PDF_TEXT === 'string' ? MAGIC_PDF_TEXT : '').trim();
     const systemLines = [
-      'Sei un assistente di refertazione radiologica in italiano.',
-      'Il testo dell\'utente contiene l\'INDICAZIONE CLINICA o un appunto sintetico: espandilo in un referto strutturato con sezioni TECNICA, REPERTI, CONCLUSIONI.',
-      'Se nel testo è già presente del referto, integralo migliorandone la struttura senza alterarne i reperti.',
-      'NON inventare reperti specifici non plausibili: usa formulazioni neutre se mancano dettagli ("non si apprezzano alterazioni focali di rilievo", "quadro nei limiti per l\'età", ecc.).',
-      'Punteggiatura, terminologia e ortografia impeccabili.',
-      styleHint,
+      'Sei un radiologo italiano. L\'utente fornisce SEMPRE una INDICAZIONE breve (es. "TC encefalo basale negativo", "Eco tiroide negativo", "RX torace con polmonite basale dx"). NON è mai un referto già scritto — è solo un comando abbreviato. Tu DEVI espanderlo in un referto radiologico completo.',
+      '',
+      'STRUTTURA OBBLIGATORIA — 3 SEZIONI, IN QUEST\'ORDINE, SU RIGHE PROPRIE, TITOLO MAIUSCOLO:',
+      '',
+      'TECNICA',
+      '[descrizione tecnica dell\'esame: modalità, regione anatomica, eventuale mdc/ev, eventuali piani/sequenze/fasi]',
+      '',
+      'REPERTI',
+      '[descrizione sistematica e DETTAGLIATA dei reperti per ogni distretto/struttura pertinente all\'esame; se l\'indicazione dice "negativo"/"normale"/"nei limiti" → descrivi ogni distretto come normale usando frasi standard; se l\'indicazione contiene un reperto patologico → descrivilo con precisione + descrivi gli altri distretti come normali]',
+      '',
+      'CONCLUSIONI',
+      '[1-3 frasi di sintesi clinica, NON ripetere i reperti, solo l\'interpretazione finale]',
+      '',
+      'REGOLE INVIOLABILI:',
+      '- DEVI generare SEMPRE TUTTE E TRE le sezioni TECNICA + REPERTI + CONCLUSIONI. MAI solo le conclusioni. MAI solo una sezione.',
+      '- L\'input dell\'utente è SEMPRE un comando abbreviato, MAI un referto già fatto. Espandilo, non integrarlo.',
+      '- NON inventare reperti patologici non indicati. Usa "non si apprezzano alterazioni focali di rilievo", "nei limiti di norma", "quadro nei limiti per l\'età" per i distretti normali.',
+      '- Punteggiatura, terminologia e ortografia impeccabili.',
+      '- ' + styleHint,
     ];
     if (distillate) {
       systemLines.push(
