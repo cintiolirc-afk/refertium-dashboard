@@ -1041,8 +1041,52 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     }, onDelta);
   }
 
+  /** Extracts modality + district from user input, to constrain Magic to
+   *  describe ONLY that district (avoids cross-region template leakage). */
+  function extractExamFocus(text) {
+    if (!text) return null;
+    const t = text.toLowerCase();
+    const MODALITY_RX = [
+      [/\bcta\b/, 'CTA'], [/\bmra\b/, 'MRA'],
+      [/\b(ct|cat\s*scan)\b/, 'CT'],
+      [/\b(mri|mr)\b/, 'MRI'],
+      [/\b(x[\s-]?ray|radiograph)\b/, 'X-ray'],
+      [/\b(ultrasound|us|sonograph)\b/, 'Ultrasound'],
+      [/\b(mammogr)/, 'Mammography'],
+      [/\bpet\b/, 'PET'],
+    ];
+    const DISTRICT_RX = [
+      [/\bbrain\b/, 'brain'], [/\bhead\b/, 'head'],
+      [/\b(cervical\s+spine|c-spine)\b/, 'cervical spine'],
+      [/\b(thoracic\s+spine|t-spine)\b/, 'thoracic spine'],
+      [/\b(lumbar\s+spine|l-spine|lumbosacral)\b/, 'lumbar spine'],
+      [/\b(spine|vertebr)/, 'spine'],
+      [/\b(neck)\b/, 'neck'],
+      [/\bthyroid\b/, 'thyroid'],
+      [/\b(breast|mamm)/, 'breast'],
+      [/\b(chest|thorax)\b/, 'chest'],
+      [/\b(lung|pulmonary)\b/, 'lungs'],
+      [/\babdomen\b/, 'abdomen'],
+      [/\bliver\b/, 'liver'], [/\bgallbladder\b/, 'biliary'],
+      [/\bkidney\b/, 'kidneys'], [/\bprostate\b/, 'prostate'],
+      [/\bpelvi/, 'pelvis'], [/\buterus\b/, 'uterus'],
+      [/\bshoulder\b/, 'shoulder'], [/\bknee\b/, 'knee'],
+      [/\b(hip|coxo)/, 'hip'], [/\b(ankle|foot)\b/, 'ankle'],
+      [/\b(wrist|hand)\b/, 'wrist'], [/\belbow\b/, 'elbow'],
+    ];
+    let modality = null, district = null;
+    for (const [rx, label] of MODALITY_RX) { if (rx.test(t)) { modality = label; break; } }
+    for (const [rx, label] of DISTRICT_RX) { if (rx.test(t)) { district = label; break; } }
+    if (!modality && !district) return null;
+    return { modality, district };
+  }
+
   async function aiGenerateMagicDraft(input, onDelta) {
     const styleHint = writingStyle === 'synth' ? 'Use concise style, clear sections, lists when useful.' : 'Use prose medical English, complete paragraphs.';
+    const focus = extractExamFocus(input);
+    const focusLine = focus
+      ? `EXAM FOCUS: ${focus.modality || '(modality not specified)'} — ${focus.district || '(district not specified)'}. The report will describe ONLY this exam on this district. NEVER describe other districts (e.g. if district = "thyroid", do NOT mention liver/abdomen/kidneys/other). If the distillate contains templates of other regions, IGNORE them completely.`
+      : `Deduce modality and district from the indication, and describe ONLY that district/modality.`;
     // Always include the doctor's distillate (MAGIC_PDF_TEXT) in the system
     // prompt as a binding style/template reference, regardless of what is in
     // the editor. That way Magic stays "personal" to the radiologist instead
@@ -1050,6 +1094,8 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     const distillate = (typeof MAGIC_PDF_TEXT === 'string' ? MAGIC_PDF_TEXT : '').trim();
     const systemLines = [
       'You are a radiologist writing in English. The user provides ALWAYS a brief INDICATION (e.g. "Brain CT negative", "Thyroid US negative", "Chest X-ray with right basal pneumonia"). It is NEVER a finished report — it is just a shorthand command. You MUST expand it into a complete radiology report.',
+      '',
+      focusLine,
       '',
       'MANDATORY STRUCTURE — 3 SECTIONS, IN THIS ORDER, EACH ON ITS OWN LINE, UPPERCASE TITLE:',
       '',
@@ -1072,15 +1118,17 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     if (distillate) {
       systemLines.push(
         '',
-        'DOCTOR STYLE & TEMPLATES (binding):',
-        'Below is a collection of this radiologist\'s typical reports. It is THEIR voice. You MUST mirror:',
+        'DOCTOR STYLE & TEMPLATES (binding for STYLE, not for the district):',
+        'Below is a collection of this radiologist\'s typical reports. From it you MUST take ONLY:',
         '- the same section structure (titles and order);',
         '- the same medical lexicon and recurring formulas;',
         '- the same level of detail and brevity;',
         '- the same abbreviations and conventions (e.g. IV contrast wording);',
         '- the same tone (prose vs concise) consistent with what you find.',
-        'When the requested exam matches a template present in the distillate, use that template as a literal skeleton, adapting only case-specific details.',
-        'When you do not have an exact match, still apply the general style (lexicon, tone, neutral phrasing) inferred from the distillate.',
+        '',
+        'CRITICAL RULE ON THE DISTILLATE:',
+        'The distillate may contain templates of MANY different exams (e.g. abdominal US, thyroid US, brain CT, etc.). USE ONLY the template that matches EXACTLY the EXAM FOCUS above. If FOCUS = "Ultrasound thyroid" → use ONLY the thyroid-US template (if present) and IGNORE abdominal-US / CT / MRI / other templates. If no exact match, build the report applying just the general STYLE of the distillate, but cover ONLY the district of the FOCUS.',
+        'NEVER copy phrases/items from templates of other districts, even if they appear frequently in the distillate.',
         'DO NOT invent findings that are inconsistent with the distillate.',
         '',
         '=== DISTILLATE START ===',
@@ -1088,7 +1136,15 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
         '=== DISTILLATE END ===',
       );
     }
-    systemLines.push('', 'Output: ONLY the report, no commentary, no preamble.');
+    systemLines.push(
+      '',
+      'DISTRICT LIMITATION EXAMPLES (learn from these):',
+      'Input "thyroid US negative" → Report describes ONLY thyroid (right/left lobes, isthmus, echotexture, vascularity, possibly neck nodes). NEVER mention liver, abdomen, kidneys.',
+      'Input "complete abdominal US" → Report describes liver, biliary, gallbladder, pancreas, spleen, kidneys, bladder, abdominal aorta. NEVER mention thyroid or heart.',
+      'Input "brain CT negative" → Report describes brain parenchyma, ventricles, cisterns, midline, skull bones. NEVER describe chest or abdomen.',
+      '',
+      'Output: ONLY the report, no commentary, no preamble.',
+    );
     const system = systemLines.join('\n');
 
     await streamChatCompletion({

@@ -1478,19 +1478,81 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     }, onDelta);
   }
 
+  /**
+   * Estrae metodica + distretto dall'indicazione dell'utente.
+   * Es: "eco tiroide tiroidite cronica" → {modality:'Ecografia', district:'tiroide'}
+   *     "TC encefalo basale negativo"   → {modality:'TC', district:'encefalo'}
+   *     "RM rachide lombare"            → {modality:'RM', district:'rachide lombare'}
+   * Serve a vincolare l'AI a generare un referto SOLO per quel distretto,
+   * evitando che applichi template completi del distillato (es. eco addome)
+   * a esami diversi (es. eco tiroide).
+   */
+  function extractExamFocus(text) {
+    if (!text) return null;
+    const t = text.toLowerCase();
+    // Modalità (ordine: più specifico prima)
+    const MODALITY_RX = [
+      [/\bangio[\s-]?tc\b/, 'angio-TC'],
+      [/\bangio[\s-]?rm\b/, 'angio-RM'],
+      [/\btc[\s-]?total[\s-]?body\b/, 'TC total body'],
+      [/\b(tc|tac)\b/, 'TC'],
+      [/\b(rm|risonanza)\b/, 'RM'],
+      [/\b(rx|radiografia)\b/, 'RX'],
+      [/\b(ecografia|eco|us)\b/, 'Ecografia'],
+      [/\b(mammografia|mammo)\b/, 'Mammografia'],
+      [/\bpet\b/, 'PET'],
+    ];
+    // Distretti (ordine: più specifico prima)
+    const DISTRICT_RX = [
+      [/\bencefalo\b/, 'encefalo'],
+      [/\b(rachide\s+cervicale|cervicale)\b/, 'rachide cervicale'],
+      [/\b(rachide\s+dorsale|dorsale)\b/, 'rachide dorsale'],
+      [/\b(rachide\s+lombare|lombare|lombo[\s-]?sacrale)\b/, 'rachide lombare'],
+      [/\b(rachide|colonna)\b/, 'rachide'],
+      [/\b(collo|cervicale)\b/, 'collo'],
+      [/\btiroide\b/, 'tiroide'],
+      [/\b(mammell?[ae]|seno)\b/, 'mammella'],
+      [/\btorace\b/, 'torace'],
+      [/\b(polmon[ei]|polmonare)\b/, 'polmoni'],
+      [/\b(addome\s+completo|addome\s+superiore|addome\s+inferiore|addome)\b/, 'addome'],
+      [/\b(fegato|epatic[oa])\b/, 'fegato'],
+      [/\bcolecisti\b/, 'vie biliari'],
+      [/\b(reni|renal[ei])\b/, 'reni'],
+      [/\b(prostata|prostatic[oa])\b/, 'prostata'],
+      [/\b(pelvi|pelvic[oa])\b/, 'pelvi'],
+      [/\butero\b/, 'utero'],
+      [/\b(spalla|cuffia)\b/, 'spalla'],
+      [/\b(ginocchio|menisco)\b/, 'ginocchio'],
+      [/\b(anca|anche|coxo)\b/, 'anca'],
+      [/\b(caviglia|piede)\b/, 'caviglia'],
+      [/\b(polso|mano)\b/, 'polso'],
+      [/\b(gomito)\b/, 'gomito'],
+    ];
+    let modality = null, district = null;
+    for (const [rx, label] of MODALITY_RX) { if (rx.test(t)) { modality = label; break; } }
+    for (const [rx, label] of DISTRICT_RX) { if (rx.test(t)) { district = label; break; } }
+    if (!modality && !district) return null;
+    return { modality, district };
+  }
+
   async function aiGenerateMagicDraft(input, onDelta) {
     const styleHint = writingStyle === 'synth'
       ? 'Usa stile sintetico, sezioni chiare, elenchi quando utile.'
       : 'Usa stile discorsivo italiano medico, paragrafi compiuti.';
 
-    // Costruisco il system prompt. Se il medico ha un distillato configurato
-    // (MAGIC_PDF_TEXT = sue refertazioni tipiche / template / frasi ricorrenti),
-    // viene SEMPRE incluso come riferimento di stile per il Magic — qualunque
-    // sia il contenuto dell'editor. È così che Magic resta "personale" del
-    // singolo radiologo e non genera testi a caso.
+    // Pre-estraggo metodica + distretto: vincolo forte per l'AI affinché
+    // generi un referto SOLO per quel distretto/metodica, anche quando il
+    // distillato contiene template di esami diversi.
+    const focus = extractExamFocus(input);
+    const focusLine = focus
+      ? `FOCUS DELL'ESAME: ${focus.modality || '(modalità non specificata)'} — ${focus.district || '(distretto non specificato)'}. Il referto descriverà SOLO questo esame su questo distretto. NON descrivere altri distretti (es. se distretto = "tiroide", NON menzionare fegato/addome/reni/altro). Se nel distillato esistono template di altre regioni, IGNORALI completamente.`
+      : `Deduci modalità e distretto dall'indicazione, e descrivi SOLO quel distretto/quella metodica.`;
+
     const distillate = (typeof MAGIC_PDF_TEXT === 'string' ? MAGIC_PDF_TEXT : '').trim();
     const systemLines = [
       'Sei un radiologo italiano. L\'utente fornisce SEMPRE una INDICAZIONE breve (es. "TC encefalo basale negativo", "Eco tiroide negativo", "RX torace con polmonite basale dx"). NON è mai un referto già scritto — è solo un comando abbreviato. Tu DEVI espanderlo in un referto radiologico completo.',
+      '',
+      focusLine,
       '',
       'STRUTTURA OBBLIGATORIA — 3 SEZIONI, IN QUEST\'ORDINE, SU RIGHE PROPRIE, TITOLO MAIUSCOLO:',
       '',
@@ -1513,15 +1575,17 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
     if (distillate) {
       systemLines.push(
         '',
-        'STILE E MODELLI DEL MEDICO (vincolante):',
-        'Qui sotto trovi una collezione delle refertazioni tipiche di questo radiologo. È il SUO modo di referare. DEVI riproporne:',
+        'STILE E MODELLI DEL MEDICO (vincolante per LO STILE, non per il distretto):',
+        'Qui sotto trovi una collezione delle refertazioni tipiche di questo radiologo. È il SUO modo di referare. Da qui DEVI riprendere SOLO:',
         '- la stessa struttura di sezioni (titoli e ordine);',
         '- lo stesso lessico medico e le stesse formule ricorrenti;',
         '- lo stesso livello di dettaglio e di sintesi;',
         '- le stesse abbreviazioni e convenzioni (mdc, ev, ecc.);',
         '- lo stesso tono (discorsivo vs sintetico) coerente con quanto trovi.',
-        'Quando l\'esame richiesto coincide con un template presente nel distillato, usa quel template come scheletro letterale, adattando solo i dettagli del caso.',
-        'Quando non hai un template esatto, applica comunque lo stile generale (lessico, tono, formulazione neutra) ricavato dal distillato.',
+        '',
+        'REGOLA CRITICA SUL DISTILLATO:',
+        'Il distillato può contenere template di MOLTI esami diversi (es. eco addome, eco tiroide, TC encefalo, ecc.). USA SOLO il template che corrisponde ESATTAMENTE al FOCUS DELL\'ESAME indicato sopra. Se il FOCUS è "Ecografia tiroide" → usa solo il template eco-tiroide del distillato (se esiste) e IGNORA i template eco-addome / TC / RM / altri. Se non c\'è un template esatto, costruisci il referto applicando solo lo STILE generale del distillato, ma copri SOLO il distretto del FOCUS.',
+        'NON copiare frasi/voci di template di altri distretti, anche se nel distillato sono frequenti.',
         'NON inventare reperti che non risultano coerenti col distillato.',
         '',
         '=== INIZIO DISTILLATO ===',
@@ -1529,7 +1593,15 @@ var INCLUDE_DICTATION = (EDITION !== 'text');
         '=== FINE DISTILLATO ===',
       );
     }
-    systemLines.push('', 'Output: SOLO il referto, niente commenti, niente preamboli.');
+    systemLines.push(
+      '',
+      'ESEMPI DI LIMITAZIONE AL DISTRETTO (impara da qui):',
+      'Input "eco tiroide negativo" → Il referto descrive SOLO tiroide (lobi destro/sinistro, istmo, ecostruttura, vascolarizzazione, eventuali linfonodi del collo). NON menzionare fegato, addome, reni.',
+      'Input "eco addome completo" → Il referto descrive fegato, vie biliari, colecisti, pancreas, milza, reni, vescica, aorta addominale. NON menzionare tiroide o cuore.',
+      'Input "TC encefalo basale negativo" → Il referto descrive parenchima encefalico, sistema ventricolare, cisterne, linea mediana, ossa craniche. NON descrivere torace o addome.',
+      '',
+      'Output: SOLO il referto, niente commenti, niente preamboli.',
+    );
     const system = systemLines.join('\n');
 
     await streamChatCompletion({
