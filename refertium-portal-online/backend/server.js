@@ -3,6 +3,8 @@ const fs = require('fs/promises');
 const fss = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { Pool } = require('pg');
+const Stripe = require('stripe');
 
 const PORT = Number(process.env.PORT || process.env.REFERTIUM_PORT || 47825);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
@@ -12,6 +14,15 @@ const CLOUDFLARE_PROXY_AUTH = process.env.CLOUDFLARE_PROXY_AUTH || 'refertium-se
 const WORKER_SHARED_SECRET = process.env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev';
 const ADMIN_BOOTSTRAP_PASSWORD = process.env.REFERTIUM_ADMIN_PASSWORD || 'refertium-admin';
 const FINANCE_BOOTSTRAP_PASSWORD = process.env.REFERTIUM_FINANCE_PASSWORD || '';
+const DATABASE_URL = process.env.DATABASE_URL || '';
+const REQUIRE_POSTGRES = process.env.REFERTIUM_REQUIRE_POSTGRES === '1' || process.env.NODE_ENV === 'production';
+const COOKIE_SECURE = process.env.REFERTIUM_COOKIE_SECURE !== '0';
+const PAYMENT_BASE_URL = process.env.PAYMENT_BASE_URL || 'https://payments.example.local/refertium';
+const PAYMENT_LINK_SECRET = process.env.PAYMENT_LINK_SECRET || 'dev-payment-link-secret';
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const STRIPE_CURRENCY = String(process.env.STRIPE_CURRENCY || 'eur').toLowerCase();
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const TEMPLATE_DIR = path.join(ROOT, 'templates');
@@ -27,9 +38,21 @@ const PERSISTENT_EN_TEMPLATE_FILE = path.join(PERSISTENT_TEMPLATE_DIR, 'refertiu
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const COOKIE = 'refertium_sid';
 const APP_USER_COOKIE = 'refertium_app_user';
+const APP_SESSION_COOKIE = 'refertium_app_session';
 const sessions = new Map();
+const loginAttempts = new Map();
+let pgPool = null;
+let storageReady = false;
+let storageMode = 'json';
+let stripeClient = null;
 
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
+
+function stripe() {
+  if (!STRIPE_SECRET_KEY) return null;
+  if (!stripeClient) stripeClient = new Stripe(STRIPE_SECRET_KEY);
+  return stripeClient;
+}
 
 function monthKey() {
   return new Date().toISOString().slice(0, 7);
@@ -43,6 +66,32 @@ function proxyToken() {
   return 'rft_' + crypto.randomBytes(24).toString('hex');
 }
 
+function appSessionToken() {
+  return 'app_' + crypto.randomBytes(24).toString('hex');
+}
+
+function cookie(name, value, options = {}) {
+  const maxAge = options.maxAge == null ? 2592000 : Number(options.maxAge);
+  const parts = [
+    `${name}=${encodeURIComponent(value || '')}`,
+    'HttpOnly',
+    'SameSite=Lax',
+    'Path=/'
+  ];
+  if (COOKIE_SECURE) parts.push('Secure');
+  if (maxAge != null) parts.push(`Max-Age=${maxAge}`);
+  return parts.join('; ');
+}
+
+function clearCookie(name) {
+  return cookie(name, '', { maxAge: 0 });
+}
+
+function clientIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwarded || req.socket.remoteAddress || 'unknown';
+}
+
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   const hash = crypto.scryptSync(String(password), salt, 64).toString('hex');
   return `${salt}:${hash}`;
@@ -52,7 +101,8 @@ function verifyPassword(password, stored) {
   if (!stored || !stored.includes(':')) return false;
   const [salt, hash] = stored.split(':');
   const candidate = crypto.scryptSync(String(password), salt, 64);
-  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), candidate);
+  const storedHash = Buffer.from(hash, 'hex');
+  return storedHash.length === candidate.length && crypto.timingSafeEqual(storedHash, candidate);
 }
 
 async function ensureDirs() {
@@ -62,8 +112,207 @@ async function ensureDirs() {
   await fs.mkdir(PERSISTENT_TEMPLATE_DIR, { recursive: true });
 }
 
-async function loadDb() {
+async function initStorage() {
+  if (storageReady) return;
   await ensureDirs();
+  if (!DATABASE_URL) {
+    if (REQUIRE_POSTGRES) throw new Error('DATABASE_URL is required in production.');
+    console.warn('DATABASE_URL is not configured; using db.json fallback for local smoke-test only.');
+    storageReady = true;
+    return;
+  }
+  pgPool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: process.env.PGSSLMODE === 'disable' ? false : (process.env.PGSSLMODE ? { rejectUnauthorized: false } : undefined)
+  });
+  validateRuntimeConfig();
+  await pgPool.query(`
+    create table if not exists settings (
+      key text primary key,
+      value text not null,
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists users (
+      id text primary key,
+      role text not null,
+      username text,
+      email text,
+      proxy_token text,
+      data jsonb not null,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create unique index if not exists users_username_lower_idx on users (lower(username)) where username is not null and username <> '';
+    create unique index if not exists users_email_lower_idx on users (lower(email)) where email is not null and email <> '';
+    create index if not exists users_role_idx on users (role);
+    create unique index if not exists users_proxy_token_idx on users (proxy_token) where proxy_token is not null and proxy_token <> '';
+    create table if not exists sessions (
+      sid text primary key,
+      user_id text not null references users(id) on delete cascade,
+      created_at timestamptz not null default now(),
+      last_seen_at timestamptz not null default now(),
+      expires_at timestamptz not null,
+      active boolean not null default true
+    );
+    create index if not exists sessions_user_active_idx on sessions (user_id, active);
+    create table if not exists login_attempts (
+      key text primary key,
+      attempts integer not null default 0,
+      locked_until timestamptz,
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists payment_links (
+      id text primary key,
+      user_id text not null references users(id) on delete cascade,
+      month text not null,
+      amount numeric(12,2) not null,
+      currency text not null default 'eur',
+      provider text not null default 'signed_url',
+      stripe_session_id text,
+      status text not null default 'created',
+      url text not null,
+      sent_at timestamptz,
+      paid_at timestamptz,
+      created_at timestamptz not null default now()
+    );
+    create index if not exists payment_links_user_month_idx on payment_links (user_id, month);
+    create table if not exists payments (
+      id text primary key,
+      user_id text not null references users(id) on delete cascade,
+      payment_link_id text,
+      stripe_session_id text,
+      amount numeric(12,2) not null,
+      currency text not null default 'eur',
+      month text not null,
+      status text not null,
+      raw jsonb not null default '{}'::jsonb,
+      created_at timestamptz not null default now()
+    );
+    create index if not exists payments_user_month_idx on payments (user_id, month);
+    alter table payment_links add column if not exists currency text not null default 'eur';
+    alter table payment_links add column if not exists provider text not null default 'signed_url';
+    alter table payment_links add column if not exists stripe_session_id text;
+    alter table payment_links add column if not exists status text not null default 'created';
+    alter table payment_links add column if not exists paid_at timestamptz;
+    create unique index if not exists payment_links_stripe_session_idx on payment_links (stripe_session_id) where stripe_session_id is not null and stripe_session_id <> '';
+  `);
+  storageMode = 'postgres';
+  storageReady = true;
+  await importJsonIfNeeded();
+}
+
+function validateRuntimeConfig() {
+  if (!REQUIRE_POSTGRES) return;
+  if (!process.env.REFERTIUM_ADMIN_PASSWORD || ADMIN_BOOTSTRAP_PASSWORD === 'refertium-admin') throw new Error('REFERTIUM_ADMIN_PASSWORD must be changed in production.');
+  if (WORKER_SHARED_SECRET === 'refertium-worker-secret-dev') throw new Error('WORKER_SHARED_SECRET must be changed in production.');
+  if (!STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY is required in production.');
+  if (!STRIPE_WEBHOOK_SECRET) throw new Error('STRIPE_WEBHOOK_SECRET is required in production.');
+}
+
+async function importJsonIfNeeded() {
+  if (!pgPool) return;
+  const imported = await getSetting('import');
+  if (imported === '1') return;
+  let importedDb = null;
+  try {
+    importedDb = JSON.parse(await fs.readFile(DB_FILE, 'utf8'));
+  } catch {
+    importedDb = { users: [] };
+  }
+  normalizeDb(importedDb);
+  ensureFinanceUser(importedDb);
+  if (!importedDb.users.some(u => u.role === 'admin')) {
+    importedDb.users.push(defaultAdminUser(new Date().toISOString()));
+  }
+  for (const user of importedDb.users) await upsertUser(user);
+  await setSetting('import', '1');
+  console.log(`Refertium PostgreSQL import: loaded ${importedDb.users.length} users from db.json and set settings.import=1.`);
+}
+
+async function getSetting(key) {
+  if (!pgPool) return null;
+  const result = await pgPool.query('select value from settings where key=$1', [key]);
+  return result.rows[0] ? result.rows[0].value : null;
+}
+
+async function setSetting(key, value) {
+  if (!pgPool) return;
+  await pgPool.query(
+    `insert into settings(key,value,updated_at) values($1,$2,now())
+     on conflict(key) do update set value=excluded.value, updated_at=now()`,
+    [key, value]
+  );
+}
+
+async function loadPostgresDb() {
+  await pgPool.query("delete from sessions where expires_at < now() or active = false");
+  const usersResult = await pgPool.query("select data from users order by created_at asc");
+  const sessionsResult = await pgPool.query("select sid,user_id,extract(epoch from created_at)*1000 as created_ms,extract(epoch from last_seen_at)*1000 as last_seen_ms from sessions where active=true and expires_at > now()");
+  const db = {
+    users: usersResult.rows.map(row => row.data),
+    sessions: new Map(sessionsResult.rows.map(row => [row.sid, {
+      userId: row.user_id,
+      createdAt: Number(row.created_ms),
+      lastSeen: Number(row.last_seen_ms)
+    }]))
+  };
+  sessions.clear();
+  for (const [sid, session] of db.sessions.entries()) sessions.set(sid, session);
+  const changed = normalizeDb(db);
+  const financeChanged = ensureFinanceUser(db);
+  if (changed || financeChanged) await saveDb(db);
+  return db;
+}
+
+async function upsertUser(user) {
+  if (!pgPool) return;
+  const now = new Date().toISOString();
+  user.updatedAt = user.updatedAt || now;
+  user.createdAt = user.createdAt || now;
+  await pgPool.query(
+    `insert into users(id,role,username,email,proxy_token,data,created_at,updated_at)
+     values($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
+     on conflict(id) do update set
+       role=excluded.role,
+       username=excluded.username,
+       email=excluded.email,
+       proxy_token=excluded.proxy_token,
+       data=excluded.data,
+       updated_at=excluded.updated_at`,
+    [user.id, user.role, user.username || null, user.email || null, user.proxyToken || null, JSON.stringify(user), user.createdAt, user.updatedAt]
+  );
+}
+
+async function savePostgresDb(db) {
+  const ids = [];
+  for (const user of db.users) {
+    ids.push(user.id);
+    await upsertUser(user);
+  }
+  await pgPool.query('delete from users where not (id = any($1::text[]))', [ids]);
+}
+
+function defaultAdminUser(now) {
+  return {
+    id: 'admin-demo',
+    role: 'admin',
+    name: 'Admin Refertium',
+    username: 'admin',
+    email: 'admin@refertium.local',
+    passwordHash: hashPassword(ADMIN_BOOTSTRAP_PASSWORD),
+    license: 'active',
+    tokenLimit: 0,
+    htmlFile: '',
+    htmlName: '',
+    usage: {},
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+async function loadDb() {
+  await initStorage();
+  if (pgPool) return loadPostgresDb();
   try {
     const db = JSON.parse(await fs.readFile(DB_FILE, 'utf8'));
     const changed = normalizeDb(db);
@@ -307,6 +556,7 @@ function ensureFinanceUser(db) {
 }
 
 async function saveDb(db) {
+  if (pgPool) return savePostgresDb(db);
   await ensureDirs();
   await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
 }
@@ -339,6 +589,11 @@ function publicUser(user, options = {}) {
     online: session.online,
     lastSeenAt: session.lastSeenAt,
     generatedAt: user.generatedAt || '',
+    lastPaymentLink: user.lastPaymentLink || null,
+    lastPaidAt: user.lastPaidAt || '',
+    lastPaidMonth: user.lastPaidMonth || '',
+    paymentLinks: includeSensitive ? (Array.isArray(user.paymentLinks) ? user.paymentLinks : []) : [],
+    payments: includeSensitive ? (Array.isArray(user.payments) ? user.payments : []) : [],
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
@@ -360,10 +615,15 @@ function sessionInfo(userId) {
 
 function parseCookies(req) {
   const raw = req.headers.cookie || '';
-  return Object.fromEntries(raw.split(';').map(v => v.trim()).filter(Boolean).map(v => {
-    const i = v.indexOf('=');
-    return [decodeURIComponent(v.slice(0, i)), decodeURIComponent(v.slice(i + 1))];
-  }));
+  const out = {};
+  for (const part of raw.split(';').map(v => v.trim()).filter(Boolean)) {
+    const i = part.indexOf('=');
+    if (i <= 0) continue;
+    try {
+      out[decodeURIComponent(part.slice(0, i))] = decodeURIComponent(part.slice(i + 1));
+    } catch {}
+  }
+  return out;
 }
 
 function send(res, status, body, headers = {}) {
@@ -404,7 +664,47 @@ async function currentUser(req, db) {
   const session = sid && sessions.get(sid);
   if (!session) return null;
   session.lastSeen = Date.now();
+  if (pgPool) {
+    await pgPool.query('update sessions set last_seen_at=now() where sid=$1 and active=true and expires_at > now()', [sid]);
+  }
   return db.users.find(u => u.id === session.userId) || null;
+}
+
+async function createLoginSession(user) {
+  const sid = id('sid');
+  for (const [existingSid, session] of sessions.entries()) {
+    if (session.userId === user.id) sessions.delete(existingSid);
+  }
+  sessions.set(sid, { userId: user.id, createdAt: Date.now(), lastSeen: Date.now() });
+  if (pgPool) {
+    await pgPool.query('update sessions set active=false where user_id=$1', [user.id]);
+    await pgPool.query(
+      "insert into sessions(sid,user_id,expires_at) values($1,$2,now()+ interval '30 days')",
+      [sid, user.id]
+    );
+  }
+  return sid;
+}
+
+async function destroyLoginSession(sid) {
+  if (!sid) return;
+  sessions.delete(sid);
+  if (pgPool) await pgPool.query('update sessions set active=false where sid=$1', [sid]);
+}
+
+async function setActiveAppSession(db, user) {
+  const token = appSessionToken();
+  user.activeAppSession = token;
+  user.activeAppSessionAt = new Date().toISOString();
+  user.updatedAt = user.activeAppSessionAt;
+  await saveDb(db);
+  return token;
+}
+
+function hasActiveAppSession(req, user) {
+  if (!user || user.id === INTERNATIONAL_DEMO_USER_ID) return true;
+  const token = parseCookies(req)[APP_SESSION_COOKIE];
+  return Boolean(token && user.activeAppSession && token === user.activeAppSession);
 }
 
 function requireAuth(user) {
@@ -419,6 +719,59 @@ function requireAdmin(user) {
 function requireFinance(user) {
   requireAuth(user);
   if (!['admin', 'finance'].includes(user.role)) throw Object.assign(new Error('Permesso negato'), { status: 403 });
+}
+
+function loginLimitKey(req, login) {
+  return crypto.createHash('sha256').update(`${clientIp(req)}:${String(login || '').toLowerCase()}`).digest('hex');
+}
+
+async function assertLoginAllowed(req, login) {
+  const key = loginLimitKey(req, login);
+  const now = Date.now();
+  if (pgPool) {
+    const result = await pgPool.query('select attempts, locked_until from login_attempts where key=$1', [key]);
+    const row = result.rows[0];
+    if (row && row.locked_until && new Date(row.locked_until).getTime() > now) {
+      const err = Object.assign(new Error('Troppi tentativi. Riprova tra qualche minuto.'), { status: 429 });
+      throw err;
+    }
+    return key;
+  }
+  const item = loginAttempts.get(key);
+  if (item && item.lockedUntil > now) throw Object.assign(new Error('Troppi tentativi. Riprova tra qualche minuto.'), { status: 429 });
+  return key;
+}
+
+async function recordLoginFailure(key) {
+  if (!key) return;
+  if (pgPool) {
+    await pgPool.query(`
+      insert into login_attempts(key,attempts,locked_until,updated_at)
+      values($1,1,null,now())
+      on conflict(key) do update set
+        attempts = case when login_attempts.updated_at < now() - interval '1 hour' then 1 else login_attempts.attempts + 1 end,
+        locked_until = case
+          when (case when login_attempts.updated_at < now() - interval '1 hour' then 1 else login_attempts.attempts + 1 end) >= 5
+          then now() + interval '1 hour'
+          else null
+        end,
+        updated_at = now()
+    `, [key]);
+    return;
+  }
+  const now = Date.now();
+  const item = loginAttempts.get(key) || { attempts: 0, updatedAt: now, lockedUntil: 0 };
+  if (now - item.updatedAt > 60 * 60 * 1000) item.attempts = 0;
+  item.attempts += 1;
+  item.updatedAt = now;
+  item.lockedUntil = item.attempts >= 5 ? now + 60 * 60 * 1000 : 0;
+  loginAttempts.set(key, item);
+}
+
+async function clearLoginFailures(key) {
+  if (!key) return;
+  if (pgPool) await pgPool.query('delete from login_attempts where key=$1', [key]);
+  loginAttempts.delete(key);
 }
 
 function getMonthlyUsage(user) {
@@ -444,7 +797,8 @@ function isOverDictationLimit(user) {
 async function serveStatic(req, res, pathname) {
   const file = pathname === '/' ? path.join(PUBLIC_DIR, 'index.html') : path.join(PUBLIC_DIR, pathname);
   const resolved = path.resolve(file);
-  if (!resolved.startsWith(PUBLIC_DIR)) return send(res, 403, { error: 'Forbidden' });
+  const publicRoot = path.resolve(PUBLIC_DIR);
+  if (resolved !== publicRoot && !resolved.startsWith(publicRoot + path.sep)) return send(res, 403, { error: 'Forbidden' });
   try {
     const data = await fs.readFile(resolved);
     const ext = path.extname(resolved).toLowerCase();
@@ -513,7 +867,7 @@ async function serveInternationalApp(req, res, user) {
       'cache-control': 'no-store',
       // Cookie APP_USER_COOKIE = international-demo: così le successive
       // chiamate /v1/* trovano il billing user via cookie e passano dal proxy.
-      'set-cookie': `${APP_USER_COOKIE}=${encodeURIComponent(billingUser.id)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`,
+      'set-cookie': cookie(APP_USER_COOKIE, billingUser.id, { maxAge: 86400 }),
     });
     res.end(html);
   } catch (err) {
@@ -565,11 +919,15 @@ async function serveUserApp(req, res, db, user, targetUserId) {
     rawHtml = await fs.readFile(htmlPath, 'utf8');
   }
 
+  const activeAppSession = await setActiveAppSession(db, target);
   const html = injectLicenseGuard(rewriteRefertiumHtml(rawHtml, target), target);
   res.writeHead(200, {
     'content-type': 'text/html; charset=utf-8',
     'cache-control': 'no-store',
-    'set-cookie': `${APP_USER_COOKIE}=${encodeURIComponent(target.id)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`
+    'set-cookie': [
+      cookie(APP_USER_COOKIE, target.id, { maxAge: 86400 }),
+      cookie(APP_SESSION_COOKIE, activeAppSession, { maxAge: 86400 })
+    ]
   });
   res.end(html);
 }
@@ -787,6 +1145,8 @@ window.__REFERTIUM_PROXY_MODE__=${JSON.stringify(REFERTIUM_PROXY_MODE)};
 (function(){
   var limit=${Number(user.tokenLimit || 0)};
   var used=${Number(getMonthlyUsage(user).total || 0)};
+  var proxyToken=${JSON.stringify(user.proxyToken || '')};
+  var appSession=${JSON.stringify(user.activeAppSession || '')};
   var usesLocalProxy=${JSON.stringify(usesLocalProxy)};
   function forceBackendProxyRuntime(){
     if(!usesLocalProxy) return;
@@ -804,11 +1164,18 @@ window.__REFERTIUM_PROXY_MODE__=${JSON.stringify(REFERTIUM_PROXY_MODE)};
   setTimeout(forceBackendProxyRuntime, 300);
   setTimeout(forceBackendProxyRuntime, 1200);
   var originalFetch=window.fetch&&window.fetch.bind(window);
-  function aiUrl(input){ var url=typeof input==='string'?input:(input&&input.url)||''; return /\\/v1\\/(chat\\/completions|responses|audio\\/transcriptions)/.test(url); }
+  function aiUrl(input){ var url=typeof input==='string'?input:(input&&input.url)||''; return /\\/v1\\/(chat\\/completions|responses|audio\\/transcriptions|deepgram\\/token)/.test(url); }
   if(originalFetch){
     window.fetch=async function(input, init){
       forceBackendProxyRuntime();
       if(aiUrl(input) && limit>0 && used>=limit) throw new Error('Limite token Refertium raggiunto.');
+      if(aiUrl(input)){
+        init=init||{};
+        var headers=new Headers(init.headers || (input && input.headers) || {});
+        if(proxyToken) headers.set('X-Refertium-Proxy-Token', proxyToken);
+        if(appSession) headers.set('X-Refertium-App-Session', appSession);
+        init.headers=headers;
+      }
       var resp=await originalFetch(input, init);
       try {
         var cloned=resp.clone();
@@ -994,19 +1361,23 @@ async function handleApi(req, res, db, user, pathname) {
   if (pathname === '/api/login' && req.method === 'POST') {
     const body = await readJson(req);
     const login = String(body.username || body.email || '').toLowerCase().trim();
+    const limitKey = await assertLoginAllowed(req, login);
     const found = db.users.find(u =>
       String(u.username || '').toLowerCase() === login ||
       String(u.email || '').toLowerCase() === login
     );
-    if (!found || !verifyPassword(body.password || '', found.passwordHash)) return send(res, 401, { error: 'Credenziali non valide' });
-    const sid = id('sid');
-    sessions.set(sid, { userId: found.id, createdAt: Date.now() });
-    return send(res, 200, { user: publicUser(found, { includeUsage: true }) }, { 'set-cookie': `${COOKIE}=${encodeURIComponent(sid)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000` });
+    if (!found || !verifyPassword(body.password || '', found.passwordHash)) {
+      await recordLoginFailure(limitKey);
+      return send(res, 401, { error: 'Credenziali non valide' });
+    }
+    await clearLoginFailures(limitKey);
+    const sid = await createLoginSession(found);
+    return send(res, 200, { user: publicUser(found, { includeUsage: true }) }, { 'set-cookie': cookie(COOKIE, sid, { maxAge: 2592000 }) });
   }
   if (pathname === '/api/logout' && req.method === 'POST') {
     const sid = parseCookies(req)[COOKIE];
-    if (sid) sessions.delete(sid);
-    return send(res, 200, { ok: true }, { 'set-cookie': `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` });
+    await destroyLoginSession(sid);
+    return send(res, 200, { ok: true }, { 'set-cookie': [clearCookie(COOKIE), clearCookie(APP_USER_COOKIE), clearCookie(APP_SESSION_COOKIE)] });
   }
   if (pathname === '/api/me' && req.method === 'GET') {
     requireAuth(user);
@@ -1021,6 +1392,7 @@ async function handleApi(req, res, db, user, pathname) {
       target = db.users.find(u => u.id === requestedId && u.role === 'user');
     }
     if (!target || target.role !== 'user') return send(res, 404, { allowed: false, message: 'Utente non trovato.' });
+    if (!hasActiveAppSession(req, target)) return send(res, 409, { allowed: false, reason: 'inactive_app_session', message: 'Questa scheda non e piu attiva. Riapri Refertium dal portale.' });
     const blocked = target.license === 'blocked';
     const overLimit = isOverLimit(target);
     const overDictationLimit = isOverDictationLimit(target);
@@ -1045,6 +1417,7 @@ async function handleApi(req, res, db, user, pathname) {
       target = db.users.find(u => u.id === requestedId && u.role === 'user') || null;
     }
     if (!target || target.role !== 'user') return send(res, 404, { ok: false, error: 'Utente non trovato' });
+    if (!hasActiveAppSession(req, target)) return send(res, 409, { ok: false, error: 'Scheda non attiva. Riapri Refertium dal portale.' });
     const seconds = Math.max(0, Math.round(Number(body.seconds || 0)));
     await recordTokens(db, target, {
       operation: 'Dettatura',
@@ -1065,6 +1438,7 @@ async function handleApi(req, res, db, user, pathname) {
       target = db.users.find(u => u.id === requestedId && u.role === 'user') || null;
     }
     if (!target || target.role !== 'user') return send(res, 404, { ok: false, error: 'Utente non trovato' });
+    if (!hasActiveAppSession(req, target)) return send(res, 409, { ok: false, error: 'Scheda non attiva. Riapri Refertium dal portale.' });
     await recordTokens(db, target, {
       operation: body.operation || 'AI',
       tokens: Number(body.tokens || 0),
@@ -1220,6 +1594,18 @@ async function handleApi(req, res, db, user, pathname) {
     return send(res, 200, { user: publicUser(target, { includeUsage: true, includeSensitive: true }), htmlName: target.htmlName });
   }
   const resetMatch = pathname.match(/^\/api\/users\/([^/]+)\/usage-reset$/);
+  const paymentMatch = pathname.match(/^\/api\/users\/([^/]+)\/payment-link$/);
+  if (paymentMatch && req.method === 'POST') {
+    requireAdmin(user);
+    const target = db.users.find(u => u.id === paymentMatch[1] && u.role === 'user');
+    if (!target) return send(res, 404, { error: 'Utente non trovato' });
+    const body = await readJson(req);
+    const link = await createPaymentLink(db, target, {
+      month: String(body.month || paymentMonthKey()),
+      amount: body.amount == null ? undefined : Number(body.amount)
+    });
+    return send(res, 200, { ok: true, link });
+  }
   if (resetMatch && req.method === 'POST') {
     requireAdmin(user);
     const target = db.users.find(u => u.id === resetMatch[1] && u.role === 'user');
@@ -1235,6 +1621,7 @@ async function handleApi(req, res, db, user, pathname) {
     const body = await readJson(req);
     const target = db.users.find(u => u.role === 'user' && u.proxyToken === body.proxyToken);
     if (!target) return send(res, 401, { allowed: false, error: 'Token proxy non valido' });
+    if (target.id !== INTERNATIONAL_DEMO_USER_ID && body.appSession !== target.activeAppSession) return send(res, 409, { allowed: false, reason: 'inactive_app_session', error: 'Sessione app non attiva' });
     const usage = getMonthlyUsage(target);
     const overDictationLimit = isOverDictationLimit(target);
     const allowed = target.license !== 'blocked' && !isOverLimit(target) && !overDictationLimit;
@@ -1257,6 +1644,7 @@ async function handleApi(req, res, db, user, pathname) {
     const body = await readJson(req);
     const target = db.users.find(u => u.role === 'user' && u.proxyToken === body.proxyToken);
     if (!target) return send(res, 401, { ok: false, error: 'Token proxy non valido' });
+    if (target.id !== INTERNATIONAL_DEMO_USER_ID && body.appSession !== target.activeAppSession) return send(res, 409, { ok: false, error: 'Sessione app non attiva' });
     await recordTokens(db, target, {
       operation: body.operation || 'AI',
       tokens: Number(body.tokens || 0),
@@ -1265,6 +1653,9 @@ async function handleApi(req, res, db, user, pathname) {
       status: Number(body.status || 200)
     });
     return send(res, 200, { ok: true, usage: getMonthlyUsage(target) });
+  }
+  if (pathname === '/api/stripe/webhook' && req.method === 'POST') {
+    return handleStripeWebhook(req, res, db);
   }
   return send(res, 404, { error: 'API not found' });
 }
@@ -1300,6 +1691,7 @@ function resolveAiBillingUser(req, db, user) {
 async function proxyOpenAI(req, res, db, user, pathname) {
   const billingUser = resolveAiBillingUser(req, db, user);
   if (!billingUser) return send(res, 403, { error: 'Apri prima una app utente da /app/:userId' });
+  if (!hasActiveAppSession(req, billingUser)) return send(res, 409, { error: 'Questa scheda non e piu attiva. Riapri Refertium dal portale.' });
   if (billingUser.license === 'blocked') return send(res, 403, { error: 'Licenza bloccata' });
   if (isOverLimit(billingUser)) return send(res, 402, { error: 'Limite token raggiunto' });
   if (!OPENAI_API_KEY) return send(res, 500, { error: 'OPENAI_API_KEY non configurata sul server' });
@@ -1370,6 +1762,183 @@ async function recordTokens(db, user, event) {
   usage.events = usage.events.slice(-1000);
   user.updatedAt = new Date().toISOString();
   await saveDb(db);
+}
+
+function paymentMonthKey(date = new Date()) {
+  return date.toISOString().slice(0, 7);
+}
+
+function signPaymentPayload(payload) {
+  return crypto.createHmac('sha256', PAYMENT_LINK_SECRET).update(payload).digest('hex').slice(0, 24);
+}
+
+async function createPaymentLink(db, user, options = {}) {
+  if (!user || user.role !== 'user') throw Object.assign(new Error('Utente non trovato'), { status: 404 });
+  const month = options.month || paymentMonthKey();
+  const amount = Number(options.amount == null ? user.planPrice : options.amount);
+  if (amount <= 0) throw Object.assign(new Error('Prezzo mensile non configurato'), { status: 400 });
+  const linkId = id('pay');
+  const checkout = await createStripeCheckoutSession(user, { linkId, month, amount });
+  const payload = `${user.id}:${month}:${amount.toFixed(2)}:${linkId}`;
+  const fallbackUrl = `${PAYMENT_BASE_URL.replace(/\/$/, '')}?user=${encodeURIComponent(user.id)}&month=${encodeURIComponent(month)}&amount=${encodeURIComponent(amount.toFixed(2))}&ref=${encodeURIComponent(linkId)}&sig=${signPaymentPayload(payload)}`;
+  const link = {
+    id: linkId,
+    userId: user.id,
+    month,
+    amount,
+    currency: STRIPE_CURRENCY,
+    provider: checkout ? 'stripe_checkout' : 'signed_url',
+    stripeSessionId: checkout ? checkout.id : '',
+    url: checkout ? checkout.url : fallbackUrl,
+    createdAt: new Date().toISOString(),
+    sentAt: new Date().toISOString()
+  };
+  user.paymentLinks = Array.isArray(user.paymentLinks) ? user.paymentLinks : [];
+  user.paymentLinks.unshift(link);
+  user.paymentLinks = user.paymentLinks.slice(0, 24);
+  user.lastPaymentLink = link;
+  user.updatedAt = new Date().toISOString();
+  await saveDb(db);
+  if (pgPool) {
+    await pgPool.query(
+      `insert into payment_links(id,user_id,month,amount,currency,provider,stripe_session_id,status,url,sent_at,created_at)
+       values($1,$2,$3,$4,$5,$6,$7,'created',$8,now(),now())
+       on conflict(id) do nothing`,
+      [link.id, user.id, month, amount, link.currency, link.provider, link.stripeSessionId || null, link.url]
+    );
+  }
+  return link;
+}
+
+async function createStripeCheckoutSession(user, payment) {
+  const client = stripe();
+  if (!client && REQUIRE_POSTGRES) throw Object.assign(new Error('STRIPE_SECRET_KEY non configurata'), { status: 500 });
+  if (!client) return null;
+  const unitAmount = Math.round(Number(payment.amount) * 100);
+  if (!Number.isInteger(unitAmount) || unitAmount <= 0) throw Object.assign(new Error('Importo Stripe non valido'), { status: 400 });
+  const session = await client.checkout.sessions.create({
+    mode: 'payment',
+    customer_email: user.email || undefined,
+    client_reference_id: payment.linkId,
+    success_url: `${PUBLIC_BASE_URL}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${PUBLIC_BASE_URL}/?payment=cancelled`,
+    line_items: [{
+      quantity: 1,
+      price_data: {
+        currency: STRIPE_CURRENCY,
+        unit_amount: unitAmount,
+        product_data: {
+          name: `Refertium ${payment.month}`,
+          description: `${user.name || user.username || user.id} - monthly access`
+        }
+      }
+    }],
+    metadata: {
+      refertiumPaymentId: payment.linkId,
+      userId: user.id,
+      month: payment.month
+    },
+    payment_intent_data: {
+      metadata: {
+        refertiumPaymentId: payment.linkId,
+        userId: user.id,
+        month: payment.month
+      }
+    }
+  });
+  return { id: session.id, url: session.url };
+}
+
+async function handleStripeWebhook(req, res, db) {
+  const raw = await readBody(req, 1024 * 1024);
+  let event;
+  try {
+    event = parseStripeWebhook(req, raw);
+  } catch (err) {
+    return send(res, 400, { error: err.message || 'Invalid Stripe webhook' });
+  }
+  if (event.type === 'checkout.session.completed' && event.data.object.payment_status !== 'paid') {
+    return send(res, 200, { received: true, ignored: 'payment_not_paid' });
+  }
+  if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+    await applyStripeCheckoutPayment(db, event.data.object);
+  }
+  return send(res, 200, { received: true });
+}
+
+function parseStripeWebhook(req, raw) {
+  if (STRIPE_WEBHOOK_SECRET) {
+    const client = stripe() || new Stripe('sk_test_placeholder');
+    return client.webhooks.constructEvent(raw, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+  }
+  if (REQUIRE_POSTGRES) throw new Error('STRIPE_WEBHOOK_SECRET is required in production.');
+  return JSON.parse(raw.toString('utf8'));
+}
+
+async function applyStripeCheckoutPayment(db, session) {
+  const metadata = session.metadata || {};
+  const userId = metadata.userId || '';
+  const paymentLinkId = metadata.refertiumPaymentId || session.client_reference_id || '';
+  const month = metadata.month || paymentMonthKey();
+  const target = db.users.find(u => u.id === userId && u.role === 'user');
+  if (!target) throw Object.assign(new Error('Stripe payment user not found'), { status: 404 });
+  const amount = Number(session.amount_total || 0) / 100;
+  const currency = String(session.currency || STRIPE_CURRENCY).toLowerCase();
+  const paidAt = new Date().toISOString();
+  const payment = {
+    id: session.payment_intent || session.id,
+    paymentLinkId,
+    stripeSessionId: session.id,
+    amount,
+    currency,
+    month,
+    status: session.payment_status || 'paid',
+    paidAt
+  };
+  target.payments = Array.isArray(target.payments) ? target.payments : [];
+  if (!target.payments.some(p => p.id === payment.id)) target.payments.unshift(payment);
+  target.payments = target.payments.slice(0, 48);
+  target.paymentLinks = Array.isArray(target.paymentLinks) ? target.paymentLinks : [];
+  for (const link of target.paymentLinks) {
+    if (link.id === paymentLinkId || link.stripeSessionId === session.id) {
+      link.status = 'paid';
+      link.paidAt = paidAt;
+    }
+  }
+  if (target.lastPaymentLink && (target.lastPaymentLink.id === paymentLinkId || target.lastPaymentLink.stripeSessionId === session.id)) {
+    target.lastPaymentLink.status = 'paid';
+    target.lastPaymentLink.paidAt = paidAt;
+  }
+  target.license = 'active';
+  target.isDemo = false;
+  target.lastPaidAt = paidAt;
+  target.lastPaidMonth = month;
+  target.usage = target.usage || {};
+  target.usage[month] = { total: 0, dictationSeconds: 0, events: [{
+    at: paidAt,
+    operation: 'Pagamento Stripe',
+    tokens: 0,
+    dictationSeconds: 0,
+    source: 'stripe',
+    status: 'paid'
+  }] };
+  target.updatedAt = paidAt;
+  await saveDb(db);
+  if (pgPool) {
+    await pgPool.query(
+      `insert into payments(id,user_id,payment_link_id,stripe_session_id,amount,currency,month,status,raw,created_at)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now())
+       on conflict(id) do update set status=excluded.status, raw=excluded.raw`,
+      [payment.id, target.id, paymentLinkId || null, session.id, amount, currency, month, payment.status, JSON.stringify(session)]
+    );
+    await pgPool.query(
+      `update payment_links
+       set status='paid', paid_at=now()
+       where id=$1 or stripe_session_id=$2`,
+      [paymentLinkId, session.id]
+    );
+  }
+  return payment;
 }
 
 async function handler(req, res) {

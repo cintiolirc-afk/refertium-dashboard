@@ -792,6 +792,7 @@
             <div class="row">
               <button class="primary">Salva</button>
               <button class="ghost" type="button" id="generateApp">Genera app</button>
+              <button class="ghost" type="button" id="sendPaymentLink">Invia link pagamento</button>
               <button class="ghost" type="button" id="resetUsage">Azzera token</button>
               <button class="danger" type="button" id="deleteUser">Elimina</button>
             </div>
@@ -1321,7 +1322,8 @@ function renderDetail() {
   $("distillate").value = u.distillate || "";
   setSelectedSpecialties(u.specialties);
   const generated = u.generatedAt ? ` · generato ${new Date(u.generatedAt).toLocaleString("it-IT")}` : "";
-  $("htmlInfo").textContent = u.hasHtml ? `Caricato: ${u.htmlName || "app.html"}${generated}` : "Nessun file caricato.";
+  const payment = u.lastPaymentLink ? ` | ultimo link pagamento: ${u.lastPaymentLink.month}` : "";
+  $("htmlInfo").textContent = (u.hasHtml ? `Caricato: ${u.htmlName || "app.html"}${generated}` : "Nessun file caricato.") + payment;
   renderUsage(u);
 }
 
@@ -1565,6 +1567,21 @@ $("resetUsage").onclick = async () => {
   if (!u) return;
   await api("/api/users/" + u.id + "/usage-reset", { method: "POST" });
   await loadAdmin();
+};
+
+$("sendPaymentLink").onclick = async () => {
+  const u = selectedUser();
+  if (!u) return;
+  const result = await api("/api/users/" + u.id + "/payment-link", { method: "POST", body: JSON.stringify({}) });
+  try { await navigator.clipboard.writeText(result.link.url); } catch {}
+  alert("Payment link generated and ready to send:\n" + result.link.url);
+  if (u.email) {
+    const subject = encodeURIComponent("Refertium payment link");
+    const body = encodeURIComponent(`Hello ${u.name || ""},\n\nYour Refertium payment link is:\n${result.link.url}\n\nThank you.`);
+    window.open(`mailto:${encodeURIComponent(u.email)}?subject=${subject}&body=${body}`, "_blank");
+  }
+  await loadAdmin();
+  setPage("detail");
 };
 
 $("openUsageLog").onclick = openUsageModal;

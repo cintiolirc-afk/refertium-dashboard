@@ -5,7 +5,7 @@ function corsHeaders(request) {
   return {
     'Access-Control-Allow-Origin': request.headers.get('Origin') || '*',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Token, X-Refertium-Proxy-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Token, X-Refertium-Proxy-Token, X-Refertium-App-Session',
     'Access-Control-Max-Age': '86400',
   };
 }
@@ -45,6 +45,8 @@ function responseHeaders(upstream, request) {
 
 async function proxyOpenAI(request, env, pathname) {
   if (!env.OPENAI_API_KEY) return json({ error: 'OPENAI_API_KEY non configurata nel Worker' }, 500, request);
+  const authorized = await authorizeDashboardUsage(request, env);
+  if (!authorized.allowed) return json({ error: authorized.error || 'Refertium session not authorized' }, authorized.status || 403, request);
 
   const label = trafficLabel(request);
   console.log('Refertium proxy traffic from:', label, 'route:', pathname);
@@ -54,6 +56,7 @@ async function proxyOpenAI(request, env, pathname) {
   headers.delete('Host');
   headers.delete('X-Auth-Token');
   headers.delete('X-Refertium-Proxy-Token');
+  headers.delete('X-Refertium-App-Session');
 
   const upstream = await fetch(OPENAI_BASE + pathname, {
     method: request.method,
@@ -71,6 +74,24 @@ async function proxyOpenAI(request, env, pathname) {
     statusText: upstream.statusText,
     headers: responseHeaders(upstream, request),
   });
+}
+
+async function authorizeDashboardUsage(request, env) {
+  const dashboardUrl = env.REFERTIUM_DASHBOARD_URL;
+  const proxyToken = request.headers.get('X-Refertium-Proxy-Token');
+  const appSession = request.headers.get('X-Refertium-App-Session');
+  if (!dashboardUrl || !proxyToken) return { allowed: false, status: 401, error: 'Missing dashboard authorization' };
+  const response = await fetch(dashboardUrl.replace(/\/$/, '') + '/api/proxy/authorize', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Worker-Secret': env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev',
+    },
+    body: JSON.stringify({ proxyToken, appSession }),
+  });
+  if (!response.ok) return { allowed: false, status: response.status, error: 'Dashboard authorization failed' };
+  const data = await response.json();
+  return data && data.allowed ? { allowed: true } : { allowed: false, status: 403, error: data && (data.error || data.reason) };
 }
 
 function operationFor(pathname) {
@@ -92,6 +113,7 @@ function tokensFromResponse(responseBody) {
 async function reportDashboardUsage(request, env, pathname, status, responseBody) {
   const dashboardUrl = env.REFERTIUM_DASHBOARD_URL;
   const proxyToken = request.headers.get('X-Refertium-Proxy-Token');
+  const appSession = request.headers.get('X-Refertium-App-Session');
   if (!dashboardUrl || !proxyToken) return;
   await fetch(dashboardUrl.replace(/\/$/, '') + '/api/proxy/usage', {
     method: 'POST',
@@ -101,6 +123,7 @@ async function reportDashboardUsage(request, env, pathname, status, responseBody
     },
     body: JSON.stringify({
       proxyToken,
+      appSession,
       operation: operationFor(pathname),
       tokens: tokensFromResponse(responseBody),
       source: 'cloudflare',
@@ -111,6 +134,8 @@ async function reportDashboardUsage(request, env, pathname, status, responseBody
 
 async function deepgramToken(request, env) {
   if (!env.DEEPGRAM_API_KEY) return json({ error: 'DEEPGRAM_API_KEY non configurata nel Worker' }, 500, request);
+  const authorized = await authorizeDashboardUsage(request, env);
+  if (!authorized.allowed) return json({ error: authorized.error || 'Refertium session not authorized' }, authorized.status || 403, request);
 
   console.log('Refertium Deepgram token from:', trafficLabel(request));
 
