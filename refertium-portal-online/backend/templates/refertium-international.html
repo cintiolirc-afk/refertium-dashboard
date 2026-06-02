@@ -2137,6 +2137,15 @@
   editor.addEventListener('keyup', () => saveSelection());
   // Esposta per la checklist module:
   window.streamChatCompletion = streamChatCompletion;
+  // Esposti perché vivono dentro l'IIFE — la checklist (in un altro <script>)
+  // li accede via window. L() ritorna il dizionario UI per la lingua attiva,
+  // langName mappa codice → nome nativo, getLangInput è un getter live sul
+  // valore corrente di langInput (non una copia stale).
+  window.refertiumL = L;
+  window.refertiumLangName = langName;
+  window.refertiumGetLangInput = function() { return langInput; };
+  window.refertiumProxyUrl = PROXY_URL;
+  window.refertiumProxyAuth = PROXY_AUTH;
   window.refertiumInsertChecklistDraft = function(text) {
     if (!editor) return;
     editor.innerHTML = '';
@@ -3018,7 +3027,7 @@ window.CHECKLIST_TEMPLATES = {
       });
     }
     if (tplTransInFlight[cacheKey]) return tplTransInFlight[cacheKey];
-    const lname = (typeof langName === 'function') ? langName(lang) : lang;
+    const lname = (window.refertiumLangName ? window.refertiumLangName(lang) : lang);
     const payload = {
       label: orig.label,
       voci: orig.voci.map((v) => ({ nome: v.nome, normale: v.normale })),
@@ -3031,9 +3040,9 @@ window.CHECKLIST_TEMPLATES = {
     const user = 'Translate to ' + lname + ' (preserve JSON shape):\n\n' + JSON.stringify(payload, null, 2);
     const p = (async () => {
       try {
-        const resp = await fetch(PROXY_URL + '/v1/chat/completions', {
+        const resp = await fetch(window.refertiumProxyUrl + '/v1/chat/completions', {
           method: 'POST',
-          headers: { 'X-Auth-Token': PROXY_AUTH, 'Content-Type': 'application/json' },
+          headers: { 'X-Auth-Token': window.refertiumProxyAuth, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
@@ -3080,7 +3089,7 @@ window.CHECKLIST_TEMPLATES = {
     }
     if (lblTransCache[lang]) return lblTransCache[lang];
     if (lblTransInFlight[lang]) return lblTransInFlight[lang];
-    const lname = (typeof langName === 'function') ? langName(lang) : lang;
+    const lname = (window.refertiumLangName ? window.refertiumLangName(lang) : lang);
     const allLabels = {};
     Object.keys(templates).forEach((id) => { allLabels[id] = templates[id].label || id; });
     const system = 'You are a senior radiologist bilingual in Italian and ' + lname +
@@ -3090,9 +3099,9 @@ window.CHECKLIST_TEMPLATES = {
     const user = 'Translate values to ' + lname + ':\n\n' + JSON.stringify(allLabels, null, 2);
     const p = (async () => {
       try {
-        const resp = await fetch(PROXY_URL + '/v1/chat/completions', {
+        const resp = await fetch(window.refertiumProxyUrl + '/v1/chat/completions', {
           method: 'POST',
-          headers: { 'X-Auth-Token': PROXY_AUTH, 'Content-Type': 'application/json' },
+          headers: { 'X-Auth-Token': window.refertiumProxyAuth, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
@@ -3134,7 +3143,7 @@ window.CHECKLIST_TEMPLATES = {
   /** Aggiorna i label nel dropdown alla lingua corrente. Triggera 1 chiamata
    *  AI la prima volta (cachata) — chiamato da applyUILang. */
   async function relocalizeDropdown() {
-    const lang = (typeof langInput === 'string') ? langInput : 'it';
+    const lang = (window.refertiumGetLangInput ? window.refertiumGetLangInput() : 'it');
     const labels = await getLocalizedLabels(lang);
     Array.from(select.options).forEach((opt) => {
       if (!opt.value) return; // skip placeholder
@@ -3187,7 +3196,7 @@ window.CHECKLIST_TEMPLATES = {
   let currentLang = null;
 
   function renderEmptyState() {
-    const dict = L();
+    const dict = (window.refertiumL ? window.refertiumL() : {});
     body.innerHTML =
       '<div class="cl-empty"><span>' + (dict.clEmpty || 'Seleziona un esame dall\'elenco qui sopra.') +
       '</span><br><br><span>' + (dict.clEmptyHelp || 'Per ogni voce premi <strong>Normale</strong> se il reperto è regolare, oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.') +
@@ -3204,7 +3213,7 @@ window.CHECKLIST_TEMPLATES = {
       renderEmptyState();
       return;
     }
-    const lang = (typeof langInput === 'string') ? langInput : 'it';
+    const lang = (window.refertiumGetLangInput ? window.refertiumGetLangInput() : 'it');
     // Mostra subito i reperti italiani (instant render), poi sostituisce con
     // la versione tradotta non appena pronta. Evita "schermata vuota" durante
     // la prima traduzione di un template.
@@ -3246,7 +3255,7 @@ window.CHECKLIST_TEMPLATES = {
     name.textContent = voce.nome;
     head.appendChild(name);
 
-    const dictL = L();
+    const dictL = (window.refertiumL ? window.refertiumL() : {});
     const btnNormal = document.createElement('button');
     btnNormal.className = 'cl-state-btn' + (v.state === 'normal' ? ' active normal' : '');
     btnNormal.type = 'button';
@@ -3374,7 +3383,7 @@ window.CHECKLIST_TEMPLATES = {
       const s = cstate.voci[v.id];
       return s && (s.state === 'normal' || (s.state === 'prompt' && s.text && s.text.trim()));
     }).length;
-    const suffix = (L().clCountSuffix) || 'voci';
+    const suffix = ((window.refertiumL ? window.refertiumL() : {}).clCountSuffix) || 'voci';
     progress.textContent = compiled + ' / ' + total + ' ' + suffix;
     generateBtn.disabled = compiled === 0;
   }
@@ -3407,10 +3416,10 @@ window.CHECKLIST_TEMPLATES = {
 
     generateBtn.disabled = true;
     const oldLabel = generateBtn.innerHTML;
-    const loadingLabel = (L().clGenerating) || 'Genero…';
+    const loadingLabel = ((window.refertiumL ? window.refertiumL() : {}).clGenerating) || 'Genero…';
     generateBtn.innerHTML = '⏳ ' + loadingLabel;
 
-    const targetLang = currentLang || (typeof langInput === 'string' ? langInput : 'it');
+    const targetLang = currentLang || (window.refertiumGetLangInput ? window.refertiumGetLangInput() : 'it');
     try {
       const draft = await generateReportFromChecklist(tpl, voci, targetLang);
       if (typeof window.refertiumInsertChecklistDraft === 'function') {
@@ -3433,7 +3442,7 @@ window.CHECKLIST_TEMPLATES = {
       closeDrawer();
     } catch (err) {
       console.error('checklist generate failed:', err);
-      const prefix = (L().clGenerateError) || 'Errore generazione: ';
+      const prefix = ((window.refertiumL ? window.refertiumL() : {}).clGenerateError) || 'Errore generazione: ';
       alert(prefix + (err.message || 'unknown'));
     } finally {
       generateBtn.innerHTML = oldLabel;
@@ -3452,7 +3461,7 @@ window.CHECKLIST_TEMPLATES = {
       return '- ' + v.nome + ': [FINDING] ' + v.nota;
     }).join('\n');
 
-    const lname = (typeof langName === 'function') ? langName(lang || 'it') : 'Italian';
+    const lname = (window.refertiumLangName ? window.refertiumLangName(lang || 'it') : 'Italian');
     const system = [
       'You are an expert radiologist writing in ' + lname + '.',
       'You have a list of items from a structured checklist for the exam "' + tpl.label + '"',
