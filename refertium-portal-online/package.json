@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node backend/server.js",
+    "test": "node --test backend/test",
     "postgres:up": "docker compose -f docker-compose.postgres.yml up -d",
     "postgres:down": "docker compose -f docker-compose.postgres.yml down"
   },

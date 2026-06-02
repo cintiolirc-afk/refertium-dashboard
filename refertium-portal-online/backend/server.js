@@ -2,9 +2,25 @@ const http = require('http');
 const fs = require('fs/promises');
 const fss = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 const { Pool } = require('pg');
 const Stripe = require('stripe');
+const {
+  appSessionToken,
+  clearCookie: makeClearCookie,
+  cookie: makeCookie,
+  hashPassword,
+  id,
+  loginLimitKey,
+  parseCookies,
+  proxyToken,
+  verifyPassword
+} = require('./lib/security');
+const {
+  checkoutSessionParams,
+  normalizePaymentAmount,
+  paymentMonthKey,
+  signedPaymentUrl
+} = require('./lib/payments');
 
 const PORT = Number(process.env.PORT || process.env.REFERTIUM_PORT || 47825);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
@@ -58,51 +74,12 @@ function monthKey() {
   return new Date().toISOString().slice(0, 7);
 }
 
-function id(prefix = 'id') {
-  return prefix + '_' + crypto.randomBytes(10).toString('hex');
-}
-
-function proxyToken() {
-  return 'rft_' + crypto.randomBytes(24).toString('hex');
-}
-
-function appSessionToken() {
-  return 'app_' + crypto.randomBytes(24).toString('hex');
-}
-
 function cookie(name, value, options = {}) {
-  const maxAge = options.maxAge == null ? 2592000 : Number(options.maxAge);
-  const parts = [
-    `${name}=${encodeURIComponent(value || '')}`,
-    'HttpOnly',
-    'SameSite=Lax',
-    'Path=/'
-  ];
-  if (COOKIE_SECURE) parts.push('Secure');
-  if (maxAge != null) parts.push(`Max-Age=${maxAge}`);
-  return parts.join('; ');
+  return makeCookie(name, value, { ...options, secure: COOKIE_SECURE });
 }
 
 function clearCookie(name) {
-  return cookie(name, '', { maxAge: 0 });
-}
-
-function clientIp(req) {
-  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  return forwarded || req.socket.remoteAddress || 'unknown';
-}
-
-function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
-  const hash = crypto.scryptSync(String(password), salt, 64).toString('hex');
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password, stored) {
-  if (!stored || !stored.includes(':')) return false;
-  const [salt, hash] = stored.split(':');
-  const candidate = crypto.scryptSync(String(password), salt, 64);
-  const storedHash = Buffer.from(hash, 'hex');
-  return storedHash.length === candidate.length && crypto.timingSafeEqual(storedHash, candidate);
+  return makeClearCookie(name, { secure: COOKIE_SECURE });
 }
 
 async function ensureDirs() {
@@ -701,19 +678,6 @@ function sessionInfo(userId) {
   };
 }
 
-function parseCookies(req) {
-  const raw = req.headers.cookie || '';
-  const out = {};
-  for (const part of raw.split(';').map(v => v.trim()).filter(Boolean)) {
-    const i = part.indexOf('=');
-    if (i <= 0) continue;
-    try {
-      out[decodeURIComponent(part.slice(0, i))] = decodeURIComponent(part.slice(i + 1));
-    } catch {}
-  }
-  return out;
-}
-
 function send(res, status, body, headers = {}) {
   const payload = typeof body === 'string' ? body : JSON.stringify(body);
   res.writeHead(status, { ...jsonHeaders, ...headers });
@@ -830,10 +794,6 @@ function requireAdmin(user) {
 function requireFinance(user) {
   requireAuth(user);
   if (!['admin', 'finance'].includes(user.role)) throw Object.assign(new Error('Permesso negato'), { status: 403 });
-}
-
-function loginLimitKey(req, login) {
-  return crypto.createHash('sha256').update(`${clientIp(req)}:${String(login || '').toLowerCase()}`).digest('hex');
 }
 
 async function assertLoginAllowed(req, login) {
@@ -1875,23 +1835,20 @@ async function recordTokens(db, user, event) {
   await saveDb(db);
 }
 
-function paymentMonthKey(date = new Date()) {
-  return date.toISOString().slice(0, 7);
-}
-
-function signPaymentPayload(payload) {
-  return crypto.createHmac('sha256', PAYMENT_LINK_SECRET).update(payload).digest('hex').slice(0, 24);
-}
-
 async function createPaymentLink(db, user, options = {}) {
   if (!user || user.role !== 'user') throw Object.assign(new Error('Utente non trovato'), { status: 404 });
   const month = options.month || paymentMonthKey();
-  const amount = Number(options.amount == null ? user.planPrice : options.amount);
-  if (amount <= 0) throw Object.assign(new Error('Prezzo mensile non configurato'), { status: 400 });
+  const amount = normalizePaymentAmount(options.amount == null ? user.planPrice : options.amount);
   const linkId = id('pay');
   const checkout = await createStripeCheckoutSession(user, { linkId, month, amount });
-  const payload = `${user.id}:${month}:${amount.toFixed(2)}:${linkId}`;
-  const fallbackUrl = `${PAYMENT_BASE_URL.replace(/\/$/, '')}?user=${encodeURIComponent(user.id)}&month=${encodeURIComponent(month)}&amount=${encodeURIComponent(amount.toFixed(2))}&ref=${encodeURIComponent(linkId)}&sig=${signPaymentPayload(payload)}`;
+  const fallbackUrl = signedPaymentUrl({
+    baseUrl: PAYMENT_BASE_URL,
+    userId: user.id,
+    month,
+    amount,
+    linkId,
+    secret: PAYMENT_LINK_SECRET
+  });
   const link = {
     id: linkId,
     userId: user.id,
@@ -1925,37 +1882,13 @@ async function createStripeCheckoutSession(user, payment) {
   const client = stripe();
   if (!client && REQUIRE_POSTGRES) throw Object.assign(new Error('STRIPE_SECRET_KEY non configurata'), { status: 500 });
   if (!client) return null;
-  const unitAmount = Math.round(Number(payment.amount) * 100);
-  if (!Number.isInteger(unitAmount) || unitAmount <= 0) throw Object.assign(new Error('Importo Stripe non valido'), { status: 400 });
   const session = await client.checkout.sessions.create({
-    mode: 'payment',
-    customer_email: user.email || undefined,
-    client_reference_id: payment.linkId,
-    success_url: `${PUBLIC_BASE_URL}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${PUBLIC_BASE_URL}/?payment=cancelled`,
-    line_items: [{
-      quantity: 1,
-      price_data: {
-        currency: STRIPE_CURRENCY,
-        unit_amount: unitAmount,
-        product_data: {
-          name: `Refertium ${payment.month}`,
-          description: `${user.name || user.username || user.id} - monthly access`
-        }
-      }
-    }],
-    metadata: {
-      refertiumPaymentId: payment.linkId,
-      userId: user.id,
-      month: payment.month
-    },
-    payment_intent_data: {
-      metadata: {
-        refertiumPaymentId: payment.linkId,
-        userId: user.id,
-        month: payment.month
-      }
-    }
+    ...checkoutSessionParams({
+      user,
+      payment,
+      currency: STRIPE_CURRENCY,
+      publicBaseUrl: PUBLIC_BASE_URL
+    })
   });
   return { id: session.id, url: session.url };
 }
