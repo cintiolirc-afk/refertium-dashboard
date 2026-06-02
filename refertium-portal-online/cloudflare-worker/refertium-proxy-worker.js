@@ -22,7 +22,11 @@ function json(data, status = 200, request) {
 }
 
 function checkAuth(request, env) {
-  return Boolean(env.PROXY_AUTH_TOKEN) && request.headers.get('X-Auth-Token') === env.PROXY_AUTH_TOKEN;
+  if (!env.PROXY_AUTH_TOKEN) return false;
+  const authHeader = request.headers.get('Authorization') || '';
+  const bearerToken = authHeader.match(/^Bearer\s+(.+)$/i);
+  return request.headers.get('X-Auth-Token') === env.PROXY_AUTH_TOKEN
+    || (bearerToken && bearerToken[1] === env.PROXY_AUTH_TOKEN);
 }
 
 function trafficLabel(request) {
