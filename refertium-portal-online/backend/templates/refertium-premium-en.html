@@ -302,9 +302,12 @@
     border: 1px solid var(--line-strong, #333333);
     border-radius: 6px;
     font: inherit; font-size: 13px;
-    resize: vertical; min-height: 60px;
+    /* Auto-grow: resize disabilitato + overflow nascosto, JS aggiusta height */
+    resize: none; overflow: hidden; min-height: 60px;
     outline: none;
     font-family: "EB Garamond", Georgia, serif;
+    line-height: 1.45;
+    transition: height 0.08s ease;
   }
   .cl-item-note:focus {
     border-color: var(--warn, #d19a45);
@@ -2327,12 +2330,21 @@ window.CHECKLIST_TEMPLATES = {
       const ta = document.createElement('textarea');
       ta.className = 'cl-item-note';
       ta.value = v.text || '';
+      // Auto-grow: ridimensiona in altezza ad ogni input (e all'inizio se c'è
+      // del testo salvato da una sessione precedente)
+      const autoGrow = () => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      };
       ta.addEventListener('input', () => {
         cstate.voci[voce.id] = { state: 'prompt', text: ta.value };
         saveState();
         updateProgress();
+        autoGrow();
       });
       wrap.appendChild(ta);
+      // Misura iniziale al prossimo frame (a quel punto la textarea è nel DOM)
+      requestAnimationFrame(autoGrow);
 
       // Bottone microfono dentro la textarea (riusa refertiumStartDictation)
       const micBtn = document.createElement('button');
