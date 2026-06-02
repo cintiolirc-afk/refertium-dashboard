@@ -3042,7 +3042,12 @@ window.CHECKLIST_TEMPLATES = {
       try {
         const resp = await fetch(window.refertiumProxyUrl + '/v1/chat/completions', {
           method: 'POST',
-          headers: { 'X-Auth-Token': window.refertiumProxyAuth, 'Content-Type': 'application/json' },
+          headers: (function(){
+            const h = { 'Content-Type': 'application/json' };
+            const a = window.refertiumProxyAuth;
+            if (a && a !== 'session') h['Authorization'] = 'Bearer ' + a;
+            return h;
+          })(),
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
@@ -3056,7 +3061,9 @@ window.CHECKLIST_TEMPLATES = {
         });
         if (!resp.ok) throw new Error('translate HTTP ' + resp.status);
         const data = await resp.json();
-        const content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+        let content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+        // Strip code fences se il modello li avvolge nonostante response_format
+        content = content.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
         const tr = JSON.parse(content);
         if (!tr.label || !Array.isArray(tr.voci)) throw new Error('bad shape');
         tplTransCache[cacheKey] = tr;
@@ -3101,7 +3108,12 @@ window.CHECKLIST_TEMPLATES = {
       try {
         const resp = await fetch(window.refertiumProxyUrl + '/v1/chat/completions', {
           method: 'POST',
-          headers: { 'X-Auth-Token': window.refertiumProxyAuth, 'Content-Type': 'application/json' },
+          headers: (function(){
+            const h = { 'Content-Type': 'application/json' };
+            const a = window.refertiumProxyAuth;
+            if (a && a !== 'session') h['Authorization'] = 'Bearer ' + a;
+            return h;
+          })(),
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
@@ -3115,8 +3127,10 @@ window.CHECKLIST_TEMPLATES = {
         });
         if (!resp.ok) throw new Error('translate-labels HTTP ' + resp.status);
         const data = await resp.json();
-        const content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+        let content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+        content = content.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
         const tr = JSON.parse(content);
+        if (!tr || typeof tr !== 'object') throw new Error('bad shape');
         lblTransCache[lang] = tr;
         saveLblCache();
         return tr;
