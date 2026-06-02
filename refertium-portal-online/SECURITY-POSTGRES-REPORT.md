@@ -16,6 +16,7 @@ Branch: `andrey-design-fixes`
 - Added Cloudflare Worker authorization against the dashboard before OpenAI or Deepgram proxy calls.
 - Added per-user monthly Stripe Checkout link generation with arbitrary amounts and an admin dashboard button.
 - Added Stripe webhook handling for `checkout.session.completed` and `checkout.session.async_payment_succeeded`; paid sessions are matched to users through Stripe metadata.
+- Added PostgreSQL indexes for auth/session lookup, user identity lookup, license status, proxy token lookup, payment links, and payment transaction queries.
 - Added local Docker PostgreSQL setup used for verification.
 
 ## Local Verification
@@ -38,6 +39,28 @@ Verified:
 - Payment link API returns a signed monthly URL.
 - Stripe webhook can mark a user payment as paid and reset the paid month's usage counters.
 - Admin dashboard loads in the browser and shows the payment-link button.
+
+## Database Index Coverage
+
+- `users`: primary key on `id`, unique lower-case indexes for `username` and `email`, role index, created-at ordering index, and unique `proxy_token` index.
+- `licenses`: primary key on `user_id` and status index.
+- `sessions`: primary key on `sid`, `(user_id, active)` index, and `(active, expires_at)` index for cleanup/listing.
+- `login_attempts`: primary key on rate-limit key.
+- `payment_links`: primary key on `id`, `(user_id, month)` index, and unique Stripe session index.
+- `payments`: primary key on payment id, `(user_id, month)` index, `(status, month)` index, and Stripe session index.
+
+## Security Review Notes
+
+- SQL queries use parameterized `pgPool.query` values for all user-provided input.
+- Public unauthenticated API surface is limited to login, Stripe webhook, worker proxy callbacks protected by `X-Worker-Secret`, and the intentionally public international demo flow.
+- Stripe webhook requires `STRIPE_WEBHOOK_SECRET` in production and ignores unpaid `checkout.session.completed` events.
+- Cloudflare Worker dashboard callbacks require explicit `WORKER_SHARED_SECRET`; no dev-secret fallback is used there.
+- Admin-only methods cover user mutation, template upload, HTML upload, app generation, usage reset, and payment link generation.
+- Finance/admin-only method covers user listing.
+- Static serving blocks path traversal by resolving against the public directory root.
+- Uploaded/generated app HTML filenames are generated server-side; user-provided upload names are stored as display names only.
+- Cookie parsing tolerates malformed values without throwing.
+- Live Stripe/OpenAI secrets were not committed.
 
 ## Environment Values Used Locally
 

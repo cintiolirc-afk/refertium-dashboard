@@ -122,6 +122,7 @@ async function initStorage() {
     create unique index if not exists users_username_lower_idx on users (lower(username)) where username is not null and username <> '';
     create unique index if not exists users_email_lower_idx on users (lower(email)) where email is not null and email <> '';
     create index if not exists users_role_idx on users (role);
+    create index if not exists users_created_at_idx on users (created_at);
     create unique index if not exists users_proxy_token_idx on users (proxy_token) where proxy_token is not null and proxy_token <> '';
     create table if not exists licenses (
       user_id text primary key references users(id) on delete cascade,
@@ -145,6 +146,7 @@ async function initStorage() {
       active boolean not null default true
     );
     create index if not exists sessions_user_active_idx on sessions (user_id, active);
+    create index if not exists sessions_active_expires_idx on sessions (active, expires_at);
     create table if not exists login_attempts (
       key text primary key,
       attempts integer not null default 0,
@@ -179,6 +181,8 @@ async function initStorage() {
       created_at timestamptz not null default now()
     );
     create index if not exists payments_user_month_idx on payments (user_id, month);
+    create index if not exists payments_status_month_idx on payments (status, month);
+    create index if not exists payments_stripe_session_idx on payments (stripe_session_id) where stripe_session_id is not null and stripe_session_id <> '';
     alter table licenses add column if not exists last_paid_at timestamptz;
     alter table licenses add column if not exists last_paid_month text;
     alter table payment_links add column if not exists currency text not null default 'eur';

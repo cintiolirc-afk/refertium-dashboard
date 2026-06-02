@@ -80,12 +80,12 @@ async function authorizeDashboardUsage(request, env) {
   const dashboardUrl = env.REFERTIUM_DASHBOARD_URL;
   const proxyToken = request.headers.get('X-Refertium-Proxy-Token');
   const appSession = request.headers.get('X-Refertium-App-Session');
-  if (!dashboardUrl || !proxyToken) return { allowed: false, status: 401, error: 'Missing dashboard authorization' };
+  if (!dashboardUrl || !proxyToken || !env.WORKER_SHARED_SECRET) return { allowed: false, status: 401, error: 'Missing dashboard authorization' };
   const response = await fetch(dashboardUrl.replace(/\/$/, '') + '/api/proxy/authorize', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Worker-Secret': env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev',
+      'X-Worker-Secret': env.WORKER_SHARED_SECRET,
     },
     body: JSON.stringify({ proxyToken, appSession }),
   });
@@ -114,12 +114,12 @@ async function reportDashboardUsage(request, env, pathname, status, responseBody
   const dashboardUrl = env.REFERTIUM_DASHBOARD_URL;
   const proxyToken = request.headers.get('X-Refertium-Proxy-Token');
   const appSession = request.headers.get('X-Refertium-App-Session');
-  if (!dashboardUrl || !proxyToken) return;
+  if (!dashboardUrl || !proxyToken || !env.WORKER_SHARED_SECRET) return;
   await fetch(dashboardUrl.replace(/\/$/, '') + '/api/proxy/usage', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Worker-Secret': env.WORKER_SHARED_SECRET || 'refertium-worker-secret-dev',
+      'X-Worker-Secret': env.WORKER_SHARED_SECRET,
     },
     body: JSON.stringify({
       proxyToken,
