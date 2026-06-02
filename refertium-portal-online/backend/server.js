@@ -462,6 +462,11 @@ async function serveStatic(req, res, pathname) {
 // sorgente HTML, niente CORS, niente allowlist Cloudflare da gestire.
 const INTERNATIONAL_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-international.html');
 const INTERNATIONAL_DEMO_USER_ID = 'international-demo';
+// Research template — versione Refertium con salvataggio referti su file Word
+// per progetto di corpus / testi di ricerca. Stesso schema di /international:
+// niente login, billing su utente demo, AI proxiata via backend per evitare
+// problemi CORS quando il file viene aperto come `file://` o via altro origin.
+const RESEARCH_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-research.html');
 
 // Idempotent: assicura che esista l'utente "international-demo" come billing
 // holder per le chiamate AI dal template international. Tetto di token mensile
@@ -500,6 +505,27 @@ async function ensureInternationalDemoUser(db) {
     await saveDb(db);
   }
   return target;
+}
+
+async function serveResearchApp(req, res, user) {
+  // Stesso pattern di serveInternationalApp: niente login, usa l'utente
+  // "international-demo" come billing holder (così riusiamo il tetto già
+  // configurato senza creare un secondo utente demo).
+  try {
+    const db = await loadDb();
+    const billingUser = await ensureInternationalDemoUser(db);
+    const rawHtml = await fs.readFile(RESEARCH_TEMPLATE_FILE, 'utf8');
+    const html = rewriteRefertiumHtml(rawHtml, billingUser);
+    res.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'set-cookie': `${APP_USER_COOKIE}=${encodeURIComponent(billingUser.id)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`,
+    });
+    res.end(html);
+  } catch (err) {
+    console.error('serveResearchApp:', err);
+    send(res, err.status || 500, { error: err.message || 'Errore server' });
+  }
 }
 
 async function serveInternationalApp(req, res, user) {
@@ -1392,6 +1418,12 @@ async function handler(req, res) {
     // PROXY_AUTH riscritti, il backend fa proxy delle chiamate AI al worker).
     if (pathname === '/international' || pathname === '/international/') {
       return await serveInternationalApp(req, res, user);
+    }
+    // Refertium Research — editor con salvataggio referti su file Word per
+    // progetto di corpus/testi di ricerca. Niente login (stesso pattern di
+    // /international), billing su international-demo.
+    if (pathname === '/research' || pathname === '/research/') {
+      return await serveResearchApp(req, res, user);
     }
     return await serveStatic(req, res, pathname);
   } catch (err) {
