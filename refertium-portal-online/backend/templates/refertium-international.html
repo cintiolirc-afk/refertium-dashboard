@@ -1842,7 +1842,15 @@
       `- Use natural ${tgtName} sentence flow, not word-for-word mapping from ${srcName}.`,
       `- Numerical values (mm, cm, ml, Hounsfield units, scores) must be preserved exactly.`,
       `- Anatomical and pathological terminology must be the native ${tgtName} medical term, not a literal translation.`,
-      `Output: ONLY the final report in ${tgtName}, no commentary.`,
+      `FORMATTING — STRICT:`,
+      `- Output PLAIN TEXT ONLY. NO Markdown.`,
+      `- NEVER use **double asterisks** or __underscores__ for bold.`,
+      `- NEVER use single * or _ for italics.`,
+      `- NEVER use leading hyphens, bullets or numbers to start lines.`,
+      `- NEVER use # / ## / ### for headings.`,
+      `- Section titles on their OWN line, UPPERCASE in ${tgtName}, followed by ':' (e.g. FINDINGS:, IMPRESSION:, CONCLUSIONI:, REPERTI:, HALLAZGOS:, ACHADOS:, BEFUNDE:, etc.).`,
+      `- Continuous prose paragraphs, blank line between paragraphs.`,
+      `Output: ONLY the final report in ${tgtName}, plain text, no commentary, no Markdown.`,
     ].join(' ');
     await streamChatCompletion({
       model: 'gpt-4o-mini',
@@ -1942,9 +1950,29 @@
     if (lastPreviewMode === 'replace') {
       insertIntoEditor(text, { replaceSelection: true, asBlock: false });
     } else if (lastPreviewMode === 'replace-all') {
-      // Sostituisce il contenuto dell'editor (per export in lingua applicato in place)
+      // Sostituzione totale (esporta-in-lingua, riscrittura completa…):
+      // ricostruisce il DOM dell'editor da zero senza appoggiarsi a
+      // restoreSelection (che può trattenere una vecchia selezione e finire
+      // per APPENDERE anziché sostituire). Stessa logica del checklist
+      // insert handler — vedi refertiumInsertChecklistDraft.
+      const cleaned = String(text)
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/__(.+?)__/g, '$1')
+        .replace(/(^|\s)\*(\S[^*\n]*\S|\S)\*(?=\s|$)/g, '$1$2')
+        .replace(/(^|\s)_(\S[^_\n]*\S|\S)_(?=\s|$)/g, '$1$2')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/^\s*[-•]\s+/gm, '')
+        .replace(/^\s*#{1,6}\s+/gm, '');
       editor.innerHTML = '';
-      insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+      cleaned.split(/\n{2,}/).forEach((para) => {
+        const p = document.createElement('p');
+        para.split('\n').forEach((line, idx) => {
+          if (idx > 0) p.appendChild(document.createElement('br'));
+          p.appendChild(document.createTextNode(line));
+        });
+        editor.appendChild(p);
+      });
+      editor.focus();
     } else {
       insertIntoEditor(text, { replaceSelection: false, asBlock: true });
     }
@@ -2081,7 +2109,10 @@
     setStatus(L().statusExporting);
     let buffer = '';
     let lastRender = 0;
-    lastPreviewMode = 'append'; // mostriamo solo, l'utente decide se sostituire (vedi sotto)
+    // Export in lingua: il referto tradotto SOSTITUISCE quello originale.
+    // Non avrebbe senso avere due copie dello stesso referto in lingue
+    // diverse nello stesso documento.
+    lastPreviewMode = 'replace-all';
     try {
       await aiTranslateRewrite(sourceText, langInput, targetLang,
         (delta) => {
