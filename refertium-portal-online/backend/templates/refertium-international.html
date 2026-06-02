@@ -2148,8 +2148,34 @@
   window.refertiumProxyAuth = PROXY_AUTH;
   window.refertiumInsertChecklistDraft = function(text) {
     if (!editor) return;
+    // SOSTITUZIONE TOTALE: ricostruisce il DOM dell'editor da zero senza
+    // appoggiarsi a restoreSelection/insertIntoEditor (che possono trattenere
+    // una vecchia selezione e finire per APPENDERE anziché sostituire).
     editor.innerHTML = '';
-    insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+    // Strip residual markdown: bold/italic markers + leading bullet dashes
+    // (la prompt vieta già markdown, ma se il modello sgarra ripulisco).
+    const cleaned = String(text)
+      // **bold** / __bold__ → bold (mantiene la parola, toglie i marker)
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      // *italic* / _italic_ singoli (solo se non parte di una parola)
+      .replace(/(^|\s)\*(\S[^*\n]*\S|\S)\*(?=\s|$)/g, '$1$2')
+      .replace(/(^|\s)_(\S[^_\n]*\S|\S)_(?=\s|$)/g, '$1$2')
+      // Code fences `text` → text
+      .replace(/`([^`]+)`/g, '$1')
+      // Leading "- " su righe della lista → rimuovi (la frase è già completa)
+      .replace(/^\s*[-•]\s+/gm, '')
+      // # / ## intestazioni → toglie marker, mantiene il titolo
+      .replace(/^\s*#{1,6}\s+/gm, '');
+    cleaned.split(/\n{2,}/).forEach((para) => {
+      const p = document.createElement('p');
+      para.split('\n').forEach((line, idx) => {
+        if (idx > 0) p.appendChild(document.createElement('br'));
+        p.appendChild(document.createTextNode(line));
+      });
+      editor.appendChild(p);
+    });
+    editor.focus();
   };
 
   /** Dictation controller usato dalla checklist (e altrove). Usa la lingua
@@ -3482,15 +3508,28 @@ window.CHECKLIST_TEMPLATES = {
       '(modality ' + (tpl.modalita || 'radiologic') + ').',
       'Each item is marked either [NORMAL] (with the standard sentence already ready)',
       'or [FINDING] (a pathological finding described informally).',
-      'Compose a continuous radiology report in native ' + lname + ', well structured, with:',
-      '- a FINDINGS section integrating the items in the given order, rephrasing into',
-      '  proper medical prose (preserve content, invent nothing);',
-      '- a brief IMPRESSION/CONCLUSIONS section coherent with the findings.',
+      'Compose a CONTINUOUS radiology report in native ' + lname + ', well structured, with:',
+      'a section equivalent to FINDINGS/REPERTI/HALLAZGOS/ACHADOS/RÉSULTATS/BEFUNDE that',
+      'integrates the items in the given order, rephrased into proper medical prose',
+      '(preserve content, invent nothing); and a brief IMPRESSION/CONCLUSIONI/IMPRESIÓN/',
+      'IMPRESSÃO/CONCLUSION/BEURTEILUNG section coherent with the findings.',
       'Use the local section labels typical of ' + lname + ' radiology reports.',
       'Keep numbers, measurements and medical terms exact. For NORMAL items use the',
       'standard sentence (possibly shortened). For FINDINGS expand into professional',
       'radiology language.',
-      'Output: ONLY the report in ' + lname + ', no commentary.',
+      'FORMATTING RULES — STRICT:',
+      '- Output PLAIN TEXT ONLY. No Markdown whatsoever.',
+      '- NEVER use **double asterisks** or __underscores__ for bold.',
+      '- NEVER use single * or _ for italics.',
+      '- NEVER use leading hyphens, bullets, dashes or numbers to start lines.',
+      '- NEVER use # / ## / ### for headings.',
+      '- NEVER use backticks for code.',
+      '- Section titles go on their OWN line, UPPERCASE, followed by a colon, like:',
+      '  FINDINGS:',
+      '  (then on the next paragraph the prose, no indentation, no bullets)',
+      '- Each district/finding is written as continuous prose sentences inside the',
+      '  FINDINGS paragraph. Separate paragraphs by a single blank line.',
+      'Output: ONLY the report in ' + lname + ', plain text, no commentary, no Markdown.',
     ].join(' ');
 
     let buffer = '';
