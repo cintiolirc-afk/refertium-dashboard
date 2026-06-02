@@ -5,10 +5,11 @@ Branch: `andrey-design-fixes`
 ## Implemented
 
 - Added PostgreSQL support through `DATABASE_URL` with automatic schema creation.
-- Added `settings`, `users`, `sessions`, `login_attempts`, `payment_links`, and `payments` tables.
+- Added `settings`, `users`, `licenses`, `sessions`, `login_attempts`, `payment_links`, and `payments` tables.
 - Added one-time import from `backend/data/db.json` when `settings[key='import']` is not `1`; after import the app writes `settings.import=1`.
 - Kept the old `db.json` path only as a local fallback when `DATABASE_URL` is missing and production mode is not enabled.
 - Moved login sessions to PostgreSQL so sessions survive server restarts.
+- Moved usage licenses and recognizer/AI limits to a dedicated `licenses` table; API checks hydrate license state from SQL, not from process memory.
 - Login cookies now include `HttpOnly`, `SameSite=Lax`, `Path=/`, and `Secure` by default.
 - Added login rate limiting: 5 failed attempts lock the login key for 1 hour.
 - Added single active app-tab/session enforcement: opening `/app/:userId` rotates the active app session and old tabs are blocked.
@@ -32,6 +33,7 @@ Verified:
 - Admin login works.
 - Failed login attempts return `429` after the limit.
 - Sessions are stored in PostgreSQL.
+- Licenses are stored in PostgreSQL and verified by reading `licenses` joined with `users`.
 - Opening the same user app twice invalidates the previous app tab.
 - Payment link API returns a signed monthly URL.
 - Stripe webhook can mark a user payment as paid and reset the paid month's usage counters.

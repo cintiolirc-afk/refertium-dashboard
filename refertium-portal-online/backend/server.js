@@ -146,6 +146,19 @@ async function initStorage() {
     create unique index if not exists users_email_lower_idx on users (lower(email)) where email is not null and email <> '';
     create index if not exists users_role_idx on users (role);
     create unique index if not exists users_proxy_token_idx on users (proxy_token) where proxy_token is not null and proxy_token <> '';
+    create table if not exists licenses (
+      user_id text primary key references users(id) on delete cascade,
+      status text not null default 'active',
+      token_limit bigint not null default 0,
+      dictation_hour_limit numeric(10,2) not null default 0,
+      plan_name text not null default '',
+      plan_price numeric(12,2) not null default 0,
+      is_demo boolean not null default true,
+      last_paid_at timestamptz,
+      last_paid_month text,
+      updated_at timestamptz not null default now()
+    );
+    create index if not exists licenses_status_idx on licenses (status);
     create table if not exists sessions (
       sid text primary key,
       user_id text not null references users(id) on delete cascade,
@@ -189,6 +202,8 @@ async function initStorage() {
       created_at timestamptz not null default now()
     );
     create index if not exists payments_user_month_idx on payments (user_id, month);
+    alter table licenses add column if not exists last_paid_at timestamptz;
+    alter table licenses add column if not exists last_paid_month text;
     alter table payment_links add column if not exists currency text not null default 'eur';
     alter table payment_links add column if not exists provider text not null default 'signed_url';
     alter table payment_links add column if not exists stripe_session_id text;
@@ -199,6 +214,7 @@ async function initStorage() {
   storageMode = 'postgres';
   storageReady = true;
   await importJsonIfNeeded();
+  await backfillLicensesFromUsers();
 }
 
 function validateRuntimeConfig() {
@@ -229,6 +245,19 @@ async function importJsonIfNeeded() {
   console.log(`Refertium PostgreSQL import: loaded ${importedDb.users.length} users from db.json and set settings.import=1.`);
 }
 
+async function backfillLicensesFromUsers() {
+  if (!pgPool) return;
+  const missing = await pgPool.query(`
+    select u.data
+    from users u
+    left join licenses l on l.user_id = u.id
+    where u.role = 'user' and l.user_id is null
+  `);
+  for (const row of missing.rows) {
+    await upsertLicense(row.data);
+  }
+}
+
 async function getSetting(key) {
   if (!pgPool) return null;
   const result = await pgPool.query('select value from settings where key=$1', [key]);
@@ -246,10 +275,24 @@ async function setSetting(key, value) {
 
 async function loadPostgresDb() {
   await pgPool.query("delete from sessions where expires_at < now() or active = false");
-  const usersResult = await pgPool.query("select data from users order by created_at asc");
+  const usersResult = await pgPool.query(`
+    select
+      u.data,
+      l.status as license_status,
+      l.token_limit as license_token_limit,
+      l.dictation_hour_limit as license_dictation_hour_limit,
+      l.plan_name as license_plan_name,
+      l.plan_price as license_plan_price,
+      l.is_demo as license_is_demo,
+      l.last_paid_at as license_last_paid_at,
+      l.last_paid_month as license_last_paid_month
+    from users u
+    left join licenses l on l.user_id = u.id
+    order by u.created_at asc
+  `);
   const sessionsResult = await pgPool.query("select sid,user_id,extract(epoch from created_at)*1000 as created_ms,extract(epoch from last_seen_at)*1000 as last_seen_ms from sessions where active=true and expires_at > now()");
   const db = {
-    users: usersResult.rows.map(row => row.data),
+    users: usersResult.rows.map(hydrateUserFromRow),
     sessions: new Map(sessionsResult.rows.map(row => [row.sid, {
       userId: row.user_id,
       createdAt: Number(row.created_ms),
@@ -262,6 +305,21 @@ async function loadPostgresDb() {
   const financeChanged = ensureFinanceUser(db);
   if (changed || financeChanged) await saveDb(db);
   return db;
+}
+
+function hydrateUserFromRow(row) {
+  const user = { ...(row.data || {}) };
+  if (row.license_status != null) {
+    user.license = row.license_status;
+    user.tokenLimit = Number(row.license_token_limit || 0);
+    user.dictationHourLimit = Number(row.license_dictation_hour_limit || 0);
+    user.planName = row.license_plan_name || '';
+    user.planPrice = Number(row.license_plan_price || 0);
+    user.isDemo = Boolean(row.license_is_demo);
+    user.lastPaidAt = row.license_last_paid_at ? new Date(row.license_last_paid_at).toISOString() : '';
+    user.lastPaidMonth = row.license_last_paid_month || '';
+  }
+  return user;
 }
 
 async function upsertUser(user) {
@@ -280,6 +338,36 @@ async function upsertUser(user) {
        data=excluded.data,
        updated_at=excluded.updated_at`,
     [user.id, user.role, user.username || null, user.email || null, user.proxyToken || null, JSON.stringify(user), user.createdAt, user.updatedAt]
+  );
+  await upsertLicense(user);
+}
+
+async function upsertLicense(user) {
+  if (!pgPool || user.role !== 'user') return;
+  await pgPool.query(
+    `insert into licenses(user_id,status,token_limit,dictation_hour_limit,plan_name,plan_price,is_demo,last_paid_at,last_paid_month,updated_at)
+     values($1,$2,$3,$4,$5,$6,$7,$8,$9,now())
+     on conflict(user_id) do update set
+       status=excluded.status,
+       token_limit=excluded.token_limit,
+       dictation_hour_limit=excluded.dictation_hour_limit,
+       plan_name=excluded.plan_name,
+       plan_price=excluded.plan_price,
+       is_demo=excluded.is_demo,
+       last_paid_at=excluded.last_paid_at,
+       last_paid_month=excluded.last_paid_month,
+       updated_at=now()`,
+    [
+      user.id,
+      user.license || 'active',
+      Number(user.tokenLimit || 0),
+      Number(user.dictationHourLimit || 0),
+      user.planName || '',
+      Number(user.planPrice || 0),
+      Boolean(user.isDemo),
+      user.lastPaidAt || null,
+      user.lastPaidMonth || null
+    ]
   );
 }
 
@@ -661,13 +749,36 @@ async function readText(req) {
 
 async function currentUser(req, db) {
   const sid = parseCookies(req)[COOKIE];
+  if (pgPool) return currentUserFromPostgres(sid);
   const session = sid && sessions.get(sid);
   if (!session) return null;
   session.lastSeen = Date.now();
-  if (pgPool) {
-    await pgPool.query('update sessions set last_seen_at=now() where sid=$1 and active=true and expires_at > now()', [sid]);
-  }
   return db.users.find(u => u.id === session.userId) || null;
+}
+
+async function currentUserFromPostgres(sid) {
+  if (!sid) return null;
+  const result = await pgPool.query(`
+    update sessions s
+    set last_seen_at=now()
+    from users u
+    left join licenses l on l.user_id = u.id
+    where s.user_id = u.id
+      and s.sid = $1
+      and s.active = true
+      and s.expires_at > now()
+    returning
+      u.data,
+      l.status as license_status,
+      l.token_limit as license_token_limit,
+      l.dictation_hour_limit as license_dictation_hour_limit,
+      l.plan_name as license_plan_name,
+      l.plan_price as license_plan_price,
+      l.is_demo as license_is_demo,
+      l.last_paid_at as license_last_paid_at,
+      l.last_paid_month as license_last_paid_month
+  `, [sid]);
+  return result.rows[0] ? hydrateUserFromRow(result.rows[0]) : null;
 }
 
 async function createLoginSession(user) {
