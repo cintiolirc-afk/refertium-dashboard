@@ -630,6 +630,13 @@ async function saveDb(db) {
   await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
 }
 
+async function saveUser(db, user) {
+  const index = db.users.findIndex(u => u.id === user.id);
+  if (index >= 0) db.users[index] = user;
+  else db.users.push(user);
+  await saveDb(db);
+}
+
 function publicUser(user, options = {}) {
   const includeUsage = options.includeUsage !== false;
   const includeSensitive = options.includeSensitive === true;
@@ -776,7 +783,7 @@ async function setActiveAppSession(db, user) {
   user.activeAppSession = token;
   user.activeAppSessionAt = new Date().toISOString();
   user.updatedAt = user.activeAppSessionAt;
-  await saveDb(db);
+  await saveUser(db, user);
   return token;
 }
 
@@ -1836,7 +1843,7 @@ async function recordTokens(db, user, event) {
   });
   usage.events = usage.events.slice(-1000);
   user.updatedAt = new Date().toISOString();
-  await saveDb(db);
+  await saveUser(db, user);
 }
 
 async function createPaymentLink(db, user, options = {}) {
