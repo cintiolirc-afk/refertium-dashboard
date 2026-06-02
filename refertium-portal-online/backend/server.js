@@ -961,6 +961,9 @@ async function serveInternationalApp(req, res, user) {
 
 async function serveUserApp(req, res, db, user, targetUserId) {
   requireAuth(user);
+  if (user.role !== 'admin' && targetUserId !== user.id) {
+    return send(res, 403, pageMessage('Accesso negato', 'Non puoi aprire l applicazione di un altro utente.'), { 'content-type': 'text/html; charset=utf-8' });
+  }
   const target = user.role === 'admin' ? db.users.find(u => u.id === targetUserId) : user;
   if (!target || target.role !== 'user') return send(res, 404, { error: 'Utente non trovato' });
   if (target.license === 'blocked') return send(res, 403, pageMessage('Licenza bloccata', 'Accesso sospeso. Contatta il supporto Refertium.'), { 'content-type': 'text/html; charset=utf-8' });
