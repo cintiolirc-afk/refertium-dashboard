@@ -14,27 +14,27 @@
      ============================================================ */
   :root {
     color-scheme: dark;
-    --bg:           #050d1a;
-    --bg-elevated:  #0a1628;
-    --panel:        #0a1628;
-    --panel-2:      #112340;
-    --panel-hover:  rgba(93, 202, 165, 0.08);
-    --line:         #1f3a5e;
-    --line-strong:  #2c4a76;
-    --line-focus:   rgba(93, 202, 165, 0.50);
+    --bg:           #0a0a0a;
+    --bg-elevated:  #141414;
+    --panel:        #141414;
+    --panel-2:      #1c1c1c;
+    --panel-hover:  rgba(232, 220, 196, 0.08);
+    --line:         #262626;
+    --line-strong:  #333333;
+    --line-focus:   rgba(232, 220, 196, 0.50);
 
-    --text:         #e8edf5;
+    --text:         #ebebeb;
     --text-strong:  #ffffff;
-    --text-dim:     #8a9ab5;
-    --muted:        #5a6a85;
+    --text-dim:     #a8a8a8;
+    --muted:        #6b6b6b;
 
-    --accent:       #5DCAA5;
-    --accent-strong:#7ed8b8;
-    --accent-soft:  rgba(93, 202, 165, 0.12);
-    --accent-ink:   #050d1a;
+    --accent:       #e8dcc4;
+    --accent-strong:#f0e6d1;
+    --accent-soft:  rgba(232, 220, 196, 0.12);
+    --accent-ink:   #0a0a0a;
 
-    --warn:         #f4c065;
-    --danger:       #e07070;
+    --warn:         #d19a45;
+    --danger:       #d97757;
 
     --shadow:       0 4px 12px -2px rgba(0, 0, 0, 0.4);
     --shadow-lg:    0 12px 32px -6px rgba(0, 0, 0, 0.55);
@@ -92,7 +92,7 @@
     font-size: 12.5px; cursor: pointer;
     transition: background 150ms var(--ease), border-color 150ms var(--ease);
   }
-  .lang-chip:hover { background: rgba(93,202,165,0.18); border-color: var(--accent); }
+  .lang-chip:hover { background: rgba(232,220,196,0.18); border-color: var(--accent); }
   .lang-chip .label {
     color: var(--accent); font-weight: 700;
     font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
@@ -146,7 +146,7 @@
   }
   .tbtn.primary:hover { background: var(--accent-strong); }
   .tbtn.danger { color: var(--danger); }
-  .tbtn.danger:hover { background: rgba(224,112,112,0.10); }
+  .tbtn.danger:hover { background: rgba(217,119,87,0.10); }
   .tbtn:disabled { opacity: 0.5; cursor: not-allowed; }
   .tbtn svg { width: 16px; height: 16px; }
 
@@ -190,7 +190,7 @@
     flex: 1; overflow-y: auto;
     padding: 32px 24px 80px;
     background:
-      radial-gradient(1200px 600px at 50% -200px, rgba(93,202,165,0.04), transparent 60%),
+      radial-gradient(1200px 600px at 50% -200px, rgba(232,220,196,0.04), transparent 60%),
       var(--bg);
   }
   .paper {
@@ -368,7 +368,7 @@
     padding: 0 12px;
     border-radius: 8px;
     background: transparent;
-    color: var(--text, #e8edf5);
+    color: var(--text, #ebebeb);
     border: 1px solid transparent;
     cursor: pointer;
     font: inherit;
@@ -376,11 +376,11 @@
     font-weight: 500;
     transition: background 150ms cubic-bezier(.16,1,.3,1), border-color 150ms;
   }
-  .cl-toggle:hover { background: var(--panel-hover, rgba(93,202,165,.08)); }
+  .cl-toggle:hover { background: var(--panel-hover, rgba(232,220,196,.08)); }
   .cl-toggle.active {
-    background: var(--accent-soft, rgba(93,202,165,.12));
-    color: var(--accent, #5DCAA5);
-    border-color: var(--accent, #5DCAA5);
+    background: var(--accent-soft, rgba(232,220,196,.12));
+    color: var(--accent, #e8dcc4);
+    border-color: var(--accent, #e8dcc4);
   }
   .cl-toggle svg { width: 16px; height: 16px; }
 
@@ -395,10 +395,10 @@
     flex-shrink: 0;
     width: 0;
     overflow: hidden;
-    background: var(--panel-2, #112340);
-    border-left: 1px solid var(--line-strong, #2c4a76);
+    background: var(--panel-2, #1c1c1c);
+    border-left: 1px solid var(--line-strong, #333333);
     display: flex; flex-direction: column;
-    color: var(--text, #e8edf5);
+    color: var(--text, #ebebeb);
     transition: width 280ms cubic-bezier(.16,1,.3,1);
     /* min-width interno: quando si apre, il contenuto è leggibile */
   }
@@ -416,7 +416,7 @@
 
   .cl-header {
     padding: 18px 22px 14px;
-    border-bottom: 1px solid var(--line, #1f3a5e);
+    border-bottom: 1px solid var(--line, #262626);
     display: flex; flex-direction: column; gap: 12px;
   }
   .cl-title-row {
@@ -429,46 +429,46 @@
     color: var(--text-strong, #fff);
     letter-spacing: 0.01em;
   }
-  .cl-title .accent { color: var(--accent, #5DCAA5); }
+  .cl-title .accent { color: var(--accent, #e8dcc4); }
   .cl-close {
     width: 32px; height: 32px;
     background: transparent;
-    border: 1px solid var(--line, #1f3a5e);
+    border: 1px solid var(--line, #262626);
     border-radius: 8px;
-    color: var(--text-dim, #8a9ab5);
+    color: var(--text-dim, #a8a8a8);
     cursor: pointer;
     display: grid; place-items: center;
     transition: all 150ms;
   }
-  .cl-close:hover { color: var(--text-strong, #fff); border-color: var(--line-strong, #2c4a76); }
+  .cl-close:hover { color: var(--text-strong, #fff); border-color: var(--line-strong, #333333); }
   .cl-close svg { width: 14px; height: 14px; }
 
   .cl-template-select {
     width: 100%;
     padding: 10px 12px;
-    background: var(--bg-elevated, #0a1628);
-    color: var(--text, #e8edf5);
-    border: 1px solid var(--line-strong, #2c4a76);
+    background: var(--bg-elevated, #141414);
+    color: var(--text, #ebebeb);
+    border: 1px solid var(--line-strong, #333333);
     border-radius: 8px;
     font: inherit; font-size: 13.5px;
     cursor: pointer;
   }
   .cl-template-select:focus {
     outline: none;
-    border-color: var(--accent, #5DCAA5);
-    box-shadow: 0 0 0 3px var(--accent-soft, rgba(93,202,165,.12));
+    border-color: var(--accent, #e8dcc4);
+    box-shadow: 0 0 0 3px var(--accent-soft, rgba(232,220,196,.12));
   }
 
   .cl-meta-bar {
     display: flex; align-items: center; gap: 12px;
-    font-size: 12px; color: var(--text-dim, #8a9ab5);
+    font-size: 12px; color: var(--text-dim, #a8a8a8);
     min-height: 20px;
   }
-  .cl-meta-bar .progress { color: var(--accent, #5DCAA5); font-weight: 600; }
+  .cl-meta-bar .progress { color: var(--accent, #e8dcc4); font-weight: 600; }
   .cl-meta-bar .modality {
     padding: 2px 8px;
-    background: var(--accent-soft, rgba(93,202,165,.12));
-    color: var(--accent, #5DCAA5);
+    background: var(--accent-soft, rgba(232,220,196,.12));
+    color: var(--accent, #e8dcc4);
     border-radius: 999px;
     font-size: 10.5px; font-weight: 700;
     letter-spacing: 0.08em; text-transform: uppercase;
@@ -483,21 +483,21 @@
   .cl-empty {
     padding: 40px 16px;
     text-align: center;
-    color: var(--text-dim, #8a9ab5);
+    color: var(--text-dim, #a8a8a8);
     font-size: 13.5px; line-height: 1.6;
   }
-  .cl-empty strong { color: var(--accent, #5DCAA5); }
+  .cl-empty strong { color: var(--accent, #e8dcc4); }
 
   .cl-item {
-    background: var(--panel-2, #112340);
-    border: 1px solid var(--line, #1f3a5e);
+    background: var(--panel-2, #1c1c1c);
+    border: 1px solid var(--line, #262626);
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 8px;
     transition: border-color 150ms;
   }
-  .cl-item.is-normal { border-color: rgba(93,202,165,.45); background: rgba(93,202,165,.05); }
-  .cl-item.is-prompt { border-color: rgba(244,192,101,.55); }
+  .cl-item.is-normal { border-color: rgba(232,220,196,.45); background: rgba(232,220,196,.05); }
+  .cl-item.is-prompt { border-color: rgba(209,154,69,.55); }
 
   .cl-item-head {
     display: flex; align-items: center; gap: 10px;
@@ -513,28 +513,28 @@
     display: inline-flex; align-items: center; gap: 5px;
     padding: 4px 10px;
     background: transparent;
-    color: var(--text-dim, #8a9ab5);
-    border: 1px solid var(--line-strong, #2c4a76);
+    color: var(--text-dim, #a8a8a8);
+    border: 1px solid var(--line-strong, #333333);
     border-radius: 6px;
     font: inherit; font-size: 11.5px; font-weight: 600;
     cursor: pointer;
     transition: all 150ms;
   }
-  .cl-state-btn:hover { color: var(--text-strong, #fff); border-color: var(--accent, #5DCAA5); }
+  .cl-state-btn:hover { color: var(--text-strong, #fff); border-color: var(--accent, #e8dcc4); }
   .cl-state-btn.active.normal {
-    background: var(--accent, #5DCAA5);
-    color: var(--accent-ink, #050d1a);
-    border-color: var(--accent, #5DCAA5);
+    background: var(--accent, #e8dcc4);
+    color: var(--accent-ink, #0a0a0a);
+    border-color: var(--accent, #e8dcc4);
   }
   .cl-state-btn.active.prompt {
-    background: var(--warn, #f4c065);
+    background: var(--warn, #d19a45);
     color: #1a1a1a;
-    border-color: var(--warn, #f4c065);
+    border-color: var(--warn, #d19a45);
   }
 
   .cl-item-text {
     font-size: 13px; line-height: 1.55;
-    color: var(--text, #e8edf5);
+    color: var(--text, #ebebeb);
     font-family: "EB Garamond", Georgia, serif;
     font-size: 14.5px;
   }
@@ -542,18 +542,21 @@
     width: 100%;
     margin-top: 6px;
     padding: 8px 10px;
-    background: var(--bg-elevated, #050d1a);
-    color: var(--text, #e8edf5);
-    border: 1px solid var(--line-strong, #2c4a76);
+    background: var(--bg-elevated, #0a0a0a);
+    color: var(--text, #ebebeb);
+    border: 1px solid var(--line-strong, #333333);
     border-radius: 6px;
     font: inherit; font-size: 13px;
-    resize: vertical; min-height: 60px;
+    /* Auto-grow: resize disabilitato + overflow nascosto, JS aggiusta height */
+    resize: none; overflow: hidden; min-height: 60px;
     outline: none;
     font-family: "EB Garamond", Georgia, serif;
+    line-height: 1.45;
+    transition: height 0.08s ease;
   }
   .cl-item-note:focus {
-    border-color: var(--warn, #f4c065);
-    box-shadow: 0 0 0 3px rgba(244,192,101,.18);
+    border-color: var(--warn, #d19a45);
+    box-shadow: 0 0 0 3px rgba(209,154,69,.18);
   }
 
   /* Wrapper della textarea-nota con bottone mic in basso a destra */
@@ -565,9 +568,9 @@
     height: 30px; min-width: 30px;
     padding: 0 8px;
     border-radius: 6px;
-    background: var(--accent-soft, rgba(93,202,165,.12));
-    color: var(--accent, #5DCAA5);
-    border: 1px solid var(--line-strong, #2c4a76);
+    background: var(--accent-soft, rgba(232,220,196,.12));
+    color: var(--accent, #e8dcc4);
+    border: 1px solid var(--line-strong, #333333);
     cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
     transition: background 150ms, border-color 150ms, color 150ms, width 150ms;
@@ -575,14 +578,14 @@
     letter-spacing: 0.05em;
   }
   .cl-mic-btn:hover {
-    background: rgba(93,202,165,.22);
-    border-color: var(--accent, #5DCAA5);
+    background: rgba(232,220,196,.22);
+    border-color: var(--accent, #e8dcc4);
   }
   .cl-mic-btn svg { width: 14px; height: 14px; }
   .cl-mic-btn.rec {
-    background: var(--danger, #e07070);
+    background: var(--danger, #d97757);
     color: #fff;
-    border-color: var(--danger, #e07070);
+    border-color: var(--danger, #d97757);
   }
   .cl-mic-btn.rec .rec-dot-mic {
     width: 8px; height: 8px; border-radius: 50%;
@@ -593,9 +596,9 @@
   /* ─── Footer con bottoni azione ─── */
   .cl-footer {
     padding: 14px 22px 18px;
-    border-top: 1px solid var(--line, #1f3a5e);
+    border-top: 1px solid var(--line, #262626);
     display: flex; gap: 8px;
-    background: var(--panel, #0a1628);
+    background: var(--panel, #141414);
   }
   .cl-btn {
     flex: 1;
@@ -609,16 +612,16 @@
   }
   .cl-btn-ghost {
     background: transparent;
-    color: var(--text-dim, #8a9ab5);
-    border-color: var(--line-strong, #2c4a76);
+    color: var(--text-dim, #a8a8a8);
+    border-color: var(--line-strong, #333333);
   }
-  .cl-btn-ghost:hover { color: var(--text-strong, #fff); border-color: var(--text-dim, #8a9ab5); }
+  .cl-btn-ghost:hover { color: var(--text-strong, #fff); border-color: var(--text-dim, #a8a8a8); }
   .cl-btn-primary {
-    background: var(--accent, #5DCAA5);
-    color: var(--accent-ink, #050d1a);
-    border-color: var(--accent, #5DCAA5);
+    background: var(--accent, #e8dcc4);
+    color: var(--accent-ink, #0a0a0a);
+    border-color: var(--accent, #e8dcc4);
   }
-  .cl-btn-primary:hover { background: var(--accent-strong, #7ed8b8); }
+  .cl-btn-primary:hover { background: var(--accent-strong, #f0e6d1); }
   .cl-btn:disabled { opacity: .5; cursor: not-allowed; }
   .cl-btn svg { width: 14px; height: 14px; }
 
@@ -779,13 +782,13 @@
     <aside id="clDrawer" class="cl-drawer" aria-label="Checklist strutturata">
   <header class="cl-header">
     <div class="cl-title-row">
-      <span class="cl-title">Checklist<span class="accent">.</span></span>
+      <span class="cl-title"><span data-i18n="clTitle">Checklist</span><span class="accent">.</span></span>
       <button id="clCloseBtn" class="cl-close" type="button" title="Chiudi">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <select id="clTemplateSelect" class="cl-template-select" aria-label="Seleziona esame">
-      <option value="">— Seleziona esame —</option>
+      <option value="" data-i18n="clSelectExam">— Seleziona esame —</option>
     </select>
     <div class="cl-meta-bar">
       <span id="clProgress" class="progress"></span>
@@ -794,18 +797,18 @@
   </header>
   <div id="clBody" class="cl-body">
     <div class="cl-empty">
-      Seleziona un esame dall'elenco qui sopra.<br><br>
-      Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
-      oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
+      <span data-i18n="clEmpty">Seleziona un esame dall'elenco qui sopra.</span><br><br>
+      <span data-i18n="clEmptyHelp" data-i18n-html>Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
+      oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.</span>
     </div>
   </div>
   <footer class="cl-footer">
-    <button id="clResetBtn" class="cl-btn cl-btn-ghost" type="button">Azzera</button>
+    <button id="clResetBtn" class="cl-btn cl-btn-ghost" type="button" data-i18n="clReset">Azzera</button>
     <button id="clGenerateBtn" class="cl-btn cl-btn-primary" type="button" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3l1.9 4.7L18 9.5l-4.1 1.8L12 16l-1.9-4.7L6 9.5l4.1-1.8z"/>
       </svg>
-      Genera referto
+      <span data-i18n="clGenerate">Genera referto</span>
     </button>
   </footer>
 </aside>
@@ -1034,6 +1037,19 @@
       toastCopyFail: 'Copia non riuscita', toastSelectionLost: 'Selezione persa',
       toastEmptySelection: 'Selezione vuota', toastPopupBlocked: 'Pop-up bloccato',
       toastTranslateFailed: 'Riscrittura fallita',
+      // Checklist UI
+      clTitle: 'Checklist',
+      clSelectExam: '— Seleziona esame —',
+      clEmpty: 'Seleziona un esame dall\'elenco qui sopra.',
+      clEmptyHelp: 'Per ogni voce premi <strong>Normale</strong> se il reperto è regolare, oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.',
+      clReset: 'Azzera',
+      clGenerate: 'Genera referto',
+      clGenerating: 'Genero…',
+      clNormal: 'Normale',
+      clNote: 'Nota',
+      clCountSuffix: 'voci',
+      clTranslating: 'Sto traducendo la checklist…',
+      clGenerateError: 'Errore generazione: ',
     },
     pt: {
       speakIn: 'Falo em', ddHeadInput: 'Idioma de ditado', ddHeadExport: 'Reescrever e baixar como',
@@ -1068,6 +1084,19 @@
       toastCopyFail: 'Cópia não realizada', toastSelectionLost: 'Seleção perdida',
       toastEmptySelection: 'Seleção vazia', toastPopupBlocked: 'Pop-up bloqueado',
       toastTranslateFailed: 'Reescrita falhou',
+      // Checklist UI
+      clTitle: 'Checklist',
+      clSelectExam: '— Selecionar exame —',
+      clEmpty: 'Selecione um exame na lista acima.',
+      clEmptyHelp: 'Para cada item, clique em <strong>Normal</strong> se o achado for regular, ou em <strong>Nota</strong> e descreva o achado patológico.',
+      clReset: 'Limpar',
+      clGenerate: 'Gerar laudo',
+      clGenerating: 'Gerando…',
+      clNormal: 'Normal',
+      clNote: 'Nota',
+      clCountSuffix: 'itens',
+      clTranslating: 'Traduzindo a checklist…',
+      clGenerateError: 'Erro de geração: ',
     },
     es: {
       speakIn: 'Hablo en', ddHeadInput: 'Idioma de dictado', ddHeadExport: 'Reescribir y descargar como',
@@ -1102,6 +1131,19 @@
       toastCopyFail: 'Copia fallida', toastSelectionLost: 'Selección perdida',
       toastEmptySelection: 'Selección vacía', toastPopupBlocked: 'Ventana emergente bloqueada',
       toastTranslateFailed: 'Reescritura fallida',
+      // Checklist UI
+      clTitle: 'Checklist',
+      clSelectExam: '— Seleccionar examen —',
+      clEmpty: 'Selecciona un examen de la lista de arriba.',
+      clEmptyHelp: 'Para cada elemento, pulsa <strong>Normal</strong> si el hallazgo es regular, o <strong>Nota</strong> y describe el hallazgo patológico.',
+      clReset: 'Restablecer',
+      clGenerate: 'Generar informe',
+      clGenerating: 'Generando…',
+      clNormal: 'Normal',
+      clNote: 'Nota',
+      clCountSuffix: 'elementos',
+      clTranslating: 'Traduciendo la checklist…',
+      clGenerateError: 'Error de generación: ',
     },
     en: {
       speakIn: 'Speak in', ddHeadInput: 'Dictation language', ddHeadExport: 'Rewrite and download as',
@@ -1136,6 +1178,19 @@
       toastCopyFail: 'Copy failed', toastSelectionLost: 'Selection lost',
       toastEmptySelection: 'Empty selection', toastPopupBlocked: 'Popup blocked',
       toastTranslateFailed: 'Rewrite failed',
+      // Checklist UI
+      clTitle: 'Checklist',
+      clSelectExam: '— Select exam —',
+      clEmpty: 'Select an exam from the list above.',
+      clEmptyHelp: 'For each item press <strong>Normal</strong> if the finding is regular, or <strong>Note</strong> and describe the pathological finding.',
+      clReset: 'Reset',
+      clGenerate: 'Generate report',
+      clGenerating: 'Generating…',
+      clNormal: 'Normal',
+      clNote: 'Note',
+      clCountSuffix: 'items',
+      clTranslating: 'Translating checklist…',
+      clGenerateError: 'Generation error: ',
     },
     fr: {
       speakIn: 'Je parle en', ddHeadInput: 'Langue de dictée', ddHeadExport: 'Réécrire et télécharger en',
@@ -1170,6 +1225,19 @@
       toastCopyFail: 'Copie échouée', toastSelectionLost: 'Sélection perdue',
       toastEmptySelection: 'Sélection vide', toastPopupBlocked: 'Pop-up bloqué',
       toastTranslateFailed: 'Échec de la réécriture',
+      // Checklist UI
+      clTitle: 'Checklist',
+      clSelectExam: '— Sélectionner l\'examen —',
+      clEmpty: 'Sélectionnez un examen dans la liste ci-dessus.',
+      clEmptyHelp: 'Pour chaque élément, cliquez sur <strong>Normal</strong> si le résultat est régulier, ou <strong>Note</strong> et décrivez le résultat pathologique.',
+      clReset: 'Réinitialiser',
+      clGenerate: 'Générer le compte-rendu',
+      clGenerating: 'Génération…',
+      clNormal: 'Normal',
+      clNote: 'Note',
+      clCountSuffix: 'éléments',
+      clTranslating: 'Traduction de la checklist…',
+      clGenerateError: 'Erreur de génération : ',
     },
     de: {
       speakIn: 'Ich spreche', ddHeadInput: 'Diktatsprache', ddHeadExport: 'Umschreiben und herunterladen als',
@@ -1204,6 +1272,19 @@
       toastCopyFail: 'Kopieren fehlgeschlagen', toastSelectionLost: 'Auswahl verloren',
       toastEmptySelection: 'Leere Auswahl', toastPopupBlocked: 'Popup blockiert',
       toastTranslateFailed: 'Neuschrift fehlgeschlagen',
+      // Checklist UI
+      clTitle: 'Checkliste',
+      clSelectExam: '— Untersuchung wählen —',
+      clEmpty: 'Wähle eine Untersuchung aus der Liste oben.',
+      clEmptyHelp: 'Klicke für jedes Element auf <strong>Normal</strong> bei unauffälligem Befund oder auf <strong>Notiz</strong> und beschreibe den pathologischen Befund.',
+      clReset: 'Zurücksetzen',
+      clGenerate: 'Befund generieren',
+      clGenerating: 'Generieren…',
+      clNormal: 'Normal',
+      clNote: 'Notiz',
+      clCountSuffix: 'Einträge',
+      clTranslating: 'Checkliste wird übersetzt…',
+      clGenerateError: 'Generierungsfehler: ',
     },
   };
 
@@ -1217,7 +1298,15 @@
     const dict = L();
     document.querySelectorAll('[data-i18n]').forEach((el) => {
       const key = el.dataset.i18n;
-      if (dict[key] != null) el.textContent = dict[key];
+      if (dict[key] == null) return;
+      // Se l'elemento ha data-i18n-html, interpretiamo il valore come HTML
+      // (necessario per stringhe con <strong>, <em>, ecc.). Altrimenti
+      // textContent — più sicuro contro XSS sulle stringhe utente.
+      if (el.hasAttribute('data-i18n-html')) {
+        el.innerHTML = dict[key];
+      } else {
+        el.textContent = dict[key];
+      }
     });
     document.querySelectorAll('[data-i18n-title]').forEach((el) => {
       const key = el.dataset.i18nTitle;
@@ -1229,6 +1318,10 @@
     });
     // Lingua del documento per spellcheck e accessibility
     document.documentElement.setAttribute('lang', langInput);
+    // Se la checklist è aperta, ritraduce template + voci nella nuova lingua
+    if (typeof window.refertiumChecklistRelocalize === 'function') {
+      try { window.refertiumChecklistRelocalize(); } catch {}
+    }
   }
 
   // ─── State ────────────────────────────────────────────────
@@ -1749,7 +1842,15 @@
       `- Use natural ${tgtName} sentence flow, not word-for-word mapping from ${srcName}.`,
       `- Numerical values (mm, cm, ml, Hounsfield units, scores) must be preserved exactly.`,
       `- Anatomical and pathological terminology must be the native ${tgtName} medical term, not a literal translation.`,
-      `Output: ONLY the final report in ${tgtName}, no commentary.`,
+      `FORMATTING — STRICT:`,
+      `- Output PLAIN TEXT ONLY. NO Markdown.`,
+      `- NEVER use **double asterisks** or __underscores__ for bold.`,
+      `- NEVER use single * or _ for italics.`,
+      `- NEVER use leading hyphens, bullets or numbers to start lines.`,
+      `- NEVER use # / ## / ### for headings.`,
+      `- Section titles on their OWN line, UPPERCASE in ${tgtName}, followed by ':' (e.g. FINDINGS:, IMPRESSION:, CONCLUSIONI:, REPERTI:, HALLAZGOS:, ACHADOS:, BEFUNDE:, etc.).`,
+      `- Continuous prose paragraphs, blank line between paragraphs.`,
+      `Output: ONLY the final report in ${tgtName}, plain text, no commentary, no Markdown.`,
     ].join(' ');
     await streamChatCompletion({
       model: 'gpt-4o-mini',
@@ -1849,9 +1950,29 @@
     if (lastPreviewMode === 'replace') {
       insertIntoEditor(text, { replaceSelection: true, asBlock: false });
     } else if (lastPreviewMode === 'replace-all') {
-      // Sostituisce il contenuto dell'editor (per export in lingua applicato in place)
+      // Sostituzione totale (esporta-in-lingua, riscrittura completa…):
+      // ricostruisce il DOM dell'editor da zero senza appoggiarsi a
+      // restoreSelection (che può trattenere una vecchia selezione e finire
+      // per APPENDERE anziché sostituire). Stessa logica del checklist
+      // insert handler — vedi refertiumInsertChecklistDraft.
+      const cleaned = String(text)
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/__(.+?)__/g, '$1')
+        .replace(/(^|\s)\*(\S[^*\n]*\S|\S)\*(?=\s|$)/g, '$1$2')
+        .replace(/(^|\s)_(\S[^_\n]*\S|\S)_(?=\s|$)/g, '$1$2')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/^\s*[-•]\s+/gm, '')
+        .replace(/^\s*#{1,6}\s+/gm, '');
       editor.innerHTML = '';
-      insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+      cleaned.split(/\n{2,}/).forEach((para) => {
+        const p = document.createElement('p');
+        para.split('\n').forEach((line, idx) => {
+          if (idx > 0) p.appendChild(document.createElement('br'));
+          p.appendChild(document.createTextNode(line));
+        });
+        editor.appendChild(p);
+      });
+      editor.focus();
     } else {
       insertIntoEditor(text, { replaceSelection: false, asBlock: true });
     }
@@ -1988,7 +2109,10 @@
     setStatus(L().statusExporting);
     let buffer = '';
     let lastRender = 0;
-    lastPreviewMode = 'append'; // mostriamo solo, l'utente decide se sostituire (vedi sotto)
+    // Export in lingua: il referto tradotto SOSTITUISCE quello originale.
+    // Non avrebbe senso avere due copie dello stesso referto in lingue
+    // diverse nello stesso documento.
+    lastPreviewMode = 'replace-all';
     try {
       await aiTranslateRewrite(sourceText, langInput, targetLang,
         (delta) => {
@@ -2044,10 +2168,45 @@
   editor.addEventListener('keyup', () => saveSelection());
   // Esposta per la checklist module:
   window.streamChatCompletion = streamChatCompletion;
+  // Esposti perché vivono dentro l'IIFE — la checklist (in un altro <script>)
+  // li accede via window. L() ritorna il dizionario UI per la lingua attiva,
+  // langName mappa codice → nome nativo, getLangInput è un getter live sul
+  // valore corrente di langInput (non una copia stale).
+  window.refertiumL = L;
+  window.refertiumLangName = langName;
+  window.refertiumGetLangInput = function() { return langInput; };
+  window.refertiumProxyUrl = PROXY_URL;
+  window.refertiumProxyAuth = PROXY_AUTH;
   window.refertiumInsertChecklistDraft = function(text) {
     if (!editor) return;
+    // SOSTITUZIONE TOTALE: ricostruisce il DOM dell'editor da zero senza
+    // appoggiarsi a restoreSelection/insertIntoEditor (che possono trattenere
+    // una vecchia selezione e finire per APPENDERE anziché sostituire).
     editor.innerHTML = '';
-    insertIntoEditor(text, { replaceSelection: false, asBlock: true });
+    // Strip residual markdown: bold/italic markers + leading bullet dashes
+    // (la prompt vieta già markdown, ma se il modello sgarra ripulisco).
+    const cleaned = String(text)
+      // **bold** / __bold__ → bold (mantiene la parola, toglie i marker)
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      // *italic* / _italic_ singoli (solo se non parte di una parola)
+      .replace(/(^|\s)\*(\S[^*\n]*\S|\S)\*(?=\s|$)/g, '$1$2')
+      .replace(/(^|\s)_(\S[^_\n]*\S|\S)_(?=\s|$)/g, '$1$2')
+      // Code fences `text` → text
+      .replace(/`([^`]+)`/g, '$1')
+      // Leading "- " su righe della lista → rimuovi (la frase è già completa)
+      .replace(/^\s*[-•]\s+/gm, '')
+      // # / ## intestazioni → toglie marker, mantiene il titolo
+      .replace(/^\s*#{1,6}\s+/gm, '');
+    cleaned.split(/\n{2,}/).forEach((para) => {
+      const p = document.createElement('p');
+      para.split('\n').forEach((line, idx) => {
+        if (idx > 0) p.appendChild(document.createElement('br'));
+        p.appendChild(document.createTextNode(line));
+      });
+      editor.appendChild(p);
+    });
+    editor.focus();
   };
 
   /** Dictation controller usato dalla checklist (e altrove). Usa la lingua
@@ -2887,6 +3046,162 @@ window.CHECKLIST_TEMPLATES = {
     try { sessionStorage.setItem(STATE_KEY, JSON.stringify(cstate)); } catch {}
   }
 
+  // ─── Traduzione AI dei template ──────────────────────────
+  // I template sono nativi in italiano. Quando l'utente referta in altra
+  // lingua, la checklist deve seguirlo: ogni template viene tradotto on-demand
+  // (1 chiamata gpt-4o-mini per template×lingua) e cachato in sessionStorage.
+  const TPL_TRANS_KEY = 'refertium_checklist_translations_v1';
+  const LBL_TRANS_KEY = 'refertium_checklist_labels_v1';
+  let tplTransCache = {};
+  let lblTransCache = {};
+  try { tplTransCache = JSON.parse(sessionStorage.getItem(TPL_TRANS_KEY) || '{}'); } catch {}
+  try { lblTransCache = JSON.parse(sessionStorage.getItem(LBL_TRANS_KEY) || '{}'); } catch {}
+  // In-flight promises per evitare doppie chiamate concomitanti
+  const tplTransInFlight = {};
+  const lblTransInFlight = {};
+
+  function saveTplCache() {
+    try { sessionStorage.setItem(TPL_TRANS_KEY, JSON.stringify(tplTransCache)); } catch {}
+  }
+  function saveLblCache() {
+    try { sessionStorage.setItem(LBL_TRANS_KEY, JSON.stringify(lblTransCache)); } catch {}
+  }
+
+  /** Restituisce il template (label + voci) tradotto in `lang`. Cachato. */
+  async function getLocalizedTemplate(tplId, lang) {
+    const orig = templates[tplId];
+    if (!orig) return null;
+    if (lang === 'it') return orig;
+    const cacheKey = tplId + ':' + lang;
+    if (tplTransCache[cacheKey]) {
+      const tr = tplTransCache[cacheKey];
+      return Object.assign({}, orig, {
+        label: tr.label || orig.label,
+        voci: orig.voci.map((v, i) => Object.assign({}, v, {
+          nome: tr.voci && tr.voci[i] && tr.voci[i].nome ? tr.voci[i].nome : v.nome,
+          normale: tr.voci && tr.voci[i] && tr.voci[i].normale ? tr.voci[i].normale : v.normale,
+        })),
+      });
+    }
+    if (tplTransInFlight[cacheKey]) return tplTransInFlight[cacheKey];
+    const lname = (window.refertiumLangName ? window.refertiumLangName(lang) : lang);
+    const payload = {
+      label: orig.label,
+      voci: orig.voci.map((v) => ({ nome: v.nome, normale: v.normale })),
+    };
+    const system = 'You are a senior radiologist bilingual in Italian and ' + lname +
+      '. Translate the following radiology checklist JSON from Italian to native ' + lname +
+      ', using proper medical/radiology terminology. Keep the JSON structure identical: ' +
+      'translate ONLY the string values for "label", "nome" and "normale". ' +
+      'Do not add or remove items. Output ONLY valid JSON.';
+    const user = 'Translate to ' + lname + ' (preserve JSON shape):\n\n' + JSON.stringify(payload, null, 2);
+    const p = (async () => {
+      try {
+        const resp = await fetch(window.refertiumProxyUrl + '/v1/chat/completions', {
+          method: 'POST',
+          headers: (function(){
+            const h = { 'Content-Type': 'application/json' };
+            const a = window.refertiumProxyAuth;
+            if (a && a !== 'session') h['Authorization'] = 'Bearer ' + a;
+            return h;
+          })(),
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: user },
+            ],
+            temperature: 0.2,
+            response_format: { type: 'json_object' },
+            max_tokens: 3000,
+          }),
+        });
+        if (!resp.ok) throw new Error('translate HTTP ' + resp.status);
+        const data = await resp.json();
+        let content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+        // Strip code fences se il modello li avvolge nonostante response_format
+        content = content.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+        const tr = JSON.parse(content);
+        if (!tr.label || !Array.isArray(tr.voci)) throw new Error('bad shape');
+        tplTransCache[cacheKey] = tr;
+        saveTplCache();
+        return Object.assign({}, orig, {
+          label: tr.label,
+          voci: orig.voci.map((v, i) => Object.assign({}, v, {
+            nome: tr.voci[i] && tr.voci[i].nome ? tr.voci[i].nome : v.nome,
+            normale: tr.voci[i] && tr.voci[i].normale ? tr.voci[i].normale : v.normale,
+          })),
+        });
+      } catch (e) {
+        console.warn('[checklist] translate template failed:', e);
+        return orig;
+      } finally {
+        delete tplTransInFlight[cacheKey];
+      }
+    })();
+    tplTransInFlight[cacheKey] = p;
+    return p;
+  }
+
+  /** Restituisce TUTTI i label dei template tradotti in `lang`, in un'unica
+   *  chiamata AI batch. Usato per popolare il dropdown nella lingua corrente. */
+  async function getLocalizedLabels(lang) {
+    if (lang === 'it') {
+      const out = {};
+      Object.keys(templates).forEach((id) => { out[id] = templates[id].label; });
+      return out;
+    }
+    if (lblTransCache[lang]) return lblTransCache[lang];
+    if (lblTransInFlight[lang]) return lblTransInFlight[lang];
+    const lname = (window.refertiumLangName ? window.refertiumLangName(lang) : lang);
+    const allLabels = {};
+    Object.keys(templates).forEach((id) => { allLabels[id] = templates[id].label || id; });
+    const system = 'You are a senior radiologist bilingual in Italian and ' + lname +
+      '. Translate each Italian radiology exam name to native ' + lname +
+      ' radiology terminology. Keep the JSON keys identical, translate only the string values. ' +
+      'Output ONLY valid JSON.';
+    const user = 'Translate values to ' + lname + ':\n\n' + JSON.stringify(allLabels, null, 2);
+    const p = (async () => {
+      try {
+        const resp = await fetch(window.refertiumProxyUrl + '/v1/chat/completions', {
+          method: 'POST',
+          headers: (function(){
+            const h = { 'Content-Type': 'application/json' };
+            const a = window.refertiumProxyAuth;
+            if (a && a !== 'session') h['Authorization'] = 'Bearer ' + a;
+            return h;
+          })(),
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: user },
+            ],
+            temperature: 0.2,
+            response_format: { type: 'json_object' },
+            max_tokens: 3000,
+          }),
+        });
+        if (!resp.ok) throw new Error('translate-labels HTTP ' + resp.status);
+        const data = await resp.json();
+        let content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+        content = content.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+        const tr = JSON.parse(content);
+        if (!tr || typeof tr !== 'object') throw new Error('bad shape');
+        lblTransCache[lang] = tr;
+        saveLblCache();
+        return tr;
+      } catch (e) {
+        console.warn('[checklist] translate labels failed:', e);
+        return allLabels; // fallback IT
+      } finally {
+        delete lblTransInFlight[lang];
+      }
+    })();
+    lblTransInFlight[lang] = p;
+    return p;
+  }
+
   // ─── Build dropdown options ──────────────────────────────
   const templates = window.CHECKLIST_TEMPLATES || {};
   Object.keys(templates).forEach((id) => {
@@ -2896,11 +3211,24 @@ window.CHECKLIST_TEMPLATES = {
     select.appendChild(opt);
   });
 
+  /** Aggiorna i label nel dropdown alla lingua corrente. Triggera 1 chiamata
+   *  AI la prima volta (cachata) — chiamato da applyUILang. */
+  async function relocalizeDropdown() {
+    const lang = (window.refertiumGetLangInput ? window.refertiumGetLangInput() : 'it');
+    const labels = await getLocalizedLabels(lang);
+    Array.from(select.options).forEach((opt) => {
+      if (!opt.value) return; // skip placeholder
+      if (labels[opt.value]) opt.textContent = labels[opt.value];
+    });
+  }
+
   // ─── Open / close drawer ─────────────────────────────────
   function openDrawer() {
     drawer.classList.add('open');
     backdrop.classList.add('open');
     toggleBtn.classList.add('active');
+    // Aggiorna label nel dropdown alla lingua corrente (cachato dopo la prima)
+    relocalizeDropdown().catch(() => {});
     if (cstate.templateId) {
       select.value = cstate.templateId;
       renderTemplate(cstate.templateId);
@@ -2932,28 +3260,57 @@ window.CHECKLIST_TEMPLATES = {
   });
 
   // ─── Render ──────────────────────────────────────────────
-  function renderTemplate(id) {
+  // Cache locale del template attualmente renderizzato (tradotto). Serve a
+  // renderVoce/updateProgress/generate per accedere alle stringhe localizzate
+  // senza doverle ri-tradurre.
+  let currentTpl = null;
+  let currentLang = null;
+
+  function renderEmptyState() {
+    const dict = (window.refertiumL ? window.refertiumL() : {});
+    body.innerHTML =
+      '<div class="cl-empty"><span>' + (dict.clEmpty || 'Seleziona un esame dall\'elenco qui sopra.') +
+      '</span><br><br><span>' + (dict.clEmptyHelp || 'Per ogni voce premi <strong>Normale</strong> se il reperto è regolare, oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.') +
+      '</span></div>';
+    progress.textContent = '';
+    modality.style.display = 'none';
+    generateBtn.disabled = true;
+  }
+
+  async function renderTemplate(id) {
     if (!id) {
-      body.innerHTML = `
-        <div class="cl-empty">
-          Seleziona un esame dall'elenco qui sopra.<br><br>
-          Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
-          oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
-        </div>`;
-      progress.textContent = '';
-      modality.style.display = 'none';
-      generateBtn.disabled = true;
+      currentTpl = null;
+      currentLang = null;
+      renderEmptyState();
       return;
     }
-    const tpl = templates[id];
-    if (!tpl) return;
-    modality.textContent = tpl.modalita || '';
-    modality.style.display = tpl.modalita ? 'inline-flex' : 'none';
+    const lang = (window.refertiumGetLangInput ? window.refertiumGetLangInput() : 'it');
+    // Mostra subito i reperti italiani (instant render), poi sostituisce con
+    // la versione tradotta non appena pronta. Evita "schermata vuota" durante
+    // la prima traduzione di un template.
+    const origTpl = templates[id];
+    if (!origTpl) return;
+    currentTpl = origTpl;
+    currentLang = lang;
+    modality.textContent = origTpl.modalita || '';
+    modality.style.display = origTpl.modalita ? 'inline-flex' : 'none';
     body.innerHTML = '';
-    tpl.voci.forEach((voce) => {
-      body.appendChild(renderVoce(voce));
-    });
+    origTpl.voci.forEach((voce) => { body.appendChild(renderVoce(voce)); });
     updateProgress();
+    if (lang === 'it') return;
+    // Async: aspetta traduzione e ri-renderizza se ancora pertinente
+    try {
+      const tpl = await getLocalizedTemplate(id, lang);
+      if (!tpl) return;
+      // Se l'utente ha cambiato esame/lingua nel frattempo, non sovrascrivere
+      if (cstate.templateId !== id || currentLang !== lang) return;
+      currentTpl = tpl;
+      body.innerHTML = '';
+      tpl.voci.forEach((voce) => { body.appendChild(renderVoce(voce)); });
+      updateProgress();
+    } catch (e) {
+      console.warn('[checklist] localize failed:', e);
+    }
   }
 
   function renderVoce(voce) {
@@ -2969,10 +3326,11 @@ window.CHECKLIST_TEMPLATES = {
     name.textContent = voce.nome;
     head.appendChild(name);
 
+    const dictL = (window.refertiumL ? window.refertiumL() : {});
     const btnNormal = document.createElement('button');
     btnNormal.className = 'cl-state-btn' + (v.state === 'normal' ? ' active normal' : '');
     btnNormal.type = 'button';
-    btnNormal.textContent = 'Normale';
+    btnNormal.textContent = dictL.clNormal || 'Normale';
     btnNormal.addEventListener('click', () => {
       cstate.voci[voce.id] = { state: v.state === 'normal' ? null : 'normal', text: '' };
       saveState();
@@ -2986,7 +3344,7 @@ window.CHECKLIST_TEMPLATES = {
     const btnPrompt = document.createElement('button');
     btnPrompt.className = 'cl-state-btn' + (v.state === 'prompt' ? ' active prompt' : '');
     btnPrompt.type = 'button';
-    btnPrompt.textContent = 'Nota';
+    btnPrompt.textContent = dictL.clNote || 'Nota';
     btnPrompt.addEventListener('click', () => {
       cstate.voci[voce.id] = { state: v.state === 'prompt' ? null : 'prompt', text: v.text || '' };
       saveState();
@@ -3010,12 +3368,21 @@ window.CHECKLIST_TEMPLATES = {
       const ta = document.createElement('textarea');
       ta.className = 'cl-item-note';
       ta.value = v.text || '';
+      // Auto-grow: ridimensiona in altezza ad ogni input (e all'inizio se c'è
+      // del testo salvato da una sessione precedente)
+      const autoGrow = () => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      };
       ta.addEventListener('input', () => {
         cstate.voci[voce.id] = { state: 'prompt', text: ta.value };
         saveState();
         updateProgress();
+        autoGrow();
       });
       wrap.appendChild(ta);
+      // Misura iniziale al prossimo frame (a quel punto la textarea è nel DOM)
+      requestAnimationFrame(autoGrow);
 
       // Bottone microfono dentro la textarea (riusa refertiumStartDictation)
       const micBtn = document.createElement('button');
@@ -3077,14 +3444,18 @@ window.CHECKLIST_TEMPLATES = {
   }
 
   function updateProgress() {
-    const tpl = cstate.templateId && templates[cstate.templateId];
+    // Usa il template ATTUALMENTE renderizzato (eventualmente tradotto) per
+    // contare le voci nella lingua corrente. Fallback al template originale
+    // italiano se non c'è un currentTpl.
+    const tpl = currentTpl || (cstate.templateId && templates[cstate.templateId]);
     if (!tpl) { progress.textContent = ''; generateBtn.disabled = true; return; }
     const total = tpl.voci.length;
     const compiled = tpl.voci.filter((v) => {
       const s = cstate.voci[v.id];
       return s && (s.state === 'normal' || (s.state === 'prompt' && s.text && s.text.trim()));
     }).length;
-    progress.textContent = compiled + ' / ' + total + ' voci';
+    const suffix = ((window.refertiumL ? window.refertiumL() : {}).clCountSuffix) || 'voci';
+    progress.textContent = compiled + ' / ' + total + ' ' + suffix;
     generateBtn.disabled = compiled === 0;
   }
 
@@ -3097,7 +3468,11 @@ window.CHECKLIST_TEMPLATES = {
 
   // ─── Generate report via AI ──────────────────────────────
   generateBtn.addEventListener('click', async () => {
-    const tpl = cstate.templateId && templates[cstate.templateId];
+    if (!cstate.templateId) return;
+    // Usa il template TRADOTTO (currentTpl) — sia per la label che per voci.
+    // Le frasi standard "normale" sono quelle nella lingua attiva → il referto
+    // finale risulterà coerente con la dictation language.
+    const tpl = currentTpl || templates[cstate.templateId];
     if (!tpl) return;
     const voci = tpl.voci.map((v) => {
       const s = cstate.voci[v.id];
@@ -3112,11 +3487,12 @@ window.CHECKLIST_TEMPLATES = {
 
     generateBtn.disabled = true;
     const oldLabel = generateBtn.innerHTML;
-    generateBtn.innerHTML = '⏳ Genero…';
+    const loadingLabel = ((window.refertiumL ? window.refertiumL() : {}).clGenerating) || 'Genero…';
+    generateBtn.innerHTML = '⏳ ' + loadingLabel;
 
+    const targetLang = currentLang || (window.refertiumGetLangInput ? window.refertiumGetLangInput() : 'it');
     try {
-      const draft = await generateReportFromChecklist(tpl, voci);
-      // Inserisci nel editor — usa la funzione del template host se disponibile
+      const draft = await generateReportFromChecklist(tpl, voci, targetLang);
       if (typeof window.refertiumInsertChecklistDraft === 'function') {
         window.refertiumInsertChecklistDraft(draft);
       } else {
@@ -3137,36 +3513,54 @@ window.CHECKLIST_TEMPLATES = {
       closeDrawer();
     } catch (err) {
       console.error('checklist generate failed:', err);
-      alert('Errore generazione: ' + (err.message || 'sconosciuto'));
+      const prefix = ((window.refertiumL ? window.refertiumL() : {}).clGenerateError) || 'Errore generazione: ';
+      alert(prefix + (err.message || 'unknown'));
     } finally {
       generateBtn.innerHTML = oldLabel;
       updateProgress();
     }
   });
 
-  // Riempie il riepilogo voci e chiama l'AI per ricomporre un referto continuo.
-  async function generateReportFromChecklist(tpl, voci) {
+  // Riempie il riepilogo voci e chiama l'AI per ricomporre un referto continuo
+  // nella lingua di refertazione attiva (`lang`).
+  async function generateReportFromChecklist(tpl, voci, lang) {
     if (typeof window.streamChatCompletion !== 'function') {
       throw new Error('streamChatCompletion non disponibile');
     }
     const lines = voci.map((v) => {
-      if (v.normale) return '- ' + v.nome + ': [NORMALE] ' + v.normale;
-      return '- ' + v.nome + ': [REPERTO] ' + v.nota;
+      if (v.normale) return '- ' + v.nome + ': [NORMAL] ' + v.normale;
+      return '- ' + v.nome + ': [FINDING] ' + v.nota;
     }).join('\n');
 
+    const lname = (window.refertiumLangName ? window.refertiumLangName(lang || 'it') : 'Italian');
     const system = [
-      'Sei un radiologo esperto. Hai una lista di voci di una checklist strutturata',
-      'per l\'esame "' + tpl.label + '" (modalità ' + (tpl.modalita || 'radiologica') + ').',
-      'Per ciascuna voce ho indicato se è NORMALE (con la frase standard già pronta) o',
-      'se ho aggiunto un REPERTO patologico (descritto in modo informale).',
-      'Componi un referto radiologico continuo in italiano, ben strutturato, con:',
-      '- una sezione REPERTI che integra le voci nell\'ordine dato, riformulando',
-      '  in prosa medica corretta (mantieni i contenuti, non inventare nulla);',
-      '- una sezione CONCLUSIONI sintetica, coerente con i reperti.',
-      'Mantieni i numeri, le misure e i termini medici esatti. Per le voci NORMALI usa',
-      'la frase standard fornita (eventualmente accorciata). Per i REPERTI espandi in',
-      'linguaggio radiologico professionale.',
-      'Output: SOLO il referto, niente commenti.',
+      'You are an expert radiologist writing in ' + lname + '.',
+      'You have a list of items from a structured checklist for the exam "' + tpl.label + '"',
+      '(modality ' + (tpl.modalita || 'radiologic') + ').',
+      'Each item is marked either [NORMAL] (with the standard sentence already ready)',
+      'or [FINDING] (a pathological finding described informally).',
+      'Compose a CONTINUOUS radiology report in native ' + lname + ', well structured, with:',
+      'a section equivalent to FINDINGS/REPERTI/HALLAZGOS/ACHADOS/RÉSULTATS/BEFUNDE that',
+      'integrates the items in the given order, rephrased into proper medical prose',
+      '(preserve content, invent nothing); and a brief IMPRESSION/CONCLUSIONI/IMPRESIÓN/',
+      'IMPRESSÃO/CONCLUSION/BEURTEILUNG section coherent with the findings.',
+      'Use the local section labels typical of ' + lname + ' radiology reports.',
+      'Keep numbers, measurements and medical terms exact. For NORMAL items use the',
+      'standard sentence (possibly shortened). For FINDINGS expand into professional',
+      'radiology language.',
+      'FORMATTING RULES — STRICT:',
+      '- Output PLAIN TEXT ONLY. No Markdown whatsoever.',
+      '- NEVER use **double asterisks** or __underscores__ for bold.',
+      '- NEVER use single * or _ for italics.',
+      '- NEVER use leading hyphens, bullets, dashes or numbers to start lines.',
+      '- NEVER use # / ## / ### for headings.',
+      '- NEVER use backticks for code.',
+      '- Section titles go on their OWN line, UPPERCASE, followed by a colon, like:',
+      '  FINDINGS:',
+      '  (then on the next paragraph the prose, no indentation, no bullets)',
+      '- Each district/finding is written as continuous prose sentences inside the',
+      '  FINDINGS paragraph. Separate paragraphs by a single blank line.',
+      'Output: ONLY the report in ' + lname + ', plain text, no commentary, no Markdown.',
     ].join(' ');
 
     let buffer = '';
@@ -3180,6 +3574,19 @@ window.CHECKLIST_TEMPLATES = {
     }, (delta) => { buffer += delta; });
     return buffer.trim();
   }
+
+  // ─── Hook globale per cambio lingua ──────────────────────
+  // applyUILang() chiama questa funzione dopo aver aggiornato le stringhe UI
+  // statiche (tramite data-i18n). Qui ri-renderizziamo il template attivo
+  // nella nuova lingua + aggiorniamo il dropdown.
+  window.refertiumChecklistRelocalize = function() {
+    if (drawer && drawer.classList.contains('open')) {
+      relocalizeDropdown().catch(() => {});
+    }
+    if (cstate.templateId) {
+      renderTemplate(cstate.templateId);
+    }
+  };
 
   // Esci col tasto Esc
   document.addEventListener('keydown', (e) => {
