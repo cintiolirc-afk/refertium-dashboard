@@ -17,6 +17,7 @@ const {
 } = require('./lib/security');
 const {
   checkoutSessionParams,
+  normalizeLimitPackage,
   normalizePaymentAmount,
   paymentMonthKey,
   signedPaymentUrl
@@ -163,6 +164,7 @@ async function initStorage() {
       stripe_session_id text,
       status text not null default 'created',
       url text not null,
+      package jsonb not null default '{}'::jsonb,
       sent_at timestamptz,
       paid_at timestamptz,
       created_at timestamptz not null default now()
@@ -189,6 +191,7 @@ async function initStorage() {
     alter table payment_links add column if not exists provider text not null default 'signed_url';
     alter table payment_links add column if not exists stripe_session_id text;
     alter table payment_links add column if not exists status text not null default 'created';
+    alter table payment_links add column if not exists package jsonb not null default '{}'::jsonb;
     alter table payment_links add column if not exists paid_at timestamptz;
     create unique index if not exists payment_links_stripe_session_idx on payment_links (stripe_session_id) where stripe_session_id is not null and stripe_session_id <> '';
   `);
@@ -687,6 +690,94 @@ function sessionInfo(userId) {
     online: Boolean(lastSeen && now - lastSeen < 5 * 60 * 1000),
     lastSeenAt: lastSeen ? new Date(lastSeen).toISOString() : ''
   };
+}
+
+async function userSessions(userId, currentSid) {
+  if (pgPool) {
+    const result = await pgPool.query(`
+      select
+        sid,
+        extract(epoch from created_at)*1000 as created_ms,
+        extract(epoch from last_seen_at)*1000 as last_seen_ms,
+        extract(epoch from expires_at)*1000 as expires_ms,
+        active
+      from sessions
+      where user_id=$1 and expires_at > now()
+      order by active desc, last_seen_at desc
+      limit 50
+    `, [userId]);
+    return result.rows.map(row => ({
+      id: row.sid,
+      current: row.sid === currentSid,
+      active: Boolean(row.active),
+      createdAt: row.created_ms ? new Date(Number(row.created_ms)).toISOString() : '',
+      lastSeenAt: row.last_seen_ms ? new Date(Number(row.last_seen_ms)).toISOString() : '',
+      expiresAt: row.expires_ms ? new Date(Number(row.expires_ms)).toISOString() : ''
+    }));
+  }
+  return Array.from(sessions.entries())
+    .filter(([, session]) => session.userId === userId)
+    .sort((a, b) => Number(b[1].lastSeen || b[1].createdAt || 0) - Number(a[1].lastSeen || a[1].createdAt || 0))
+    .map(([sid, session]) => ({
+      id: sid,
+      current: sid === currentSid,
+      active: true,
+      createdAt: session.createdAt ? new Date(session.createdAt).toISOString() : '',
+      lastSeenAt: session.lastSeen ? new Date(session.lastSeen).toISOString() : '',
+      expiresAt: ''
+    }));
+}
+
+function normalizeTransaction(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    amount: Number(row.amount || 0),
+    currency: String(row.currency || STRIPE_CURRENCY).toLowerCase(),
+    month: row.month || '',
+    status: row.status || '',
+    provider: row.provider || '',
+    url: row.url || '',
+    tokenLimit: Number(row.package && row.package.tokenLimit || row.tokenLimit || 0),
+    dictationHourLimit: Number(row.package && row.package.dictationHourLimit || row.dictationHourLimit || 0),
+    createdAt: row.createdAt || row.created_at || '',
+    paidAt: row.paidAt || row.paid_at || ''
+  };
+}
+
+async function userTransactions(db, userId) {
+  if (pgPool) {
+    const [links, payments] = await Promise.all([
+      pgPool.query(`
+        select id, 'payment_link' as type, amount, currency, month, status, provider, url, package, created_at, paid_at
+        from payment_links
+        where user_id=$1
+        order by created_at desc
+        limit 100
+      `, [userId]),
+      pgPool.query(`
+        select id, 'payment' as type, amount, currency, month, status, '' as provider, '' as url, '{}'::jsonb as package, created_at, null::timestamptz as paid_at
+        from payments
+        where user_id=$1
+        order by created_at desc
+        limit 100
+      `, [userId])
+    ]);
+    return links.rows.concat(payments.rows).map(normalizeTransaction).sort((a, b) => String(b.createdAt || b.paidAt).localeCompare(String(a.createdAt || a.paidAt)));
+  }
+  const target = db.users.find(u => u.id === userId);
+  if (!target) return [];
+  const links = (Array.isArray(target.paymentLinks) ? target.paymentLinks : []).map(link => normalizeTransaction({
+    ...link,
+    type: 'payment_link',
+    package: link.package || {}
+  }));
+  const payments = (Array.isArray(target.payments) ? target.payments : []).map(payment => normalizeTransaction({
+    ...payment,
+    type: 'payment',
+    createdAt: payment.paidAt || payment.createdAt
+  }));
+  return links.concat(payments).sort((a, b) => String(b.createdAt || b.paidAt).localeCompare(String(a.createdAt || a.paidAt)));
 }
 
 function send(res, status, body, headers = {}) {
@@ -1494,6 +1585,37 @@ async function handleApi(req, res, db, user, pathname) {
     requireAuth(user);
     return send(res, 200, { user: publicUser(user, { includeUsage: true }) });
   }
+  if (pathname === '/api/me/sessions' && req.method === 'GET') {
+    requireAuth(user);
+    const sid = parseCookies(req)[COOKIE] || '';
+    return send(res, 200, { sessions: await userSessions(user.id, sid) });
+  }
+  if (pathname === '/api/me/transactions' && req.method === 'GET') {
+    requireAuth(user);
+    return send(res, 200, { transactions: await userTransactions(db, user.id) });
+  }
+  if (pathname === '/api/admin/config' && req.method === 'GET') {
+    requireAdmin(user);
+    return send(res, 200, {
+      storageMode,
+      database: {
+        envName: 'DATABASE_URL',
+        configured: Boolean(DATABASE_URL),
+        required: REQUIRE_POSTGRES,
+        sslModeEnvName: 'PGSSLMODE'
+      },
+      proxy: {
+        mode: REFERTIUM_PROXY_MODE,
+        workerUrlConfigured: Boolean(CLOUDFLARE_PROXY_URL),
+        sharedSecretConfigured: Boolean(WORKER_SHARED_SECRET && WORKER_SHARED_SECRET !== 'refertium-worker-secret-dev')
+      },
+      stripe: {
+        secretConfigured: Boolean(STRIPE_SECRET_KEY),
+        webhookSecretConfigured: Boolean(STRIPE_WEBHOOK_SECRET),
+        currency: STRIPE_CURRENCY
+      }
+    });
+  }
   if (pathname === '/api/license-status' && req.method === 'GET') {
     requireAuth(user);
     const url = new URL(req.url, `http://${req.headers.host}`);
@@ -1562,6 +1684,13 @@ async function handleApi(req, res, db, user, pathname) {
   if (pathname === '/api/users' && req.method === 'GET') {
     requireFinance(user);
     return send(res, 200, { users: db.users.filter(u => u.role === 'user').map(u => publicUser(u, { includeUsage: true, includeSensitive: user.role === 'admin' })) });
+  }
+  const userTransactionsMatch = pathname.match(/^\/api\/users\/([^/]+)\/transactions$/);
+  if (userTransactionsMatch && req.method === 'GET') {
+    requireAdmin(user);
+    const target = db.users.find(u => u.id === userTransactionsMatch[1] && u.role === 'user');
+    if (!target) return send(res, 404, { error: 'Utente non trovato' });
+    return send(res, 200, { transactions: await userTransactions(db, target.id) });
   }
   if (pathname === '/api/template-status' && req.method === 'GET') {
     requireAdmin(user);
@@ -1713,7 +1842,11 @@ async function handleApi(req, res, db, user, pathname) {
     const body = await readJson(req);
     const link = await createPaymentLink(db, target, {
       month: String(body.month || paymentMonthKey()),
-      amount: body.amount == null ? undefined : Number(body.amount)
+      amount: body.amount == null ? undefined : Number(body.amount),
+      package: {
+        tokenLimit: body.tokenLimit == null ? target.tokenLimit : body.tokenLimit,
+        dictationHourLimit: body.dictationHourLimit == null ? target.dictationHourLimit : body.dictationHourLimit
+      }
     });
     return send(res, 200, { ok: true, link });
   }
@@ -1879,8 +2012,9 @@ async function createPaymentLink(db, user, options = {}) {
   if (!user || user.role !== 'user') throw Object.assign(new Error('Utente non trovato'), { status: 404 });
   const month = options.month || paymentMonthKey();
   const amount = normalizePaymentAmount(options.amount == null ? user.planPrice : options.amount);
+  const limitPackage = normalizeLimitPackage(options.package || {}, user);
   const linkId = id('pay');
-  const checkout = await createStripeCheckoutSession(user, { linkId, month, amount });
+  const checkout = await createStripeCheckoutSession(user, { linkId, month, amount, package: limitPackage });
   const fallbackUrl = signedPaymentUrl({
     baseUrl: PAYMENT_BASE_URL,
     userId: user.id,
@@ -1898,6 +2032,7 @@ async function createPaymentLink(db, user, options = {}) {
     provider: checkout ? 'stripe_checkout' : 'signed_url',
     stripeSessionId: checkout ? checkout.id : '',
     url: checkout ? checkout.url : fallbackUrl,
+    package: limitPackage,
     createdAt: new Date().toISOString(),
     sentAt: new Date().toISOString()
   };
@@ -1909,10 +2044,10 @@ async function createPaymentLink(db, user, options = {}) {
   await saveDb(db);
   if (pgPool) {
     await pgPool.query(
-      `insert into payment_links(id,user_id,month,amount,currency,provider,stripe_session_id,status,url,sent_at,created_at)
-       values($1,$2,$3,$4,$5,$6,$7,'created',$8,now(),now())
+      `insert into payment_links(id,user_id,month,amount,currency,provider,stripe_session_id,status,url,package,sent_at,created_at)
+       values($1,$2,$3,$4,$5,$6,$7,'created',$8,$9::jsonb,now(),now())
        on conflict(id) do nothing`,
-      [link.id, user.id, month, amount, link.currency, link.provider, link.stripeSessionId || null, link.url]
+      [link.id, user.id, month, amount, link.currency, link.provider, link.stripeSessionId || null, link.url, JSON.stringify(limitPackage)]
     );
   }
   return link;
@@ -1968,6 +2103,10 @@ async function applyStripeCheckoutPayment(db, session) {
   if (!target) throw Object.assign(new Error('Stripe payment user not found'), { status: 404 });
   const amount = Number(session.amount_total || 0) / 100;
   const currency = String(session.currency || STRIPE_CURRENCY).toLowerCase();
+  const purchasedPackage = normalizeLimitPackage({
+    tokenLimit: metadata.tokenLimit == null ? target.tokenLimit : metadata.tokenLimit,
+    dictationHourLimit: metadata.dictationHourLimit == null ? target.dictationHourLimit : metadata.dictationHourLimit
+  }, target);
   const paidAt = new Date().toISOString();
   const payment = {
     id: session.payment_intent || session.id,
@@ -1995,6 +2134,8 @@ async function applyStripeCheckoutPayment(db, session) {
   }
   target.license = 'active';
   target.isDemo = false;
+  target.tokenLimit = purchasedPackage.tokenLimit;
+  target.dictationHourLimit = purchasedPackage.dictationHourLimit;
   target.lastPaidAt = paidAt;
   target.lastPaidMonth = month;
   target.usage = target.usage || {};

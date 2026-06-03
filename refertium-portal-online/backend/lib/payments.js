@@ -24,6 +24,20 @@ function stripeUnitAmount(amount) {
   return unitAmount;
 }
 
+function normalizeLimitPackage(value = {}, fallback = {}) {
+  const tokenLimit = Number(value.tokenLimit == null ? fallback.tokenLimit || 0 : value.tokenLimit);
+  const dictationHourLimit = Number(value.dictationHourLimit == null ? fallback.dictationHourLimit || 0 : value.dictationHourLimit);
+  if (!Number.isFinite(tokenLimit) || tokenLimit < 0 || !Number.isFinite(dictationHourLimit) || dictationHourLimit < 0) {
+    const err = new Error('Pacchetto limiti non valido');
+    err.status = 400;
+    throw err;
+  }
+  return {
+    tokenLimit: Math.round(tokenLimit),
+    dictationHourLimit: Math.round(dictationHourLimit * 100) / 100
+  };
+}
+
 function signPaymentPayload(payload, secret) {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex').slice(0, 24);
 }
@@ -36,6 +50,14 @@ function signedPaymentUrl({ baseUrl, userId, month, amount, linkId, secret }) {
 }
 
 function checkoutSessionParams({ user, payment, currency, publicBaseUrl }) {
+  const limitPackage = normalizeLimitPackage(payment.package || {}, user || {});
+  const metadata = {
+    refertiumPaymentId: payment.linkId,
+    userId: user.id,
+    month: payment.month,
+    tokenLimit: String(limitPackage.tokenLimit),
+    dictationHourLimit: String(limitPackage.dictationHourLimit)
+  };
   return {
     mode: 'payment',
     customer_email: user.email || undefined,
@@ -48,28 +70,21 @@ function checkoutSessionParams({ user, payment, currency, publicBaseUrl }) {
         currency,
         unit_amount: stripeUnitAmount(payment.amount),
         product_data: {
-          name: `Refertium ${payment.month}`,
-          description: `${user.name || user.username || user.id} - monthly access`
+          name: `Refertium limit package ${payment.month}`,
+          description: `${user.name || user.username || user.id} - ${limitPackage.tokenLimit} tokens, ${limitPackage.dictationHourLimit} dictation hours`
         }
       }
     }],
-    metadata: {
-      refertiumPaymentId: payment.linkId,
-      userId: user.id,
-      month: payment.month
-    },
+    metadata,
     payment_intent_data: {
-      metadata: {
-        refertiumPaymentId: payment.linkId,
-        userId: user.id,
-        month: payment.month
-      }
+      metadata
     }
   };
 }
 
 module.exports = {
   checkoutSessionParams,
+  normalizeLimitPackage,
   normalizePaymentAmount,
   paymentMonthKey,
   signPaymentPayload,

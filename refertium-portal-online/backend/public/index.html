@@ -106,6 +106,16 @@
     color: #ffc3c3;
   }
 
+  .icon-btn {
+    width: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    border-radius: var(--radius);
+  }
+
   .primary:disabled, .ghost:disabled, .danger:disabled { opacity: .48; cursor: not-allowed; }
 
   .pill {
@@ -682,6 +692,10 @@
             <button class="ghost" id="uploadTemplate" type="button">Aggiorna template premium</button>
           </div>
         </div>
+        <div class="card">
+          <h3>Configurazione</h3>
+          <div id="adminConfigSummary"></div>
+        </div>
       </div>
     </section>
 
@@ -881,9 +895,26 @@
     </div>
     <div class="row" style="margin-top:18px">
       <button class="primary" id="openSelf" type="button">Apri Refertium</button>
+      <button class="ghost" id="openSelfSessions" type="button">Sessione</button>
+      <button class="ghost" id="openSelfTransactions" type="button">Transazioni</button>
       <button class="ghost" id="logoutUser" type="button">Esci</button>
     </div>
     <div class="empty hidden" id="blocked" style="margin-top:16px"></div>
+    <section class="card hidden" id="userTransactionsPage" style="margin-top:18px">
+      <div class="page-head" style="margin-bottom:10px">
+        <div>
+          <p class="eyebrow">Pagamenti</p>
+          <h3 style="margin:0">Transazioni</h3>
+        </div>
+        <button class="ghost" id="closeSelfTransactions" type="button">Chiudi</button>
+      </div>
+      <div class="usage-table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Tipo</th><th>Importo</th><th>Limiti</th><th>Stato</th></tr></thead>
+          <tbody id="selfTransactionsRows"></tbody>
+        </table>
+      </div>
+    </section>
   </section>
 </main>
 
@@ -907,6 +938,52 @@
   </div>
 </div>
 
+<div class="modal-backdrop hidden" id="sessionModal" role="dialog" aria-modal="true" aria-labelledby="sessionModalTitle">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow" style="margin:0 0 4px">Sessione</p>
+        <h3 id="sessionModalTitle">Sessione corrente</h3>
+      </div>
+      <button class="ghost" id="closeSessionModal" type="button">Chiudi</button>
+    </div>
+    <div class="modal-body">
+      <div class="usage-table-wrap">
+        <table>
+          <thead><tr><th>Creata</th><th>Ultima attivita</th><th>Scade</th><th>Stato</th></tr></thead>
+          <tbody id="sessionRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="transactionModal" role="dialog" aria-modal="true" aria-labelledby="transactionModalTitle">
+  <div class="modal-panel" style="width:min(640px,100%)">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow" style="margin:0 0 4px">Pacchetto limiti</p>
+        <h3 id="transactionModalTitle">Genera transazione</h3>
+      </div>
+      <button class="ghost" id="closeTransactionModal" type="button">Chiudi</button>
+    </div>
+    <div class="modal-body">
+      <div class="two">
+        <div class="field"><label>Importo EUR</label><input id="transactionAmount" type="number" min="1" step="0.01"></div>
+        <div class="field"><label>Mese</label><input id="transactionMonth" type="month"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label>Limite token mensile</label><input id="transactionTokenLimit" type="number" min="0" step="1000"></div>
+        <div class="field"><label>Limite ore dettate mensili</label><input id="transactionDictationLimit" type="number" min="0" step="1"></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;margin-top:14px">
+        <button class="primary" id="createTransactionLink" type="button">Genera link</button>
+      </div>
+      <div class="empty hidden" id="transactionResult" style="margin-top:14px"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = id => document.getElementById(id);
 const month = new Date().toISOString().slice(0, 7);
@@ -917,6 +994,7 @@ let users = [];
 let selected = "";
 let page = "dashboard";
 let lang = localStorage.getItem("refertium_lang") || "it";
+let transactionUserId = "";
 
 const t = {
   it: {
@@ -1008,6 +1086,7 @@ async function api(url, opt = {}) {
 function fmt(n) { return Number(n || 0).toLocaleString("it-IT"); }
 function money(n) { return "€" + Number(n || 0).toLocaleString("it-IT", { maximumFractionDigits: 0 }); }
 function moneyPrecise(n) { return "€" + Number(n || 0).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function moneyCurrency(n, currency) { return String(currency || "eur").toUpperCase() + " " + Number(n || 0).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function usage(u) { return (u.usage && u.usage[month]) || { total: 0, dictationSeconds: 0, events: [] }; }
 function limitOf(u) { return Number(u && u.tokenLimit || 0); }
 function planPrice(u) { return Number(u && u.planPrice || 0); }
@@ -1119,6 +1198,7 @@ async function loadAdmin() {
   if (selected && !users.some(u => u.id === selected)) selected = users[0] ? users[0].id : "";
   renderAdmin();
   refreshTemplateStatus();
+  refreshAdminConfig();
   show("adminView");
 }
 
@@ -1259,6 +1339,23 @@ async function refreshTemplateStatus() {
   }
 }
 
+async function refreshAdminConfig() {
+  const box = $("adminConfigSummary");
+  if (!box) return;
+  try {
+    const data = await api("/api/admin/config");
+    box.innerHTML = `
+      ${summaryRow("Database env: " + esc(data.database.envName), data.database.configured ? 1 : 0, 1)}
+      ${summaryRow("PostgreSQL storage", data.storageMode === "postgres" ? 1 : 0, 1)}
+      ${summaryRow("Stripe secret", data.stripe.secretConfigured ? 1 : 0, 1)}
+      ${summaryRow("Stripe webhook", data.stripe.webhookSecretConfigured ? 1 : 0, 1)}
+      <div class="empty" style="margin-top:14px">Proxy mode: <strong>${esc(data.proxy.mode)}</strong> В· currency: <strong>${esc(data.stripe.currency)}</strong></div>
+    `;
+  } catch {
+    box.innerHTML = `<div class="empty">Configurazione disponibile solo per admin.</div>`;
+  }
+}
+
 function doctorCard(u) {
   const percentage = pct(u);
   return `<button class="doctor-card" type="button" data-user="${esc(u.id)}">
@@ -1291,7 +1388,12 @@ function renderUsersTable() {
         <td><span class="pill"><span class="dot ${u.online ? "ok" : licenseDot(u)}"></span>${u.online ? "Online" : licenseLabel(u)}</span></td>
         <td>${esc(u.planName || "Senza piano")}<br><span class="note">${u.isDemo ? "Demo" : "Pagante"} · ${u.hasHtml ? "HTML caricato" : "HTML mancante"}</span></td>
         <td>${u.isDemo ? "€0" : money(planPrice(u)) + "/mese"}</td>
-        <td><button class="ghost" type="button" data-user="${esc(u.id)}">Apri</button></td>
+        <td>
+          <div class="row">
+            <button class="ghost icon-btn" type="button" title="Genera transazione limiti" data-pay-user="${esc(u.id)}">€</button>
+            <button class="ghost" type="button" data-user="${esc(u.id)}">Apri</button>
+          </div>
+        </td>
       </tr>`).join("")}
     </tbody>
   </table>`;
@@ -1385,6 +1487,41 @@ function renderUser() {
   $("blocked").classList.toggle("hidden", !blocked);
   $("blocked").textContent = me.license === "blocked" ? "Licenza bloccata." : !me.hasHtml ? "App non ancora caricata." : overLimit(me) ? "Limite token raggiunto." : "Limite ore dettate raggiunto.";
   updateConsentState();
+}
+
+function renderTransactionRows(rows, targetId) {
+  $(targetId).innerHTML = rows.map(item => `
+    <tr>
+      <td>${item.createdAt ? new Date(item.createdAt).toLocaleString("it-IT") : "-"}</td>
+      <td>${item.type === "payment" ? "Pagamento" : "Link pagamento"}</td>
+      <td>${moneyCurrency(item.amount, item.currency)}</td>
+      <td>${fmt(item.tokenLimit)} token<br><span class="note">${Number(item.dictationHourLimit || 0)} ore dettate</span></td>
+      <td>${esc(item.status || "-")}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="5"><span class="note">Nessuna transazione registrata.</span></td></tr>`;
+}
+
+async function showSelfTransactions() {
+  const data = await api("/api/me/transactions");
+  renderTransactionRows(data.transactions || [], "selfTransactionsRows");
+  $("userTransactionsPage").classList.remove("hidden");
+}
+
+async function openSessionModal() {
+  const data = await api("/api/me/sessions");
+  $("sessionRows").innerHTML = (data.sessions || []).map(s => `
+    <tr>
+      <td>${s.createdAt ? new Date(s.createdAt).toLocaleString("it-IT") : "-"}</td>
+      <td>${s.lastSeenAt ? new Date(s.lastSeenAt).toLocaleString("it-IT") : "-"}</td>
+      <td>${s.expiresAt ? new Date(s.expiresAt).toLocaleString("it-IT") : "-"}</td>
+      <td><span class="pill"><span class="dot ${s.active ? "ok" : "bad"}"></span>${s.current ? "Corrente" : s.active ? "Attiva" : "Chiusa"}</span></td>
+    </tr>
+  `).join("") || `<tr><td colspan="4"><span class="note">Nessuna sessione registrata.</span></td></tr>`;
+  $("sessionModal").classList.remove("hidden");
+}
+
+function closeSessionModal() {
+  $("sessionModal").classList.add("hidden");
 }
 
 function canOpenSelf() {
@@ -1584,13 +1721,70 @@ $("sendPaymentLink").onclick = async () => {
   setPage("detail");
 };
 
+function openTransactionModal(userId) {
+  const u = users.find(item => item.id === userId);
+  if (!u) return;
+  transactionUserId = u.id;
+  $("transactionModalTitle").textContent = "Genera transazione - " + (u.name || u.username || "utente");
+  $("transactionAmount").value = u.planPrice || "";
+  $("transactionMonth").value = month;
+  $("transactionTokenLimit").value = u.tokenLimit || 0;
+  $("transactionDictationLimit").value = u.dictationHourLimit || 0;
+  $("transactionResult").classList.add("hidden");
+  $("transactionResult").textContent = "";
+  $("transactionModal").classList.remove("hidden");
+}
+
+function closeTransactionModal() {
+  $("transactionModal").classList.add("hidden");
+  transactionUserId = "";
+}
+
+$("createTransactionLink").onclick = async () => {
+  const u = users.find(item => item.id === transactionUserId);
+  if (!u) return;
+  $("createTransactionLink").disabled = true;
+  try {
+    const result = await api("/api/users/" + u.id + "/payment-link", {
+      method: "POST",
+      body: JSON.stringify({
+        amount: Number($("transactionAmount").value || 0),
+        month: $("transactionMonth").value || month,
+        tokenLimit: Number($("transactionTokenLimit").value || 0),
+        dictationHourLimit: Number($("transactionDictationLimit").value || 0)
+      })
+    });
+    try { await navigator.clipboard.writeText(result.link.url); } catch {}
+    $("transactionResult").classList.remove("hidden");
+    $("transactionResult").innerHTML = `Link generato e copiato:<br><span class="note">${esc(result.link.url)}</span>`;
+    await loadAdmin();
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    $("createTransactionLink").disabled = false;
+  }
+};
+
+$("closeTransactionModal").onclick = closeTransactionModal;
 $("openUsageLog").onclick = openUsageModal;
 $("closeUsageLog").onclick = closeUsageModal;
 $("usageModal").addEventListener("click", e => {
   if (e.target === $("usageModal")) closeUsageModal();
 });
+$("openSelfSessions").onclick = openSessionModal;
+$("closeSessionModal").onclick = closeSessionModal;
+$("sessionModal").addEventListener("click", e => {
+  if (e.target === $("sessionModal")) closeSessionModal();
+});
+$("openSelfTransactions").onclick = showSelfTransactions;
+$("closeSelfTransactions").onclick = () => $("userTransactionsPage").classList.add("hidden");
+$("transactionModal").addEventListener("click", e => {
+  if (e.target === $("transactionModal")) closeTransactionModal();
+});
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") closeUsageModal();
+  if (e.key === "Escape") closeSessionModal();
+  if (e.key === "Escape") closeTransactionModal();
 });
 
 $("deleteUser").onclick = async () => {
@@ -1616,6 +1810,12 @@ $("openSelf").onclick = () => {
 };
 
 document.addEventListener("click", e => {
+  const payTrigger = e.target.closest("[data-pay-user]");
+  if (payTrigger) {
+    e.preventDefault();
+    openTransactionModal(payTrigger.getAttribute("data-pay-user"));
+    return;
+  }
   const trigger = e.target.closest("[data-user]");
   if (!trigger) return;
   selected = trigger.getAttribute("data-user");
