@@ -12,17 +12,21 @@ Questo Worker espone le rotte che l'HTML Refertium usa gia':
 ## Variabili/secrets da impostare su Cloudflare
 
 ```text
-OPENAI_API_KEY          chiave OpenAI lato server
-PORTAL_BASE_URL         URL online del portale, es. https://app.refertium.it
-WORKER_SHARED_SECRET    segreto condiviso con il backend del portale
-DEEPGRAM_API_KEY        opzionale, solo se usi Deepgram
+PROXY_AUTH_TOKEN             segreto condiviso con CLOUDFLARE_PROXY_AUTH nel backend
+REFERTIUM_DASHBOARD_URL      URL online del portale/backend, es. https://app.refertium.it
+REFERTIUM_ALLOWED_ORIGIN     opzionale; se assente usa l'origin di REFERTIUM_DASHBOARD_URL
+WORKER_SHARED_SECRET         segreto condiviso con il backend del portale
+OPENAI_API_KEY               chiave OpenAI lato server
+DEEPGRAM_API_KEY             opzionale, solo se usi Deepgram
 ```
 
-Il vecchio `PROXY_AUTH_TOKEN` unico non si usa piu'.
+Il Worker accetta solo richieste browser provenienti dall'origin del portale.
+Questo impedisce a un HTML salvato in locale (`file://`) o ospitato su un dominio
+esterno di riusare una pagina Refertium e consumare token.
 
-Ogni medico ha un token personale generato dal portale. Quando il portale serve
-l'HTML del medico, sostituisce `PROXY_AUTH` con quel token personale. Il Worker
-riceve quel token, chiede al portale se la licenza e' attiva, poi registra i token consumati.
+Il backend serve l'HTML del medico, sostituisce `PROXY_AUTH`, aggiunge una app
+session attiva e il Worker chiede al portale se licenza/sessione sono valide
+prima di inoltrare la richiesta ai provider AI.
 
 ## Deploy da dashboard Cloudflare
 
@@ -32,10 +36,12 @@ riceve quel token, chiede al portale se la licenza e' attiva, poi registra i tok
 4. Incolla il contenuto di `refertium-proxy-worker.js`.
 5. Salva e deploya.
 6. Vai in Settings -> Variables and Secrets.
-7. Aggiungi `OPENAI_API_KEY`.
-8. Aggiungi `PORTAL_BASE_URL`.
+7. Aggiungi `PROXY_AUTH_TOKEN`.
+8. Aggiungi `REFERTIUM_DASHBOARD_URL`.
 9. Aggiungi `WORKER_SHARED_SECRET`.
-10. Aggiungi `DEEPGRAM_API_KEY` se usi Deepgram.
+10. Aggiungi `OPENAI_API_KEY`.
+11. Aggiungi `DEEPGRAM_API_KEY` se usi Deepgram.
+12. Aggiungi `REFERTIUM_ALLOWED_ORIGIN` se l'origin pubblico del portale e' diverso da `REFERTIUM_DASHBOARD_URL`.
 10. Verifica che l'URL finale sia quello usato dall'app:
 
 ```text
@@ -49,7 +55,10 @@ Da terminale:
 ```bash
 curl -s https://refertium-api.cintioli-rc.workers.dev/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "X-Auth-Token: TOKEN_PROXY_DEL_MEDICO" \
+  -H "Origin: https://app.refertium.it" \
+  -H "X-Auth-Token: PROXY_AUTH_TOKEN" \
+  -H "X-Refertium-Proxy-Token: TOKEN_PROXY_DEL_MEDICO" \
+  -H "X-Refertium-App-Session: SESSIONE_APP_ATTIVA" \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Rispondi solo OK"}],"max_tokens":5}'
 ```
 

@@ -1,9 +1,38 @@
 const OPENAI_BASE = 'https://api.openai.com';
 const DEEPGRAM_BASE = 'https://api.deepgram.com';
 
+function allowedOrigin(env) {
+  const configured = env.REFERTIUM_ALLOWED_ORIGIN || env.REFERTIUM_DASHBOARD_URL || '';
+  if (!configured) return '';
+  try {
+    return new URL(configured).origin;
+  } catch {
+    return String(configured).replace(/\/$/, '');
+  }
+}
+
+function requestOrigin(request) {
+  const origin = request.headers.get('Origin');
+  if (origin) return origin;
+  const referer = request.headers.get('Referer') || '';
+  if (!referer) return '';
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return '';
+  }
+}
+
+function checkOrigin(request, env) {
+  const expected = allowedOrigin(env);
+  if (!expected) return false;
+  return requestOrigin(request) === expected;
+}
+
 function corsHeaders(request) {
+  const origin = request.headers.get('Origin') || '';
   return {
-    'Access-Control-Allow-Origin': request.headers.get('Origin') || '*',
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Token, X-Refertium-Proxy-Token, X-Refertium-App-Session',
     'Access-Control-Max-Age': '86400',
@@ -160,6 +189,7 @@ async function deepgramToken(request, env) {
 
 export default {
   async fetch(request, env) {
+    if (!checkOrigin(request, env)) return json({ error: 'Unauthorized origin' }, 403, request);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request) });
     if (!checkAuth(request, env)) return json({ error: 'Unauthorized proxy request' }, 401, request);
 
