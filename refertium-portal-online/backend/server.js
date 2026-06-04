@@ -1585,15 +1585,6 @@ async function handleApi(req, res, db, user, pathname) {
     requireAuth(user);
     return send(res, 200, { user: publicUser(user, { includeUsage: true }) });
   }
-  if (pathname === '/api/me/sessions' && req.method === 'GET') {
-    requireAuth(user);
-    const sid = parseCookies(req)[COOKIE] || '';
-    return send(res, 200, { sessions: await userSessions(user.id, sid) });
-  }
-  if (pathname === '/api/me/transactions' && req.method === 'GET') {
-    requireAuth(user);
-    return send(res, 200, { transactions: await userTransactions(db, user.id) });
-  }
   if (pathname === '/api/admin/config' && req.method === 'GET') {
     requireAdmin(user);
     return send(res, 200, {
@@ -1691,6 +1682,13 @@ async function handleApi(req, res, db, user, pathname) {
     const target = db.users.find(u => u.id === userTransactionsMatch[1] && u.role === 'user');
     if (!target) return send(res, 404, { error: 'Utente non trovato' });
     return send(res, 200, { transactions: await userTransactions(db, target.id) });
+  }
+  const userSessionsMatch = pathname.match(/^\/api\/users\/([^/]+)\/sessions$/);
+  if (userSessionsMatch && req.method === 'GET') {
+    requireAdmin(user);
+    const target = db.users.find(u => u.id === userSessionsMatch[1] && u.role === 'user');
+    if (!target) return send(res, 404, { error: 'Utente non trovato' });
+    return send(res, 200, { sessions: await userSessions(target.id, '') });
   }
   if (pathname === '/api/template-status' && req.method === 'GET') {
     requireAdmin(user);

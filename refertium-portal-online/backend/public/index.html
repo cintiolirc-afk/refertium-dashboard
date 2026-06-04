@@ -895,26 +895,9 @@
     </div>
     <div class="row" style="margin-top:18px">
       <button class="primary" id="openSelf" type="button">Apri Refertium</button>
-      <button class="ghost" id="openSelfSessions" type="button">Sessione</button>
-      <button class="ghost" id="openSelfTransactions" type="button">Transazioni</button>
       <button class="ghost" id="logoutUser" type="button">Esci</button>
     </div>
     <div class="empty hidden" id="blocked" style="margin-top:16px"></div>
-    <section class="card hidden" id="userTransactionsPage" style="margin-top:18px">
-      <div class="page-head" style="margin-bottom:10px">
-        <div>
-          <p class="eyebrow">Pagamenti</p>
-          <h3 style="margin:0">Transazioni</h3>
-        </div>
-        <button class="ghost" id="closeSelfTransactions" type="button">Chiudi</button>
-      </div>
-      <div class="usage-table-wrap">
-        <table>
-          <thead><tr><th>Data</th><th>Tipo</th><th>Importo</th><th>Limiti</th><th>Stato</th></tr></thead>
-          <tbody id="selfTransactionsRows"></tbody>
-        </table>
-      </div>
-    </section>
   </section>
 </main>
 
@@ -943,7 +926,7 @@
     <div class="modal-head">
       <div>
         <p class="eyebrow" style="margin:0 0 4px">Sessione</p>
-        <h3 id="sessionModalTitle">Sessione corrente</h3>
+        <h3 id="sessionModalTitle">Sessioni utente</h3>
       </div>
       <button class="ghost" id="closeSessionModal" type="button">Chiudi</button>
     </div>
@@ -952,6 +935,26 @@
         <table>
           <thead><tr><th>Creata</th><th>Ultima attivita</th><th>Scade</th><th>Stato</th></tr></thead>
           <tbody id="sessionRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="transactionsModal" role="dialog" aria-modal="true" aria-labelledby="transactionsModalTitle">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow" style="margin:0 0 4px">Pagamenti</p>
+        <h3 id="transactionsModalTitle">Transazioni utente</h3>
+      </div>
+      <button class="ghost" id="closeTransactionsModal" type="button">Chiudi</button>
+    </div>
+    <div class="modal-body">
+      <div class="usage-table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Tipo</th><th>Importo</th><th>Limiti</th><th>Stato</th></tr></thead>
+          <tbody id="transactionsRows"></tbody>
         </table>
       </div>
     </div>
@@ -1391,6 +1394,8 @@ function renderUsersTable() {
         <td>
           <div class="row">
             <button class="ghost icon-btn" type="button" title="Genera transazione limiti" data-pay-user="${esc(u.id)}">€</button>
+            <button class="ghost icon-btn" type="button" title="Sessioni utente" data-sessions-user="${esc(u.id)}">S</button>
+            <button class="ghost icon-btn" type="button" title="Transazioni utente" data-transactions-user="${esc(u.id)}">T</button>
             <button class="ghost" type="button" data-user="${esc(u.id)}">Apri</button>
           </div>
         </td>
@@ -1501,14 +1506,24 @@ function renderTransactionRows(rows, targetId) {
   `).join("") || `<tr><td colspan="5"><span class="note">Nessuna transazione registrata.</span></td></tr>`;
 }
 
-async function showSelfTransactions() {
-  const data = await api("/api/me/transactions");
-  renderTransactionRows(data.transactions || [], "selfTransactionsRows");
-  $("userTransactionsPage").classList.remove("hidden");
+async function openUserTransactionsModal(userId) {
+  const u = users.find(item => item.id === userId);
+  if (!u) return;
+  const data = await api("/api/users/" + u.id + "/transactions");
+  $("transactionsModalTitle").textContent = "Transazioni - " + (u.name || u.username || "utente");
+  renderTransactionRows(data.transactions || [], "transactionsRows");
+  $("transactionsModal").classList.remove("hidden");
 }
 
-async function openSessionModal() {
-  const data = await api("/api/me/sessions");
+function closeTransactionsModal() {
+  $("transactionsModal").classList.add("hidden");
+}
+
+async function openSessionModal(userId) {
+  const u = users.find(item => item.id === userId);
+  if (!u) return;
+  const data = await api("/api/users/" + u.id + "/sessions");
+  $("sessionModalTitle").textContent = "Sessioni - " + (u.name || u.username || "utente");
   $("sessionRows").innerHTML = (data.sessions || []).map(s => `
     <tr>
       <td>${s.createdAt ? new Date(s.createdAt).toLocaleString("it-IT") : "-"}</td>
@@ -1771,19 +1786,21 @@ $("closeUsageLog").onclick = closeUsageModal;
 $("usageModal").addEventListener("click", e => {
   if (e.target === $("usageModal")) closeUsageModal();
 });
-$("openSelfSessions").onclick = openSessionModal;
 $("closeSessionModal").onclick = closeSessionModal;
 $("sessionModal").addEventListener("click", e => {
   if (e.target === $("sessionModal")) closeSessionModal();
 });
-$("openSelfTransactions").onclick = showSelfTransactions;
-$("closeSelfTransactions").onclick = () => $("userTransactionsPage").classList.add("hidden");
+$("closeTransactionsModal").onclick = closeTransactionsModal;
+$("transactionsModal").addEventListener("click", e => {
+  if (e.target === $("transactionsModal")) closeTransactionsModal();
+});
 $("transactionModal").addEventListener("click", e => {
   if (e.target === $("transactionModal")) closeTransactionModal();
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") closeUsageModal();
   if (e.key === "Escape") closeSessionModal();
+  if (e.key === "Escape") closeTransactionsModal();
   if (e.key === "Escape") closeTransactionModal();
 });
 
@@ -1814,6 +1831,18 @@ document.addEventListener("click", e => {
   if (payTrigger) {
     e.preventDefault();
     openTransactionModal(payTrigger.getAttribute("data-pay-user"));
+    return;
+  }
+  const sessionsTrigger = e.target.closest("[data-sessions-user]");
+  if (sessionsTrigger) {
+    e.preventDefault();
+    openSessionModal(sessionsTrigger.getAttribute("data-sessions-user"));
+    return;
+  }
+  const transactionsTrigger = e.target.closest("[data-transactions-user]");
+  if (transactionsTrigger) {
+    e.preventDefault();
+    openUserTransactionsModal(transactionsTrigger.getAttribute("data-transactions-user"));
     return;
   }
   const trigger = e.target.closest("[data-user]");
