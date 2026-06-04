@@ -1393,9 +1393,9 @@ function renderUsersTable() {
         <td>${u.isDemo ? "€0" : money(planPrice(u)) + "/mese"}</td>
         <td>
           <div class="row">
-            <button class="ghost icon-btn" type="button" title="Genera transazione limiti" data-pay-user="${esc(u.id)}">€</button>
-            <button class="ghost icon-btn" type="button" title="Sessioni utente" data-sessions-user="${esc(u.id)}">S</button>
-            <button class="ghost icon-btn" type="button" title="Transazioni utente" data-transactions-user="${esc(u.id)}">T</button>
+            <button class="ghost" type="button" title="Genera link pagamento per pacchetto limiti" data-pay-user="${esc(u.id)}">Pagamento</button>
+            <button class="ghost" type="button" title="Mostra sessioni utente" data-sessions-user="${esc(u.id)}">Sessioni</button>
+            <button class="ghost" type="button" title="Mostra transazioni utente" data-transactions-user="${esc(u.id)}">Transazioni</button>
             <button class="ghost" type="button" data-user="${esc(u.id)}">Apri</button>
           </div>
         </td>
