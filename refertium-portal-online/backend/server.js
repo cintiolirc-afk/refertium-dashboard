@@ -1331,16 +1331,20 @@ function pageMessage(title, text) {
   return `<!doctype html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><body style="margin:0;background:#050505;color:#ebe2cc;font:16px system-ui;display:grid;place-items:center;min-height:100vh"><main style="max-width:520px;border:1px solid rgba(235,226,204,.18);padding:28px;border-radius:8px;background:#101010"><h1>${escapeHtml(title)}</h1><p style="color:#999">${escapeHtml(text)}</p></main></body></html>`;
 }
 
+function stripRefertiumRuntimeGuard(html) {
+  return html.replace(/<script>\s*window\.__REFERTIUM_USER__=[\s\S]*?<\/script>/g, '');
+}
+
 function rewriteRefertiumHtml(html, user) {
+  html = stripRefertiumRuntimeGuard(html);
   const usesLocalProxy = REFERTIUM_PROXY_MODE === 'local';
   if (REFERTIUM_PROXY_MODE === 'local') {
-    html = html.replace(/const\s+PROXY_URL\s*=\s*['"][^'"]*['"]\s*;/, "const PROXY_URL = window.location.origin;");
-    html = html.replace(/const\s+PROXY_AUTH\s*=\s*['"][^'"]*['"]\s*;/, "const PROXY_AUTH = 'session';");
+    html = html.replace(/const\s+PROXY_URL\s*=\s*[^;]+;/, "const PROXY_URL = window.location.origin;");
+    html = html.replace(/const\s+PROXY_AUTH\s*=\s*[^;]+;/, "const PROXY_AUTH = 'session';");
   } else {
-    html = html.replace(/const\s+PROXY_URL\s*=\s*['"][^'"]*['"]\s*;/, `const PROXY_URL = ${JSON.stringify(CLOUDFLARE_PROXY_URL)};`);
-    html = html.replace(/const\s+PROXY_AUTH\s*=\s*['"][^'"]*['"]\s*;/, `const PROXY_AUTH = ${JSON.stringify(CLOUDFLARE_PROXY_AUTH)};`);
+    html = html.replace(/const\s+PROXY_URL\s*=\s*[^;]+;/, `const PROXY_URL = ${JSON.stringify(CLOUDFLARE_PROXY_URL)};`);
+    html = html.replace(/const\s+PROXY_AUTH\s*=\s*[^;]+;/, `const PROXY_AUTH = ${JSON.stringify(CLOUDFLARE_PROXY_AUTH)};`);
   }
-  if (html.includes('window.__REFERTIUM_PROXY_MODE__=')) return html;
   const guard = `<script>
 window.__REFERTIUM_USER__=${JSON.stringify({ id: user.id, name: user.name, license: user.license, tokenLimit: user.tokenLimit })};
 window.__REFERTIUM_PROXY_MODE__=${JSON.stringify(REFERTIUM_PROXY_MODE)};
@@ -1499,7 +1503,7 @@ async function generateRefertiumHtmlForUser(user) {
   html = replaceBetweenMarkers(html, 'ENABLED_DISTRICTS', enabledDistricts.length ? `var ENABLED_DISTRICTS = ${JSON.stringify(enabledDistricts)};\n` : 'var ENABLED_DISTRICTS = null;\n');
   html = replaceBetweenMarkers(html, 'IS_VERGINE', 'var IS_VERGINE = false;\n');
   html = replaceBetweenMarkers(html, 'EDITION', `var EDITION = '${edition}';\nvar INCLUDE_DICTATION = (EDITION !== 'text');\n`);
-  return rewriteRefertiumHtml(html, user);
+  return html;
 }
 
 async function readTemplateHtml(language = 'it') {
