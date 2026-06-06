@@ -46,6 +46,7 @@ const TEMPLATE_DIR = path.join(ROOT, 'templates');
 const BUNDLED_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-premium.html');
 const BUNDLED_EN_TEMPLATE_FILE = path.join(TEMPLATE_DIR, 'refertium-premium-en.html');
 const LEGACY_TEMPLATE_FILE = path.join(ROOT, '..', 'refertium-assets', 'REFERTIUM_v52-7.html');
+const LEGACY_EN_TEMPLATE_FILE = path.join(ROOT, '..', 'refertium-assets', 'REFERTIUM_v52-7-en.html');
 const PERSISTENT_ROOT = process.env.REFERTIUM_DATA_DIR || (fss.existsSync('/var/data') ? '/var/data/refertium' : ROOT);
 const DATA_DIR = path.join(PERSISTENT_ROOT, 'data');
 const UPLOAD_DIR = path.join(PERSISTENT_ROOT, 'uploads');
@@ -1509,7 +1510,7 @@ async function generateRefertiumHtmlForUser(user) {
 async function readTemplateHtml(language = 'it') {
   const isEnglish = language === 'en';
   const candidates = isEnglish
-    ? [PERSISTENT_EN_TEMPLATE_FILE, BUNDLED_EN_TEMPLATE_FILE]
+    ? [PERSISTENT_EN_TEMPLATE_FILE, LEGACY_EN_TEMPLATE_FILE, BUNDLED_EN_TEMPLATE_FILE]
     : [PERSISTENT_TEMPLATE_FILE, BUNDLED_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
   for (const file of candidates) {
     try {
@@ -1533,6 +1534,7 @@ async function templateStatus() {
   const candidates = [
     { file: PERSISTENT_TEMPLATE_FILE, label: 'Render disk IT: templates/refertium-premium.html', lang: 'it' },
     { file: PERSISTENT_EN_TEMPLATE_FILE, label: 'Render disk EN: templates/refertium-premium-en.html', lang: 'en' },
+    { file: LEGACY_EN_TEMPLATE_FILE, label: 'GitHub EN: refertium-assets/REFERTIUM_v52-7-en.html', lang: 'en' },
     { file: BUNDLED_TEMPLATE_FILE, label: 'GitHub IT: backend/templates/refertium-premium.html', lang: 'it' },
     { file: BUNDLED_EN_TEMPLATE_FILE, label: 'GitHub EN: backend/templates/refertium-premium-en.html', lang: 'en' },
     { file: LEGACY_TEMPLATE_FILE, label: 'GitHub: refertium-assets/REFERTIUM_v52-7.html' }
