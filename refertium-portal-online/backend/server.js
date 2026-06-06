@@ -1509,8 +1509,8 @@ async function generateRefertiumHtmlForUser(user) {
 async function readTemplateHtml(language = 'it') {
   const isEnglish = language === 'en';
   const candidates = isEnglish
-    ? [BUNDLED_EN_TEMPLATE_FILE, PERSISTENT_EN_TEMPLATE_FILE]
-    : [BUNDLED_TEMPLATE_FILE, PERSISTENT_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
+    ? [PERSISTENT_EN_TEMPLATE_FILE, BUNDLED_EN_TEMPLATE_FILE]
+    : [PERSISTENT_TEMPLATE_FILE, BUNDLED_TEMPLATE_FILE, LEGACY_TEMPLATE_FILE];
   for (const file of candidates) {
     try {
       const html = await fs.readFile(file, 'utf8');
@@ -1531,10 +1531,10 @@ function isValidRefertiumTemplate(html) {
 
 async function templateStatus() {
   const candidates = [
-    { file: BUNDLED_TEMPLATE_FILE, label: 'GitHub IT: backend/templates/refertium-premium.html', lang: 'it' },
-    { file: BUNDLED_EN_TEMPLATE_FILE, label: 'GitHub EN: backend/templates/refertium-premium-en.html', lang: 'en' },
     { file: PERSISTENT_TEMPLATE_FILE, label: 'Render disk IT: templates/refertium-premium.html', lang: 'it' },
     { file: PERSISTENT_EN_TEMPLATE_FILE, label: 'Render disk EN: templates/refertium-premium-en.html', lang: 'en' },
+    { file: BUNDLED_TEMPLATE_FILE, label: 'GitHub IT: backend/templates/refertium-premium.html', lang: 'it' },
+    { file: BUNDLED_EN_TEMPLATE_FILE, label: 'GitHub EN: backend/templates/refertium-premium-en.html', lang: 'en' },
     { file: LEGACY_TEMPLATE_FILE, label: 'GitHub: refertium-assets/REFERTIUM_v52-7.html' }
   ];
   const byLanguage = { it: null, en: null };
