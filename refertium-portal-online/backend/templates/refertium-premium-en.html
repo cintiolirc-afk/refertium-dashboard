@@ -449,7 +449,7 @@
       <button id="btnRewrite" class="tbtn" title="Rewrite selection with AI">Rewrite with AI</button>
     </div>
     <div class="tool-group">
-            <button id="clToggle" class="cl-toggle" type="button" title="Checklist strutturata">
+            <button id="clToggle" class="cl-toggle" type="button" title="Structured checklist">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 11l3 3L22 4"/>
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
@@ -502,16 +502,16 @@
 
     <div id="clBackdrop" class="cl-backdrop"></div>
     <!-- ─── Checklist pannello inline ─── -->
-    <aside id="clDrawer" class="cl-drawer" aria-label="Checklist strutturata">
+    <aside id="clDrawer" class="cl-drawer" aria-label="Structured checklist">
   <header class="cl-header">
     <div class="cl-title-row">
       <span class="cl-title">Checklist<span class="accent">.</span></span>
-      <button id="clCloseBtn" class="cl-close" type="button" title="Chiudi">
+      <button id="clCloseBtn" class="cl-close" type="button" title="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <select id="clTemplateSelect" class="cl-template-select" aria-label="Seleziona esame">
-      <option value="">— Seleziona esame —</option>
+    <select id="clTemplateSelect" class="cl-template-select" aria-label="Select exam">
+      <option value="">— Select exam —</option>
     </select>
     <div class="cl-meta-bar">
       <span id="clProgress" class="progress"></span>
@@ -520,18 +520,18 @@
   </header>
   <div id="clBody" class="cl-body">
     <div class="cl-empty">
-      Seleziona un esame dall'elenco qui sopra.<br><br>
-      Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
-      oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
+      Select an exam from the list above.<br><br>
+      For each item, press <strong>Normal</strong> if the finding is unremarkable,
+      or <strong>Note</strong> and type the description of the abnormal finding.
     </div>
   </div>
   <footer class="cl-footer">
-    <button id="clResetBtn" class="cl-btn cl-btn-ghost" type="button">Azzera</button>
+    <button id="clResetBtn" class="cl-btn cl-btn-ghost" type="button">Reset</button>
     <button id="clGenerateBtn" class="cl-btn cl-btn-primary" type="button" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3l1.9 4.7L18 9.5l-4.1 1.8L12 16l-1.9-4.7L6 9.5l4.1-1.8z"/>
       </svg>
-      Genera referto
+      Generate report
     </button>
   </footer>
 </aside>
@@ -2256,9 +2256,9 @@ window.CHECKLIST_TEMPLATES = {
     if (!id) {
       body.innerHTML = `
         <div class="cl-empty">
-          Seleziona un esame dall'elenco qui sopra.<br><br>
-          Per ogni voce premi <strong>Normale</strong> se il reperto è regolare,
-          oppure <strong>Nota</strong> e scrivi la descrizione del reperto patologico.
+          Select an exam from the list above.<br><br>
+          For each item, press <strong>Normal</strong> if the finding is unremarkable,
+          or <strong>Note</strong> and type the description of the abnormal finding.
         </div>`;
       progress.textContent = '';
       modality.style.display = 'none';
@@ -2292,7 +2292,7 @@ window.CHECKLIST_TEMPLATES = {
     const btnNormal = document.createElement('button');
     btnNormal.className = 'cl-state-btn' + (v.state === 'normal' ? ' active normal' : '');
     btnNormal.type = 'button';
-    btnNormal.textContent = 'Normale';
+    btnNormal.textContent = 'Normal';
     btnNormal.addEventListener('click', () => {
       cstate.voci[voce.id] = { state: v.state === 'normal' ? null : 'normal', text: '' };
       saveState();
@@ -2306,7 +2306,7 @@ window.CHECKLIST_TEMPLATES = {
     const btnPrompt = document.createElement('button');
     btnPrompt.className = 'cl-state-btn' + (v.state === 'prompt' ? ' active prompt' : '');
     btnPrompt.type = 'button';
-    btnPrompt.textContent = 'Nota';
+    btnPrompt.textContent = 'Note';
     btnPrompt.addEventListener('click', () => {
       cstate.voci[voce.id] = { state: v.state === 'prompt' ? null : 'prompt', text: v.text || '' };
       saveState();
@@ -2350,7 +2350,7 @@ window.CHECKLIST_TEMPLATES = {
       const micBtn = document.createElement('button');
       micBtn.type = 'button';
       micBtn.className = 'cl-mic-btn';
-      micBtn.title = 'Detta nel campo';
+      micBtn.title = 'Dictate into field';
       const micSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
       micBtn.innerHTML = micSvg;
       let dictCtrl = null;
@@ -2441,7 +2441,7 @@ window.CHECKLIST_TEMPLATES = {
 
     generateBtn.disabled = true;
     const oldLabel = generateBtn.innerHTML;
-    generateBtn.innerHTML = '⏳ Genero…';
+    generateBtn.innerHTML = '⏳ Generating…';
 
     try {
       const draft = await generateReportFromChecklist(tpl, voci);
@@ -2466,7 +2466,7 @@ window.CHECKLIST_TEMPLATES = {
       closeDrawer();
     } catch (err) {
       console.error('checklist generate failed:', err);
-      alert('Errore generazione: ' + (err.message || 'sconosciuto'));
+      alert('Generation error: ' + (err.message || 'unknown'));
     } finally {
       generateBtn.innerHTML = oldLabel;
       updateProgress();
@@ -2476,26 +2476,26 @@ window.CHECKLIST_TEMPLATES = {
   // Riempie il riepilogo voci e chiama l'AI per ricomporre un referto continuo.
   async function generateReportFromChecklist(tpl, voci) {
     if (typeof window.streamChatCompletion !== 'function') {
-      throw new Error('streamChatCompletion non disponibile');
+      throw new Error('streamChatCompletion not available');
     }
     const lines = voci.map((v) => {
-      if (v.normale) return '- ' + v.nome + ': [NORMALE] ' + v.normale;
-      return '- ' + v.nome + ': [REPERTO] ' + v.nota;
+      if (v.normale) return '- ' + v.nome + ': [NORMAL] ' + v.normale;
+      return '- ' + v.nome + ': [FINDING] ' + v.nota;
     }).join('\n');
 
     const system = [
-      'Sei un radiologo esperto. Hai una lista di voci di una checklist strutturata',
-      'per l\'esame "' + tpl.label + '" (modalità ' + (tpl.modalita || 'radiologica') + ').',
-      'Per ciascuna voce ho indicato se è NORMALE (con la frase standard già pronta) o',
-      'se ho aggiunto un REPERTO patologico (descritto in modo informale).',
-      'Componi un referto radiologico continuo in italiano, ben strutturato, con:',
-      '- una sezione REPERTI che integra le voci nell\'ordine dato, riformulando',
-      '  in prosa medica corretta (mantieni i contenuti, non inventare nulla);',
-      '- una sezione CONCLUSIONI sintetica, coerente con i reperti.',
-      'Mantieni i numeri, le misure e i termini medici esatti. Per le voci NORMALI usa',
-      'la frase standard fornita (eventualmente accorciata). Per i REPERTI espandi in',
-      'linguaggio radiologico professionale.',
-      'Output: SOLO il referto, niente commenti.',
+      'You are an expert radiologist. You have a list of items from a structured checklist',
+      'for the exam "' + tpl.label + '" (modality ' + (tpl.modalita || 'radiologic') + ').',
+      'For each item I have indicated whether it is NORMAL (with the standard sentence already provided) or',
+      'whether I have added an abnormal FINDING (described informally).',
+      'Compose a continuous, well-structured radiology report in English, with:',
+      '- a FINDINGS section that integrates the items in the given order, rephrasing',
+      '  them in correct medical prose (keep the content, do not invent anything);',
+      '- a concise IMPRESSION section consistent with the findings.',
+      'Keep numbers, measurements and exact medical terms. For NORMAL items use',
+      'the standard sentence provided (optionally shortened). For FINDINGS expand into',
+      'professional radiology language.',
+      'Output: ONLY the report, no comments.',
     ].join(' ');
 
     let buffer = '';
